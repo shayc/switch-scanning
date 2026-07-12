@@ -1,0 +1,39 @@
+/**
+ * Optional switch-scanning presentation. The library injects no CSS itself;
+ * import this stylesheet to get sensible, forced-colors-aware defaults, or
+ * write your own against the same presence attributes.
+ *
+ *   import "@shayc/switch-scanning/styles.css";
+ *
+ * Tunable custom properties:
+ *   --scan-outline-width, --scan-outline-color, --scan-outline-offset
+ */
+
+[data-scan-highlighted] {
+  outline: var(--scan-outline-width, 4px) solid var(--scan-outline-color, CanvasText);
+  outline-offset: var(--scan-outline-offset, 3px);
+}
+
+[data-scan-within] {
+  outline: var(--scan-within-width, 2px) dashed var(--scan-within-color, CanvasText);
+  outline-offset: var(--scan-within-offset, 2px);
+}
+
+[data-scan-exit-highlighted] {
+  position: relative;
+  outline: var(--scan-outline-width, 4px) dashed var(--scan-outline-color, CanvasText);
+  outline-offset: var(--scan-outline-offset, 3px);
+}
+
+[data-scan-exit-highlighted]::after {
+  content: attr(data-scan-exit-label);
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: CanvasText;
+  background: Canvas;
+  border: 2px solid CanvasText;
+  pointer-events: none;
+}

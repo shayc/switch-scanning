@@ -1,0 +1,175 @@
+import { act, cleanup, render } from "@testing-library/react";
+import { StrictMode } from "react";
+import { afterEach, describe, expect, it } from "vitest";
+import { manualClock, type ManualClock } from "../core/index.ts";
+import { autoScan, stepScan } from "../core/index.ts";
+import { ScannerProvider } from "./ScannerProvider.tsx";
+import { useKeyboardSwitches } from "./useKeyboardSwitches.ts";
+import { useScanGroup } from "./useScanGroup.ts";
+import { useScanner } from "./useScanner.ts";
+import { useScanTarget } from "./useScanTarget.ts";
+
+afterEach(cleanup);
+
+function TargetButton({
+  id,
+  label,
+  onActivate,
+}: {
+  id: string;
+  label: string;
+  onActivate?: () => void;
+}) {
+  const target = useScanTarget({ id, label });
+  return (
+    <button {...target.props} onClick={onActivate}>
+      {label}
+    </button>
+  );
+}
+
+async function flushMicrotasks(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
+/**
+ * A harness that exposes the scanner so we can drive commands and assert
+ * imperative DOM attributes.
+ */
+function Harness({
+  clock,
+  onReady,
+  grouped = false,
+}: {
+  clock: ManualClock;
+  onReady: (scanner: ReturnType<typeof useScanner>) => void;
+  grouped?: boolean;
+}) {
+  const scanner = useScanner({
+    style: grouped ? stepScan() : autoScan({ intervalMs: 1000, loops: 3 }),
+    startOn: "command",
+    switches: { select: { action: "select" }, next: { action: "next" } },
+    clock,
+  });
+  onReady(scanner);
+  return (
+    <ScannerProvider scanner={scanner}>
+      {grouped ? (
+        <Row />
+      ) : (
+        <>
+          <TargetButton id="yes" label="Yes" />
+          <TargetButton id="no" label="No" />
+        </>
+      )}
+    </ScannerProvider>
+  );
+}
+
+function Row() {
+  const group = useScanGroup({ id: "row1", label: "Row 1", exitLabel: "Back" });
+  return (
+    <div {...group.props}>
+      <TargetButton id="a" label="A" />
+      <TargetButton id="b" label="B" />
+    </div>
+  );
+}
+
+describe("imperative driving", () => {
+  it("writes data-scan-highlighted imperatively and follows the interval", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+    const view = render(<Harness clock={clock} onReady={(s) => (scanner = s)} />);
+    await flushMicrotasks();
+
+    act(() => scanner.start());
+    expect(view.getByText("Yes").getAttribute("data-scan-highlighted")).toBe("");
+    expect(view.getByText("No").hasAttribute("data-scan-highlighted")).toBe(false);
+
+    act(() => clock.advanceBy(1000));
+    expect(view.getByText("Yes").hasAttribute("data-scan-highlighted")).toBe(false);
+    expect(view.getByText("No").getAttribute("data-scan-highlighted")).toBe("");
+  });
+
+  it("derives group structure from DOM containment and exposes an exit", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+    const view = render(<Harness clock={clock} grouped onReady={(s) => (scanner = s)} />);
+    await flushMicrotasks();
+
+    act(() => scanner.start());
+    // First root candidate is the group itself.
+    expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "row1" });
+    act(() => scanner.select()); // enter group
+    expect(scanner.getSnapshot().path).toEqual(["row1"]);
+    expect(view.getByText("A").getAttribute("data-scan-highlighted")).toBe("");
+    // The group element is marked as containing the highlight.
+    expect(view.getByText("A").closest("[data-scan-group]")?.getAttribute("data-scan-within")).toBe("");
+  });
+});
+
+describe("keyboard switches", () => {
+  it("operates a declared switch from KeyboardEvent.code", async () => {
+    const clock = manualClock();
+    const activated: string[] = [];
+
+    function KeyApp() {
+      const scanner = useScanner({
+        style: stepScan(),
+        startOn: "switch",
+        switches: { select: { action: "select" }, next: { action: "next" } },
+        clock,
+      });
+      useKeyboardSwitches(scanner, { Space: "next", Enter: "select" });
+      return (
+        <ScannerProvider scanner={scanner}>
+          <TargetButton id="x" label="X" onActivate={() => activated.push("x")} />
+          <TargetButton id="y" label="Y" onActivate={() => activated.push("y")} />
+        </ScannerProvider>
+      );
+    }
+
+    render(<KeyApp />);
+    await flushMicrotasks();
+
+    // First keydown starts scanning (consumed).
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    });
+    // Advance to Y.
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    });
+    // Select Y.
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Enter" }));
+      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Enter" }));
+    });
+    expect(activated).toEqual(["y"]);
+  });
+});
+
+describe("Strict Mode", () => {
+  it("survives the extra setup/cleanup/setup cycle without disposing", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+
+    render(
+      <StrictMode>
+        <Harness clock={clock} onReady={(s) => (scanner = s)} />
+      </StrictMode>,
+    );
+    await flushMicrotasks();
+
+    // Scanner is still fully operable after Strict Mode's double lifecycle.
+    act(() => scanner.start());
+    expect(scanner.getSnapshot().status).toBe("scanning");
+    act(() => clock.advanceBy(1000));
+    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+  });
+});
