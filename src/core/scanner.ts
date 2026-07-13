@@ -1,19 +1,28 @@
 import type { Clock, Scheduler } from "./clock.ts";
 import { systemClock } from "./clock.ts";
-import { createGestureEngine, type GestureEngine, type GestureSink } from "./gestures.ts";
 import {
-  ScanSession,
-  snapshotEquals,
-  type SessionEffect,
-} from "./session.ts";
-import type { ScanStyle } from "./styles.ts";
+  createGestureEngine,
+  type GestureEngine,
+  type GestureSink,
+} from "./gestures.ts";
+import { ScanSession, snapshotEquals, type SessionEffect } from "./session.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
-import { normalizeSwitches, type DiscreteAction, type NormalizedSwitch } from "./switches.ts";
-import { compileTree, DuplicateScanNodeIdError, type CompiledTree } from "./tree.ts";
+import type { ScanStyle } from "./styles.ts";
+import {
+  normalizeSwitches,
+  type DiscreteAction,
+  type NormalizedSwitch,
+} from "./switches.ts";
+import {
+  compileTree,
+  DuplicateScanNodeIdError,
+  type CompiledTree,
+} from "./tree.ts";
 import type {
   ActivationResult,
   AfterActivation,
   GroupExit,
+  ScanGroupNode,
   Scanner,
   ScannerDiagnosticCode,
   ScannerEvent,
@@ -22,8 +31,6 @@ import type {
   ScannerOptions,
   ScannerSnapshot,
   ScannerStatus,
-  ScanGroupNode,
-  ScanTargetNode,
   StartOn,
 } from "./types.ts";
 
@@ -220,7 +227,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function resolveLoopLimit(): number | null {
     const style = options.style;
     if (style.kind === "auto" || style.kind === "inverse") {
-      return style.loops === "infinite" ? Number.POSITIVE_INFINITY : style.loops;
+      return style.loops === "infinite"
+        ? Number.POSITIVE_INFINITY
+        : style.loops;
     }
     return null;
   }
@@ -250,12 +259,17 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function activateTarget(id: string): void {
     styleRuntime.cancelDeadline();
     const node = tree.byId.get(id);
-    const target = node && node.kind === "target" ? (node as ScanTargetNode) : null;
+    const target = node && node.kind === "target" ? node : null;
     const label = target?.label ?? id;
 
     if (!target || target.disabled === true) {
       diagnostic("activation-missing-target", `cannot activate target "${id}"`);
-      emit({ type: "target.activationFailed", id, label, reason: "ineligible" });
+      emit({
+        type: "target.activationFailed",
+        id,
+        label,
+        reason: "ineligible",
+      });
       styleRuntime.landed(session.firstOfPass);
       return;
     }
@@ -277,7 +291,12 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       emit({ type: "target.activated", id, label });
       applyAfterActivation();
     } else {
-      emit({ type: "target.activationFailed", id, label, reason: result.reason });
+      emit({
+        type: "target.activationFailed",
+        id,
+        label,
+        reason: result.reason,
+      });
       styleRuntime.landed(session.firstOfPass);
     }
   }
@@ -317,7 +336,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function maybeStartOnMount(): boolean {
-    if (!mountStartPending || options.startOn !== "mount" || status !== "idle") return false;
+    if (!mountStartPending || options.startOn !== "mount" || status !== "idle")
+      return false;
     mountStartPending = false;
     startScan();
     commit();
@@ -404,7 +424,10 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function requireScanning(command: string): boolean {
     if (status === "scanning") return true;
-    diagnostic("command-inapplicable", `${command}() ignored while status is "${status}"`);
+    diagnostic(
+      "command-inapplicable",
+      `${command}() ignored while status is "${status}"`,
+    );
     return false;
   }
 
@@ -438,13 +461,18 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   const scanner: Scanner = {
     start: serialized(() => {
-      if (disposed) return diagnostic("use-after-dispose", "start() after dispose()");
+      if (disposed)
+        return diagnostic("use-after-dispose", "start() after dispose()");
       startScan();
       commit();
     }),
     pause: serialized(() => {
       if (disposed || status !== "scanning") {
-        if (!disposed) diagnostic("command-inapplicable", `pause() ignored while "${status}"`);
+        if (!disposed)
+          diagnostic(
+            "command-inapplicable",
+            `pause() ignored while "${status}"`,
+          );
         return;
       }
       styleRuntime.cancelDeadline();
@@ -455,7 +483,10 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     resume: serialized(() => {
       if (disposed) return;
       if (status !== "paused") {
-        diagnostic("command-inapplicable", `resume() ignored while "${status}"`);
+        diagnostic(
+          "command-inapplicable",
+          `resume() ignored while "${status}"`,
+        );
         return;
       }
       status = "scanning";
@@ -518,7 +549,10 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         tree = compileTree(root);
       } catch (error) {
         if (error instanceof DuplicateScanNodeIdError) {
-          diagnostic("duplicate-id", `${error.message}; keeping the previous tree`);
+          diagnostic(
+            "duplicate-id",
+            `${error.message}; keeping the previous tree`,
+          );
           return;
         }
         throw error;
@@ -532,7 +566,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       let detached = false;
       runTransition(() => {
         if (detached || disposed) return;
-        if (host) diagnostic("second-host-attach", "a host is already attached");
+        if (host)
+          diagnostic("second-host-attach", "a host is already attached");
         host = next;
         if (options.startOn === "mount") {
           mountStartPending = true;
@@ -568,7 +603,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     gestures.setSwitches(options.switches);
 
     if (!options.enabled) {
-      if (status === "scanning" || status === "paused") internalStop("disabled");
+      if (status === "scanning" || status === "paused")
+        internalStop("disabled");
       return;
     }
 
@@ -597,14 +633,19 @@ function defaultInfrastructure(): Clock & Scheduler {
   return sharedInfrastructure;
 }
 
-function resolveInfrastructure(options: ScannerOptions): { clock: Clock; scheduler: Scheduler } {
+function resolveInfrastructure(options: ScannerOptions): {
+  clock: Clock;
+  scheduler: Scheduler;
+} {
   const { clock, scheduler } = options;
   if (clock === undefined && scheduler === undefined) {
     const infrastructure = defaultInfrastructure();
     return { clock: infrastructure, scheduler: infrastructure };
   }
   if (clock === undefined) {
-    throw new TypeError("[switch-scanning] a custom scheduler requires a paired clock");
+    throw new TypeError(
+      "[switch-scanning] a custom scheduler requires a paired clock",
+    );
   }
   if (scheduler !== undefined) return { clock, scheduler };
   if (isScheduler(clock)) return { clock, scheduler: clock };
