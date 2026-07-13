@@ -209,6 +209,22 @@ describe("step scanning", () => {
       id: "yes",
     });
   });
+
+  it("clears observable repeat timing when the held switch releases", () => {
+    const { clock, scanner } = build(
+      {
+        style: stepScan({ repeat: { delayMs: 100, intervalMs: 50 } }),
+        switches: { next: { action: "next" } },
+      },
+      YES_NO,
+    );
+    scanner.start();
+    scanner.input.press("next");
+    expect(scanner.getSnapshot().pending).toMatchObject({ kind: "advance" });
+    scanner.input.release("next");
+    expect(scanner.getSnapshot().pending).toBeNull();
+    expect(clock.pending).toBe(0);
+  });
 });
 
 describe("single-switch step scanning", () => {

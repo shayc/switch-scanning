@@ -11,6 +11,8 @@ export interface AutoScanStyle {
   readonly intervalMs: number;
   readonly loops: LoopLimit;
   readonly firstItemPauseMs: number;
+  /** Additional recovery time before automatic scanning resumes after selection. */
+  readonly transitionTimeMs: number;
 }
 
 export interface StepScanRepeat {
@@ -42,6 +44,7 @@ export interface AutoScanOptions {
   intervalMs: number;
   loops: LoopLimit;
   firstItemPauseMs?: number;
+  transitionTimeMs?: number;
 }
 
 export interface StepScanOptions {
@@ -87,12 +90,15 @@ export function autoScan(options: AutoScanOptions): AutoScanStyle {
   assertPositive(options.intervalMs, "intervalMs");
   assertLoops(options.loops);
   const firstItemPauseMs = options.firstItemPauseMs ?? 0;
+  const transitionTimeMs = options.transitionTimeMs ?? 0;
   assertNonNegative(firstItemPauseMs, "firstItemPauseMs");
+  assertNonNegative(transitionTimeMs, "transitionTimeMs");
   return Object.freeze({
     kind: "auto",
     intervalMs: options.intervalMs,
     loops: options.loops,
     firstItemPauseMs,
+    transitionTimeMs,
   });
 }
 

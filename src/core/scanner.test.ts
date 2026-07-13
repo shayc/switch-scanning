@@ -129,6 +129,7 @@ describe("serialized transitions", () => {
     expect(events.events.map((event) => event.type)).toEqual([
       "scan.started",
       "highlight.changed",
+      "highlight.changed",
       "scan.stopped",
     ]);
   });

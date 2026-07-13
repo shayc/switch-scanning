@@ -1,5 +1,9 @@
-import { useRef, useState } from "react";
-import { useScannerEvents, type ScannerEvent } from "@shayc/switch-scanning";
+import { useEffect, useRef, useState } from "react";
+import {
+  useScannerEvents,
+  type Scanner,
+  type ScannerEvent,
+} from "@shayc/switch-scanning";
 
 interface LoggedEvent {
   id: number;
@@ -13,9 +17,58 @@ const MAX_EVENTS = 50;
  * The documented "events → feedback" pattern: a single listener drives both the
  * on-screen log and (optionally) speech. Feedback observes; it never commands.
  */
-export function EventLog({ speech }: { speech: boolean }) {
+export function EventLog({
+  scanner,
+  speech,
+}: {
+  scanner: Scanner;
+  speech: boolean;
+}) {
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const nextId = useRef(0);
+  const generation = useRef(0);
+  const promptPaused = useRef(false);
+  const messageActive = useRef(false);
+  const queuedPrompt = useRef<string | null>(null);
+
+  const finishPrompt = (token: number): void => {
+    if (generation.current !== token || !promptPaused.current) return;
+    promptPaused.current = false;
+    if (scanner.getSnapshot().status === "paused") scanner.resume();
+  };
+
+  const speakPrompt = (label: string): void => {
+    const synth = window.speechSynthesis;
+    const token = ++generation.current;
+    synth.cancel();
+    if (scanner.getSnapshot().status === "scanning") {
+      scanner.pause();
+      promptPaused.current = true;
+    }
+    const cue = new SpeechSynthesisUtterance(label);
+    cue.voice = synth.getVoices()[0] ?? null;
+    cue.onend = () => finishPrompt(token);
+    cue.onerror = () => finishPrompt(token);
+    synth.speak(cue);
+  };
+
+  const speakMessage = (label: string): void => {
+    const synth = window.speechSynthesis;
+    generation.current++;
+    synth.cancel();
+    messageActive.current = true;
+    const cue = new SpeechSynthesisUtterance(label);
+    cue.voice = synth.getVoices().at(-1) ?? null;
+    const settle = () => {
+      messageActive.current = false;
+      const prompt = queuedPrompt.current;
+      queuedPrompt.current = null;
+      if (prompt) speakPrompt(prompt);
+    };
+    cue.onend = settle;
+    cue.onerror = settle;
+    synth.speak(cue);
+  };
 
   useScannerEvents((event) => {
     const entry: LoggedEvent = {
@@ -25,8 +78,48 @@ export function EventLog({ speech }: { speech: boolean }) {
     };
     // Newest-first, capped so the log cannot grow without bound.
     setEvents((prev) => [entry, ...prev].slice(0, MAX_EVENTS));
-    if (speech) speakFor(event);
+    if (!speech || typeof SpeechSynthesisUtterance === "undefined") return;
+    if (event.type === "target.activated") {
+      speakMessage(event.label);
+    } else if (event.type === "highlight.changed") {
+      if (event.current === null) {
+        queuedPrompt.current = null;
+        if (promptPaused.current) {
+          generation.current++;
+          window.speechSynthesis.cancel();
+          promptPaused.current = false;
+        }
+      } else if (messageActive.current) {
+        if (scanner.getSnapshot().status === "scanning") {
+          scanner.pause();
+          promptPaused.current = true;
+        }
+        queuedPrompt.current = event.label;
+      } else {
+        speakPrompt(event.label);
+      }
+    }
   });
+
+  useEffect(() => {
+    if (speech) return;
+    generation.current++;
+    queuedPrompt.current = null;
+    messageActive.current = false;
+    window.speechSynthesis?.cancel();
+    if (promptPaused.current) {
+      promptPaused.current = false;
+      if (scanner.getSnapshot().status === "paused") scanner.resume();
+    }
+  }, [scanner, speech]);
+
+  useEffect(
+    () => () => {
+      generation.current++;
+      window.speechSynthesis?.cancel();
+    },
+    [],
+  );
 
   return (
     <section className="panel log-panel" aria-label="Event log">
@@ -55,12 +148,16 @@ function describe(event: ScannerEvent): string {
       return "paused";
     case "scan.resumed":
       return "resumed";
+    case "scan.transitionStarted":
+      return "selection transition started";
+    case "scan.transitionEnded":
+      return "selection transition ended";
     case "scan.completed":
       return `completed (${event.reason})`;
     case "scan.stopped":
       return `stopped (${event.reason})`;
     case "highlight.changed":
-      return event.label;
+      return event.current === null ? "highlight cleared" : event.label;
     case "group.entered":
       return `entered ${event.label}`;
     case "group.exited":
@@ -74,19 +171,4 @@ function describe(event: ScannerEvent): string {
     case "diagnostic":
       return `${event.code}: ${event.message}`;
   }
-}
-
-/** Speak highlight moves and activations when the speech toggle is on. */
-function speakFor(event: ScannerEvent): void {
-  if (typeof window === "undefined") return;
-  const synth = window.speechSynthesis;
-  if (!synth || typeof SpeechSynthesisUtterance === "undefined") return;
-
-  let text: string | null = null;
-  if (event.type === "highlight.changed") text = event.label;
-  else if (event.type === "target.activated") text = event.label;
-  if (text === null) return;
-
-  synth.cancel();
-  synth.speak(new SpeechSynthesisUtterance(text));
 }

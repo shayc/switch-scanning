@@ -89,4 +89,56 @@ describe("registry tree compiler", () => {
 
     expect(reportParentCycle).toHaveBeenCalledWith(["a", "b"]);
   });
+
+  it("applies explicit sequences deterministically and diagnoses mismatches", () => {
+    const warn = vi.fn();
+    const groups = new Map<string, RegistryGroupEntry>([
+      [
+        "group",
+        {
+          id: "group",
+          element: null,
+          getOptions: () => ({
+            id: "group",
+            label: "Group",
+            exitLabel: "Leave",
+            disabled: true,
+            sequence: ["b", "b", "missing"],
+          }),
+        },
+      ],
+    ]);
+    const targets = new Map<string, RegistryTargetEntry>(
+      ["a", "b", "c"].map((id) => [
+        id,
+        {
+          id,
+          element: null,
+          getOptions: () => ({
+            id,
+            label: id.toUpperCase(),
+            groupId: "group",
+            ...(id === "a" ? { metadata: { example: true } } : {}),
+          }),
+        },
+      ]),
+    );
+
+    const tree = compileRegistryTree(targets, groups, new Map(), {
+      reportParentCycle: vi.fn(),
+      warn,
+    });
+    expect(tree.children[0]).toMatchObject({
+      kind: "group",
+      id: "group",
+      exitLabel: "Leave",
+      disabled: true,
+      children: [
+        { id: "b" },
+        { id: "a", metadata: { example: true } },
+        { id: "c" },
+      ],
+    });
+    expect(warn).toHaveBeenCalledTimes(3);
+  });
 });

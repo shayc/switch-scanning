@@ -1,11 +1,12 @@
-import type { Clock, Scheduler } from "./clock.ts";
+import type { CancelScheduled, Clock, Scheduler } from "./clock.ts";
 import { systemClock } from "./clock.ts";
 import {
   createGestureEngine,
+  type GestureContext,
   type GestureEngine,
   type GestureSink,
 } from "./gestures.ts";
-import { ScanSession, type SessionEffect } from "./session.ts";
+import { highlightEquals, ScanSession, type SessionEffect } from "./session.ts";
 import { createScannerStore } from "./scannerStore.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
 import type { ScanStyle } from "./styles.ts";
@@ -24,6 +25,7 @@ import type {
   AfterActivation,
   GroupExit,
   Highlight,
+  PendingTiming,
   ScanGroupNode,
   Scanner,
   ScannerDiagnosticCode,
@@ -34,6 +36,11 @@ import type {
   StartOn,
 } from "./types.ts";
 
+interface NormalizedSelectionDelay {
+  durationMs: number;
+  resetOnInput: boolean;
+}
+
 interface NormalizedOptions {
   style: ScanStyle;
   switches: Map<string, NormalizedSwitch>;
@@ -41,6 +48,21 @@ interface NormalizedOptions {
   afterActivation: AfterActivation;
   groupExit: GroupExit;
   enabled: boolean;
+  selectionDelay: NormalizedSelectionDelay;
+}
+
+type Presentation = {
+  highlight: NonNullable<Highlight>;
+  label: string;
+} | null;
+
+interface ActiveTransition {
+  fixedDueAt: number;
+  quietDueAt: number;
+  quietDurationMs: number;
+  resetOnInput: boolean;
+  effectiveDueAt: number;
+  cancel: CancelScheduled | null;
 }
 
 const EMPTY_ROOT: ScanGroupNode = {
@@ -58,12 +80,17 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   let tree: CompiledTree = compileTree(EMPTY_ROOT);
   const session = new ScanSession(tree, options.groupExit);
   let host: ScannerHost | null = null;
+  let presentation: Presentation = null;
+  let pending: PendingTiming | null = null;
+  let transition: ActiveTransition | null = null;
   let disposed = false;
   let hasPublishedTree = false;
   let mountStartPending = options.startOn === "mount";
   let status: ScannerStatus = "idle";
 
-  const store = createScannerStore(() => session.snapshot(status));
+  const store = createScannerStore(() =>
+    session.snapshot(status, presentation?.highlight ?? null, pending),
+  );
   const { runTransition, serialized, commit, emit, reportBoundaryError } =
     store;
 
@@ -77,21 +104,31 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     },
   };
 
+  function setPending(next: PendingTiming | null): void {
+    pending = next;
+  }
+
   const styleRuntime: StyleRuntime = createStyleRuntime({
     style: options.style,
+    clock,
     scheduler,
     isScanning: () => status === "scanning",
     advance: onAdvanceTick,
     select: onDwellExpire,
+    pendingChanged: setPending,
   });
 
   const sink: GestureSink = {
+    pressStarted: onRawPressStarted,
     discreteAction: (action, context) =>
-      handleSwitchAction(action, context.heldPress, context.sourceKey),
-    pressReleased: (sourceKey) => styleRuntime.releaseRepeatOwner(sourceKey),
-    scanPress: (context) => onScanPress(context.sourceKey),
-    scanRelease: (context) => onScanRelease(context.sourceKey),
-    scanCancel: (sourceKey) => onScanCancel(sourceKey),
+      handleSwitchAction(action, context.heldPress, context),
+    pressReleased: (context) => {
+      styleRuntime.releaseRepeatOwner(context.sourceKey);
+      commit();
+    },
+    scanPress: onScanPress,
+    scanRelease: onScanRelease,
+    scanCancel: onScanCancel,
     unknownSwitch: (switchId) =>
       diagnostic(
         "unknown-switch-binding",
@@ -104,31 +141,71 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     clock,
     scheduler,
     sink,
+    isTransitioning: () => status === "transitioning",
   });
 
-  // Drive the host's optional presentation, isolating a faulty host so a reveal
-  // failure never interrupts publication. Passing `null` clears any decoration.
-  function revealHighlight(highlight: Highlight): void {
-    if (!host?.reveal) return;
+  function revealWith(targetHost: ScannerHost, highlight: Highlight): void {
+    if (!targetHost.reveal) return;
     try {
-      host.reveal(highlight);
+      targetHost.reveal(highlight);
     } catch (error) {
       reportBoundaryError(error, "host reveal");
     }
   }
 
-  function applySessionEffects(effects: readonly SessionEffect[]): void {
+  function setPresentation(next: Presentation): void {
+    const same =
+      (presentation === null && next === null) ||
+      (presentation !== null &&
+        next !== null &&
+        highlightEquals(presentation.highlight, next.highlight) &&
+        presentation.label === next.label);
+    if (same) return;
+
+    const previous = presentation?.highlight ?? null;
+    presentation = next;
+    if (host) revealWith(host, next?.highlight ?? null);
+
+    if (next) {
+      emit({
+        type: "highlight.changed",
+        previous,
+        current: next.highlight,
+        label: next.label,
+      });
+    } else if (previous) {
+      emit({ type: "highlight.changed", previous, current: null });
+    }
+  }
+
+  function presentLogical(armDwell: boolean): void {
+    const current = session.currentPresentation;
+    setPresentation(current);
+    if (current && status === "scanning") {
+      styleRuntime.landed({ firstOfPass: session.firstOfPass, armDwell });
+    }
+  }
+
+  function applySessionEffects(
+    effects: readonly SessionEffect[],
+    policy: { present: boolean; armDwell: boolean } = {
+      present: true,
+      armDwell: false,
+    },
+  ): void {
     for (const effect of effects) {
       switch (effect.type) {
         case "landed":
-          emit({
-            type: "highlight.changed",
-            previous: effect.previous,
-            current: effect.current,
-            label: effect.label,
-          });
-          revealHighlight(effect.current);
-          styleRuntime.landed(session.firstOfPass);
+          if (policy.present) {
+            setPresentation({
+              highlight: effect.current,
+              label: effect.label,
+            });
+            styleRuntime.landed({
+              firstOfPass: session.firstOfPass,
+              armDwell: policy.armDwell,
+            });
+          }
           break;
         case "group-entered":
           emit({ type: "group.entered", id: effect.id, label: effect.label });
@@ -163,7 +240,10 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function onAdvanceTick(): void {
     if (status !== "scanning") return;
-    applySessionEffects(session.stepForward(resolveLoopLimit()));
+    applySessionEffects(session.stepForward(resolveLoopLimit()), {
+      present: true,
+      armDwell: false,
+    });
     commit();
   }
 
@@ -176,15 +256,21 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function selectCurrent(): void {
     styleRuntime.cancelDeadline();
     const selection = session.selectCurrent();
+    if (selection.kind === "none") return;
+
     if (selection.kind === "target") {
       activateTarget(selection.id);
-    } else if (selection.kind === "handled") {
-      applySessionEffects(selection.effects);
+    } else {
+      applySessionEffects(selection.effects, {
+        present: false,
+        armDwell: false,
+      });
     }
+
+    if (status === "scanning") beginSelectionTransition();
   }
 
   function activateTarget(id: string): void {
-    styleRuntime.cancelDeadline();
     const node = tree.byId.get(id);
     const target = node && node.kind === "target" ? node : null;
     const label = target?.label ?? id;
@@ -197,7 +283,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         label,
         reason: "ineligible",
       });
-      styleRuntime.landed(session.firstOfPass);
       return;
     }
 
@@ -224,93 +309,239 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         label,
         reason: result.reason,
       });
-      styleRuntime.landed(session.firstOfPass);
     }
   }
 
   function applyAfterActivation(): void {
     switch (options.afterActivation) {
       case "restart":
-        applySessionEffects(session.resetToRoot());
+        applySessionEffects(session.resetToRoot(), {
+          present: false,
+          armDwell: false,
+        });
         break;
       case "continue":
-        applySessionEffects(session.stepForward(resolveLoopLimit()));
+        applySessionEffects(session.stepForward(resolveLoopLimit()), {
+          present: false,
+          armDwell: false,
+        });
         break;
       case "repeat":
-        styleRuntime.landed(session.firstOfPass);
         break;
       case "stop":
-        styleRuntime.halt();
-        session.clear();
-        revealHighlight(null);
-        status = "idle";
-        emit({ type: "scan.stopped", reason: "after-activation" });
+        stopAfterActivation();
         break;
     }
   }
 
-  function startScan(): void {
+  function stopAfterActivation(): void {
+    dropTransition();
+    styleRuntime.halt();
+    gestures.reset();
+    session.clear();
+    setPresentation(null);
+    status = "idle";
+    emit({ type: "scan.stopped", reason: "after-activation" });
+  }
+
+  function beginSelectionTransition(): void {
+    if (status !== "scanning") return;
+    const now = clock.now();
+    const quietDurationMs = options.selectionDelay.durationMs;
+    const fixedDurationMs =
+      options.style.kind === "auto" ? options.style.transitionTimeMs : 0;
+    const dueAt = now + Math.max(quietDurationMs, fixedDurationMs);
+
+    if (dueAt <= now) {
+      presentLogical(false);
+      return;
+    }
+
+    styleRuntime.halt();
+    transition = {
+      fixedDueAt: now + fixedDurationMs,
+      quietDueAt: now + quietDurationMs,
+      quietDurationMs,
+      resetOnInput: options.selectionDelay.resetOnInput,
+      effectiveDueAt: dueAt,
+      cancel: null,
+    };
+    status = "transitioning";
+    setPresentation(null);
+    emit({ type: "scan.transitionStarted" });
+    scheduleTransition(now);
+  }
+
+  function scheduleTransition(startedAt: number): void {
+    const active = transition;
+    if (!active) return;
+    active.cancel?.();
+    const dueAt = Math.max(active.fixedDueAt, active.quietDueAt);
+    active.effectiveDueAt = dueAt;
+    const delay = Math.max(0, dueAt - clock.now());
+    pending = { kind: "transition", startedAt, dueAt };
+    active.cancel = scheduler.schedule(delay, () => {
+      if (transition !== active || status !== "transitioning") return;
+      active.cancel = null;
+      finishTransition(true);
+      commit();
+    });
+  }
+
+  function finishTransition(natural: boolean): void {
+    if (!transition) return;
+    transition.cancel?.();
+    transition = null;
+    pending = null;
+    status = "scanning";
+    if (natural) emit({ type: "scan.transitionEnded" });
+    presentLogical(false);
+  }
+
+  function clearTransitionSchedule(): void {
+    if (!transition) return;
+    transition.cancel?.();
+    transition.cancel = null;
+    if (pending?.kind === "transition") pending = null;
+  }
+
+  function dropTransition(): void {
+    clearTransitionSchedule();
+    transition = null;
+  }
+
+  function onRawPressStarted(context: GestureContext): void {
+    const active = transition;
+    if (
+      !context.startedDuringTransition ||
+      !active ||
+      status !== "transitioning" ||
+      !active.resetOnInput ||
+      active.quietDurationMs <= 0
+    ) {
+      return;
+    }
+
+    const nextQuietDueAt = clock.now() + active.quietDurationMs;
+    const nextEffectiveDueAt = Math.max(active.fixedDueAt, nextQuietDueAt);
+    active.quietDueAt = nextQuietDueAt;
+    if (nextEffectiveDueAt !== active.effectiveDueAt) {
+      scheduleTransition(clock.now());
+      commit();
+    }
+  }
+
+  function startScan(armDwell: boolean): void {
     if (disposed || !options.enabled) return;
+    dropTransition();
     styleRuntime.halt();
     const effects = session.start();
     if (effects.some((effect) => effect.type === "root-empty")) {
       status = "complete";
+      setPresentation(null);
       emit({ type: "scan.completed", reason: "empty" });
       return;
     }
     status = "scanning";
     emit({ type: "scan.started" });
-    applySessionEffects(effects);
+    applySessionEffects(effects, { present: true, armDwell });
   }
 
   function maybeStartOnMount(): boolean {
     if (!mountStartPending || options.startOn !== "mount" || status !== "idle")
       return false;
     mountStartPending = false;
-    startScan();
+    startScan(false);
     commit();
     return true;
   }
 
   function completeScan(reason: "loops" | "empty"): void {
+    dropTransition();
     styleRuntime.halt();
+    gestures.reset();
     session.clear();
-    revealHighlight(null);
+    setPresentation(null);
     status = "complete";
     emit({ type: "scan.completed", reason });
   }
 
   function internalStop(reason: "command" | "disabled"): void {
+    dropTransition();
     styleRuntime.halt();
     gestures.reset();
     session.clear();
-    revealHighlight(null);
+    setPresentation(null);
     status = "idle";
     emit({ type: "scan.stopped", reason });
+  }
+
+  function pauseInternal(): void {
+    if (status !== "scanning" && status !== "transitioning") return;
+    if (status === "transitioning") clearTransitionSchedule();
+    else styleRuntime.cancelDeadline();
+    status = "paused";
+    gestures.reset();
+    emit({ type: "scan.paused" });
+  }
+
+  function resumeInternal(): void {
+    if (status !== "paused") return;
+    emit({ type: "scan.resumed" });
+    if (transition) {
+      status = "transitioning";
+      const dueAt = Math.max(transition.fixedDueAt, transition.quietDueAt);
+      if (dueAt <= clock.now()) finishTransition(false);
+      else scheduleTransition(clock.now());
+      return;
+    }
+    status = "scanning";
+    presentLogical(false);
   }
 
   function handleSwitchAction(
     action: DiscreteAction,
     heldPress: boolean,
-    sourceKey: string,
+    context: GestureContext,
   ): void {
     if (disposed || !options.enabled) return;
+
+    if (action === "togglePause") {
+      if (status === "paused") resumeInternal();
+      else if (status === "scanning" || status === "transitioning")
+        pauseInternal();
+      else
+        diagnostic(
+          "command-inapplicable",
+          `togglePause ignored while status is "${status}"`,
+        );
+      commit();
+      return;
+    }
+
+    if (context.startedDuringTransition || status === "transitioning") return;
     if (status === "paused") return;
 
     if (status === "idle" || status === "complete") {
       if (options.startOn !== "switch") return;
-      startScan();
+      startScan(true);
       commit();
       return;
     }
 
     switch (action) {
       case "next":
-        applySessionEffects(session.stepForward(resolveLoopLimit()));
-        styleRuntime.maybeStartRepeat(heldPress, sourceKey);
+        applySessionEffects(session.stepForward(resolveLoopLimit()), {
+          present: true,
+          armDwell: true,
+        });
+        styleRuntime.maybeStartRepeat(heldPress, context.sourceKey);
         break;
       case "previous":
-        applySessionEffects(session.stepBackward());
+        applySessionEffects(session.stepBackward(), {
+          present: true,
+          armDwell: true,
+        });
         break;
       case "select":
         selectCurrent();
@@ -322,32 +553,42 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     commit();
   }
 
-  function onScanPress(sourceKey: string): void {
-    if (disposed || !options.enabled || status === "paused") return;
+  function onScanPress(context: GestureContext): void {
+    if (
+      disposed ||
+      !options.enabled ||
+      status === "paused" ||
+      context.startedDuringTransition ||
+      status === "transitioning"
+    ) {
+      return;
+    }
 
     if (status === "idle" || status === "complete") {
       if (options.startOn !== "switch") return;
-      startScan();
+      startScan(true);
       if ((status as ScannerStatus) === "scanning") {
-        styleRuntime.scanPress(sourceKey, session.firstOfPass);
+        styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
       }
       commit();
       return;
     }
 
-    styleRuntime.scanPress(sourceKey, session.firstOfPass);
+    styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
     commit();
   }
 
-  function onScanRelease(sourceKey: string): void {
-    const phase = styleRuntime.scanRelease(sourceKey);
+  function onScanRelease(context: GestureContext): void {
+    if (context.startedDuringTransition) return;
+    const phase = styleRuntime.scanRelease(context.sourceKey);
     if (phase === "missing") return;
     if (status === "scanning" && phase === "closed") selectCurrent();
     commit();
   }
 
-  function onScanCancel(sourceKey: string): void {
-    const phase = styleRuntime.scanCancel(sourceKey);
+  function onScanCancel(context: GestureContext): void {
+    if (context.startedDuringTransition) return;
+    const phase = styleRuntime.scanCancel(context.sourceKey);
     if (phase === "missing") return;
     commit();
   }
@@ -368,12 +609,33 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
     styleRuntime.cancelDeadline();
-    applySessionEffects(effects);
+    applySessionEffects(effects, { present: true, armDwell: false });
   }
 
   function reconcile(): void {
-    if (status !== "scanning" && status !== "paused") return;
-    applySessionEffects(session.reconcile());
+    if (
+      status !== "scanning" &&
+      status !== "paused" &&
+      status !== "transitioning"
+    ) {
+      return;
+    }
+    const hidden =
+      status === "transitioning" || (status === "paused" && !!transition);
+    const effects = session.reconcile();
+    applySessionEffects(effects, {
+      present: !hidden,
+      armDwell: false,
+    });
+    if (
+      !hidden &&
+      status === "scanning" &&
+      !effects.some((effect) => effect.type === "landed")
+    ) {
+      // A no-op reconciliation still establishes a fresh non-dwell landing
+      // policy: automatic styles restart; single-step dwell is not rearmed.
+      presentLogical(false);
+    }
     commit();
   }
 
@@ -393,21 +655,16 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     start: serialized(() => {
       if (disposed)
         return diagnostic("use-after-dispose", "start() after dispose()");
-      startScan();
+      startScan(false);
       commit();
     }),
     pause: serialized(() => {
-      if (disposed || status !== "scanning") {
-        if (!disposed)
-          diagnostic(
-            "command-inapplicable",
-            `pause() ignored while "${status}"`,
-          );
+      if (disposed) return;
+      if (status !== "scanning" && status !== "transitioning") {
+        diagnostic("command-inapplicable", `pause() ignored while "${status}"`);
         return;
       }
-      styleRuntime.cancelDeadline();
-      status = "paused";
-      emit({ type: "scan.paused" });
+      pauseInternal();
       commit();
     }),
     resume: serialized(() => {
@@ -419,32 +676,39 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         );
         return;
       }
-      status = "scanning";
-      emit({ type: "scan.resumed" });
-      styleRuntime.landed(session.firstOfPass);
+      resumeInternal();
       commit();
     }),
     stop: serialized(() => {
-      if (disposed) return;
+      if (disposed || status === "idle") return;
       internalStop("command");
       commit();
     }),
     restart: serialized(() => {
       if (disposed) return;
+      dropTransition();
       styleRuntime.halt();
+      gestures.reset();
       session.clear();
+      setPresentation(null);
       status = "idle";
-      startScan();
+      startScan(false);
       commit();
     }),
     next: serialized(() => {
       if (disposed || !requireScanning("next")) return;
-      applySessionEffects(session.stepForward(resolveLoopLimit()));
+      applySessionEffects(session.stepForward(resolveLoopLimit()), {
+        present: true,
+        armDwell: true,
+      });
       commit();
     }),
     previous: serialized(() => {
       if (disposed || !requireScanning("previous")) return;
-      applySessionEffects(session.stepBackward());
+      applySessionEffects(session.stepBackward(), {
+        present: true,
+        armDwell: true,
+      });
       commit();
     }),
     select: serialized(() => {
@@ -473,8 +737,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }),
     setTree: serialized((root: ScanGroupNode) => {
       if (disposed) return;
+      let nextTree: CompiledTree;
       try {
-        tree = compileTree(root);
+        nextTree = compileTree(root);
       } catch (error) {
         if (error instanceof DuplicateScanNodeIdError) {
           diagnostic(
@@ -485,18 +750,27 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         }
         throw error;
       }
+      tree = nextTree;
       session.setTree(tree);
       hasPublishedTree = true;
       if (maybeStartOnMount()) return;
       reconcile();
     }),
     attachHost(next) {
+      let attached = false;
       let detached = false;
       runTransition(() => {
         if (detached || disposed) return;
-        if (host)
-          diagnostic("second-host-attach", "a host is already attached");
+        if (host) {
+          diagnostic(
+            "second-host-attach",
+            "a host is already attached; the second host was rejected",
+          );
+          return;
+        }
         host = next;
+        attached = true;
+        if (presentation) revealWith(next, presentation.highlight);
         if (options.startOn === "mount") {
           mountStartPending = true;
           if (hasPublishedTree) maybeStartOnMount();
@@ -505,41 +779,66 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return () => {
         detached = true;
         runTransition(() => {
-          if (host === next) host = null;
+          if (!attached || host !== next) return;
+          setPresentation(null);
+          host = null;
+          attached = false;
+          commit();
         });
       };
     },
     input,
     dispose: serialized(() => {
       if (disposed) return;
-      disposed = true;
+      dropTransition();
       styleRuntime.halt();
       gestures.reset();
       session.clear();
-      revealHighlight(null);
+      setPresentation(null);
       status = "idle";
+      commit();
+      disposed = true;
       store.clearListeners();
       host = null;
     }),
   };
 
   function applyOptions(next: ScannerOptions): void {
+    // Normalize and validate everything before mutating active runtime state.
+    const normalized = normalizeOptions(next);
     const previous = options;
-    options = normalizeOptions(next);
+    options = normalized;
     styleRuntime.setStyle(options.style);
     session.setGroupExit(options.groupExit);
     gestures.setSwitches(options.switches);
 
     if (!options.enabled) {
-      if (status === "scanning" || status === "paused")
+      if (
+        status === "scanning" ||
+        status === "transitioning" ||
+        status === "paused"
+      ) {
         internalStop("disabled");
+      }
       return;
     }
 
-    if (status !== "scanning") return;
+    if (
+      status !== "scanning" &&
+      status !== "transitioning" &&
+      status !== "paused"
+    ) {
+      return;
+    }
 
     if (previous.style.kind !== options.style.kind) {
-      applySessionEffects(session.resetCurrentScope());
+      const wasPaused = status === "paused";
+      dropTransition();
+      if (!wasPaused) status = "scanning";
+      applySessionEffects(session.resetCurrentScope(), {
+        present: !wasPaused,
+        armDwell: false,
+      });
       return;
     }
 
@@ -548,7 +847,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
-    styleRuntime.landed(session.firstOfPass);
+    if (status === "scanning") presentLogical(false);
   }
 
   return scanner;
@@ -587,14 +886,63 @@ function isScheduler(clock: Clock): clock is Clock & Scheduler {
 }
 
 function normalizeOptions(raw: ScannerOptions): NormalizedOptions {
+  const switches = normalizeSwitches(raw.switches);
+  const groupExit = raw.groupExit ?? "after";
+  if (
+    groupExit !== "after" &&
+    groupExit !== "before" &&
+    groupExit !== "back-only"
+  ) {
+    throw new RangeError(
+      `[switch-scanning] groupExit must be "after", "before", or "back-only" (received ${String(groupExit)})`,
+    );
+  }
+  if (groupExit === "back-only" && !hasBackAction(switches)) {
+    throw new RangeError(
+      '[switch-scanning] groupExit "back-only" requires a declared switch mapped to "back"; add one or use groupExit "before"/"after"',
+    );
+  }
+
+  const durationMs = raw.selectionDelay?.durationMs ?? 0;
+  assertNonNegative(durationMs, "selectionDelay.durationMs");
+
   return {
     style: raw.style,
-    switches: normalizeSwitches(raw.switches),
+    switches,
     startOn: raw.startOn ?? "switch",
     afterActivation: raw.afterActivation ?? "restart",
-    groupExit: raw.groupExit ?? "after",
+    groupExit,
     enabled: raw.enabled ?? true,
+    selectionDelay: {
+      durationMs,
+      resetOnInput: raw.selectionDelay?.resetOnInput ?? true,
+    },
   };
+}
+
+function hasBackAction(
+  switches: ReadonlyMap<string, NormalizedSwitch>,
+): boolean {
+  for (const definition of switches.values()) {
+    if (definition.type === "discrete" && definition.action === "back") {
+      return true;
+    }
+    if (
+      definition.type === "tapHold" &&
+      (definition.tap === "back" || definition.holdAction === "back")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function assertNonNegative(value: number, name: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new RangeError(
+      `[switch-scanning] ${name} must be a finite number >= 0 (received ${value})`,
+    );
+  }
 }
 
 function errorMessage(error: unknown): string {

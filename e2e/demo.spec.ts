@@ -1,0 +1,280 @@
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test } from "@playwright/test";
+
+test("mixed keyboard controls pass mapped Space through", async ({ page }) => {
+  await page.goto("/");
+  const speech = page.getByRole("checkbox", {
+    name: "Speak highlights & activations",
+  });
+  await speech.focus();
+  await page.keyboard.press("Space");
+  await expect(speech).toBeChecked();
+
+  const dedicated = page.getByRole("radio", {
+    name: "Dedicated switch keyboard",
+  });
+  await dedicated.check();
+  const prevented = await page.evaluate(() => {
+    const event = new KeyboardEvent("keydown", {
+      code: "Space",
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+    document.dispatchEvent(
+      new KeyboardEvent("keyup", { code: "Space", bubbles: true }),
+    );
+    return event.defaultPrevented;
+  });
+  expect(prevented).toBe(true);
+});
+
+test("direct and scanner activation share the native button path", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Yes" }).click();
+  await expect(page.locator(".message-bar")).toContainText("Yes");
+
+  await page.getByRole("button", { name: "Clear" }).click();
+  await page.keyboard.press("Space"); // start on first row group
+  await page.keyboard.press("Space"); // enter row
+  await page.keyboard.press("Space"); // activate first phrase
+  await expect(page.locator(".message-bar")).toContainText("I want");
+});
+
+test("dedicated pointer surface owns, coalesces, and safely disconnects input", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("radio", { name: "Step", exact: true }).check();
+  await page
+    .getByRole("checkbox", { name: "Show dedicated touch switch" })
+    .check();
+  const surface = page.getByRole("button", { name: "Press and release here" });
+  const position = page
+    .locator(".status div")
+    .filter({ hasText: "Position" })
+    .locator("dd");
+  await expect(surface).toHaveAttribute("data-scan-pointer-switch", "");
+  await expect(surface).toHaveCSS("touch-action", "none");
+  await page.getByRole("button", { name: "Start" }).click();
+  await expect(position).toHaveText("1/4");
+
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 11,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("2/4");
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 12,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("2/4");
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 11,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("2/4");
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 12,
+    pointerType: "touch",
+    button: 0,
+  });
+
+  // Cancellation must close the logical press so the next contact is usable.
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 13,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("3/4");
+  await surface.dispatchEvent("pointercancel", {
+    pointerId: 13,
+    pointerType: "touch",
+    button: 0,
+  });
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 13,
+    pointerType: "touch",
+    button: 0,
+  });
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 14,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("4/4");
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 14,
+    pointerType: "touch",
+    button: 0,
+  });
+
+  // Window blur and hidden visibility both disconnect an in-flight contact.
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 15,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("1/4");
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 15,
+    pointerType: "touch",
+    button: 0,
+  });
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 16,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("2/4");
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 16,
+    pointerType: "touch",
+    button: 0,
+  });
+
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 17,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("3/4");
+  await page.evaluate(() => {
+    const previousVisibility = document.visibilityState;
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: previousVisibility,
+    });
+  });
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 17,
+    pointerType: "touch",
+    button: 0,
+  });
+  await surface.dispatchEvent("pointerdown", {
+    pointerId: 18,
+    pointerType: "touch",
+    button: 0,
+  });
+  await expect(position).toHaveText("4/4");
+  await surface.dispatchEvent("pointerup", {
+    pointerId: 18,
+    pointerType: "touch",
+    button: 0,
+  });
+
+  // A real primary-mouse contact is captured. Its generated click is consumed,
+  // while an explicit programmatic click remains available to the host.
+  await surface.evaluate((element) => {
+    const state = { clicks: 0, captures: 0 };
+    (
+      window as typeof window & { __pointerState?: typeof state }
+    ).__pointerState = state;
+    element.addEventListener("click", () => state.clicks++);
+    element.addEventListener("gotpointercapture", () => state.captures++);
+  });
+  await surface.click();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & { __pointerState?: { clicks: number } })
+          .__pointerState?.clicks,
+    ),
+  ).toBe(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & { __pointerState?: { captures: number } })
+          .__pointerState?.captures,
+    ),
+  ).toBeGreaterThan(0);
+  await surface.evaluate((element) => (element as HTMLElement).click());
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & { __pointerState?: { clicks: number } })
+          .__pointerState?.clicks,
+    ),
+  ).toBe(1);
+});
+
+test("highlight reveal scrolls an offscreen scan item into view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 240 });
+  await page.goto("/");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const firstGroup = page.locator("[data-scan-group]").first();
+  const before = await firstGroup.boundingBox();
+  expect(before).not.toBeNull();
+  expect(before!.y).toBeGreaterThan(240);
+
+  await page
+    .getByRole("button", { name: "Start" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(firstGroup).toHaveAttribute("data-scan-highlighted", "");
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(0);
+  const after = await firstGroup.boundingBox();
+  expect(after).not.toBeNull();
+  expect(after!.y).toBeGreaterThanOrEqual(0);
+  // Fractional CSS pixels can straddle the viewport edge by less than one
+  // device-independent pixel while still being fully revealed.
+  expect(after!.y + after!.height).toBeLessThanOrEqual(241);
+});
+
+test("Strict Mode provider cleanup removes decorations from its detached DOM", async ({
+  page,
+}) => {
+  await page.goto("/e2e/fixtures/strict.html");
+  await expect(page.getByRole("button", { name: "Target" })).toBeVisible();
+  await page.evaluate(() => window.__strictFixture.start());
+  await expect(page.getByRole("button", { name: "Target" })).toHaveAttribute(
+    "data-scan-highlighted",
+    "",
+  );
+
+  await page.evaluate(() => window.__strictFixture.unmount());
+  expect(await page.evaluate(() => window.__strictFixture.isDecorated())).toBe(
+    false,
+  );
+});
+
+test("default highlight remains visible in forced colors", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "chromium",
+    "forced-colors emulation is Chromium-only",
+  );
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start" }).click();
+  const highlighted = page.locator("[data-scan-highlighted]");
+  await expect(highlighted).toBeVisible();
+  expect(
+    await highlighted.evaluate(
+      (element) => getComputedStyle(element).outlineStyle,
+    ),
+  ).not.toBe("none");
+});
+
+test("reference demo has no automatically detectable accessibility violations", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});

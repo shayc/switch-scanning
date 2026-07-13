@@ -85,15 +85,36 @@ export class ScanSession {
     return this.currentFrame?.index === 0;
   }
 
-  snapshot(status: ScannerStatus): ScannerSnapshot {
+  get currentPresentation(): {
+    highlight: NonNullable<Highlight>;
+    label: string;
+  } | null {
+    const candidate = this.currentCandidate;
+    return candidate
+      ? {
+          highlight: candidateToHighlight(candidate),
+          label: this.labelFor(candidate),
+        }
+      : null;
+  }
+
+  snapshot(
+    status: ScannerStatus,
+    highlight: Highlight = this.currentHighlight,
+    pending: ScannerSnapshot["pending"] = null,
+  ): ScannerSnapshot {
     const frame = this.currentFrame;
     return {
       status,
-      highlight: this.currentHighlight,
+      highlight,
       path: this.frames.flatMap((item) =>
         item.groupId === null ? [] : [item.groupId],
       ),
       loop: frame ? frame.pass : 0,
+      position: frame
+        ? { index: frame.index, count: frame.candidates.length }
+        : null,
+      pending,
     };
   }
 
@@ -338,7 +359,7 @@ function buildCandidates(
         : { kind: "group", id: child.id },
     );
   }
-  if (!isRoot && groupExit !== "none") {
+  if (!isRoot && groupExit !== "back-only") {
     const exit: Candidate = { kind: "exit", groupId: group.id };
     if (groupExit === "before") candidates.unshift(exit);
     else candidates.push(exit);
@@ -368,5 +389,25 @@ export function snapshotEquals(
   for (let i = 0; i < a.path.length; i += 1) {
     if (a.path[i] !== b.path[i]) return false;
   }
-  return highlightEquals(a.highlight, b.highlight);
+  if (!highlightEquals(a.highlight, b.highlight)) return false;
+  if (!positionEquals(a.position, b.position)) return false;
+  return pendingEquals(a.pending, b.pending);
+}
+
+function positionEquals(
+  a: ScannerSnapshot["position"],
+  b: ScannerSnapshot["position"],
+): boolean {
+  if (a === null || b === null) return a === b;
+  return a.index === b.index && a.count === b.count;
+}
+
+function pendingEquals(
+  a: ScannerSnapshot["pending"],
+  b: ScannerSnapshot["pending"],
+): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.kind === b.kind && a.startedAt === b.startedAt && a.dueAt === b.dueAt
+  );
 }

@@ -82,4 +82,47 @@ describe("registry ownership", () => {
       "cyclic scan group parentage: a -> b -> a",
     );
   });
+
+  it("owns group replacement, labels, and explicit unmount operations", () => {
+    const registry = new ScanRegistry();
+    const first = document.createElement("div");
+    const second = document.createElement("div");
+    registry.mountGroup(
+      "group",
+      () => ({ id: "group", label: "Group", exitLabel: "Leave" }),
+      first,
+    );
+    expect(registry.exitLabelFor("group")).toBe("Leave");
+    expect(registry.exitLabelFor("missing")).toBe("Back");
+    registry.mountGroup(
+      "group",
+      () => ({ id: "group", label: "Replacement" }),
+      null,
+    );
+    expect(registry.getGroupElement("group")).toBeNull();
+    registry.unmountGroup("group");
+    registry.unmountTarget("missing");
+    registry.touchGroup();
+    registry.touchTarget();
+
+    registry.mountGroup(
+      "duplicate",
+      () => ({ id: "duplicate", label: "First" }),
+      first,
+    );
+    expect(() =>
+      registry.mountGroup(
+        "duplicate",
+        () => ({ id: "duplicate", label: "Second" }),
+        second,
+      ),
+    ).toThrow('duplicate scan group id "duplicate"');
+    expect(() =>
+      registry.mountTarget(
+        "duplicate",
+        () => ({ id: "duplicate", label: "Target" }),
+        document.createElement("button"),
+      ),
+    ).toThrow('duplicate scan node id "duplicate"');
+  });
 });

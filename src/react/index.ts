@@ -23,6 +23,11 @@ export {
   type KeyboardSwitchesOptions,
 } from "./useKeyboardSwitches.ts";
 export {
+  usePointerSwitch,
+  type UsePointerSwitchOptions,
+  type PointerSwitchBinding,
+} from "./usePointerSwitch.ts";
+export {
   useScannerSnapshot,
   type SnapshotSelector,
   type SnapshotEquality,

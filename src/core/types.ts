@@ -30,7 +30,21 @@ export type Highlight =
   | { readonly kind: "group" | "target"; readonly id: string }
   | { readonly kind: "exit"; readonly groupId: string };
 
-export type ScannerStatus = "idle" | "scanning" | "paused" | "complete";
+export type ScannerStatus =
+  "idle" | "scanning" | "transitioning" | "paused" | "complete";
+
+export interface ScanPosition {
+  /** Zero-based index within the active scope. */
+  readonly index: number;
+  readonly count: number;
+}
+
+export interface PendingTiming {
+  readonly kind: "advance" | "dwell" | "transition";
+  /** Time at which the currently effective deadline was established. */
+  readonly startedAt: number;
+  readonly dueAt: number;
+}
 
 export interface ScannerSnapshot {
   readonly status: ScannerStatus;
@@ -39,6 +53,8 @@ export interface ScannerSnapshot {
   readonly path: readonly string[];
   /** The active scope's pass number, 1-based. */
   readonly loop: number;
+  readonly position: ScanPosition | null;
+  readonly pending: PendingTiming | null;
 }
 
 // Events
@@ -55,17 +71,14 @@ export type ScannerEvent =
   | { type: "scan.started" }
   | { type: "scan.paused" }
   | { type: "scan.resumed" }
+  | { type: "scan.transitionStarted" }
+  | { type: "scan.transitionEnded" }
   | { type: "scan.completed"; reason: "loops" | "empty" }
   | {
       type: "scan.stopped";
       reason: "command" | "disabled" | "after-activation" | "error";
     }
-  | {
-      type: "highlight.changed";
-      previous: Highlight;
-      current: NonNullable<Highlight>;
-      label: string;
-    }
+  | HighlightChangedEvent
   | { type: "group.entered"; id: string; label: string }
   | {
       type: "group.exited";
@@ -82,6 +95,20 @@ export type ScannerEvent =
       reason: string;
     }
   | { type: "diagnostic"; code: ScannerDiagnosticCode; message: string };
+
+/** Subscribe once and discriminate clearing with `current === null`. */
+export type HighlightChangedEvent =
+  | {
+      type: "highlight.changed";
+      previous: Highlight;
+      current: NonNullable<Highlight>;
+      label: string;
+    }
+  | {
+      type: "highlight.changed";
+      previous: NonNullable<Highlight>;
+      current: null;
+    };
 
 // Host
 
@@ -100,15 +127,22 @@ export type Unsubscribe = () => void;
 
 export type StartOn = "switch" | "mount" | "command";
 export type AfterActivation = "restart" | "continue" | "repeat" | "stop";
-export type GroupExit = "after" | "before" | "none";
+export type GroupExit = "after" | "before" | "back-only";
 
-interface ScannerBehaviorOptions {
+export interface SelectionDelayOptions {
+  readonly durationMs: number;
+  /** Restart the quiet period when declared switch input begins. Defaults true. */
+  readonly resetOnInput?: boolean;
+}
+
+export interface ScannerBehaviorOptions {
   style: ScanStyle;
   switches?: Readonly<Record<string, SwitchDefinition>>;
   startOn?: StartOn;
   afterActivation?: AfterActivation;
   groupExit?: GroupExit;
   enabled?: boolean;
+  selectionDelay?: SelectionDelayOptions;
 }
 
 type ScannerInfrastructureOptions =
@@ -134,6 +168,7 @@ export interface ScannerInputPort {
 // Scanner
 
 export interface Scanner {
+  /** Semantic host/caregiver/testing command; bypasses physical gesture filters. */
   start(): void;
   pause(): void;
   resume(): void;
@@ -152,7 +187,9 @@ export interface Scanner {
   setTree(root: ScanGroupNode): void;
   attachHost(host: ScannerHost): Detach;
 
+  /** End-user physical-input path for declared logical switches. */
   readonly input: ScannerInputPort;
 
+  /** Silent teardown. Call `stop()` first if observers need a final lifecycle event. */
   dispose(): void;
 }

@@ -1,10 +1,17 @@
-import type { CancelScheduled, Scheduler } from "./clock.ts";
+import type { CancelScheduled, Clock, Scheduler } from "./clock.ts";
 import type { ScanStyle, StepScanRepeat } from "./styles.ts";
+import type { PendingTiming } from "./types.ts";
+
+export interface LandingPolicy {
+  readonly firstOfPass: boolean;
+  /** One single-step dwell selection may be scheduled from this landing. */
+  readonly armDwell: boolean;
+}
 
 export interface StyleRuntime {
   readonly scanHeld: boolean;
   setStyle(style: ScanStyle): void;
-  landed(firstOfPass: boolean): void;
+  landed(policy: LandingPolicy | boolean): void;
   cancelDeadline(): void;
   halt(): void;
   scanPress(sourceKey: string, firstOfPass: boolean): void;
@@ -19,58 +26,84 @@ export type ScanPhaseResult = "missing" | "open" | "closed";
 /** Executes the timing semantics of declarative scan styles. */
 export function createStyleRuntime(deps: {
   style: ScanStyle;
+  clock?: Clock;
   scheduler: Scheduler;
   isScanning: () => boolean;
   advance: () => void;
   select: () => void;
+  pendingChanged?: (pending: PendingTiming | null) => void;
 }): StyleRuntime {
   let style = deps.style;
   let deadline: CancelScheduled | null = null;
   let repeatCancel: CancelScheduled | null = null;
   let repeatOwner: string | null = null;
   const activeScanSources = new Set<string>();
+  const runtimeClock: Clock =
+    deps.clock ??
+    ("now" in deps.scheduler && typeof deps.scheduler.now === "function"
+      ? (deps.scheduler as Scheduler & Clock)
+      : { now: () => Date.now() });
+  const pendingChanged = deps.pendingChanged ?? (() => undefined);
 
   function cancelDeadline(): void {
-    deadline?.();
+    if (deadline) {
+      deadline();
+      pendingChanged(null);
+    }
     deadline = null;
   }
 
-  function schedule(firstOfPass: boolean): void {
+  function setDeadline(
+    kind: PendingTiming["kind"],
+    delay: number,
+    callback: () => void,
+  ): void {
+    const startedAt = runtimeClock.now();
+    pendingChanged({ kind, startedAt, dueAt: startedAt + delay });
+    deadline = deps.scheduler.schedule(delay, () => {
+      deadline = null;
+      pendingChanged(null);
+      callback();
+    });
+  }
+
+  function schedule({ firstOfPass, armDwell }: LandingPolicy): void {
     cancelDeadline();
     if (!deps.isScanning()) return;
 
     if (style.kind === "auto") {
       const delay =
         style.intervalMs + (firstOfPass ? style.firstItemPauseMs : 0);
-      deadline = deps.scheduler.schedule(delay, () => {
-        deadline = null;
-        deps.advance();
-      });
+      setDeadline("advance", delay, deps.advance);
     } else if (style.kind === "inverse") {
       if (activeScanSources.size === 0) return;
       const delay =
         style.intervalMs + (firstOfPass ? style.firstItemPauseMs : 0);
-      deadline = deps.scheduler.schedule(delay, () => {
-        deadline = null;
-        deps.advance();
-      });
-    } else if (style.kind === "singleStep") {
-      deadline = deps.scheduler.schedule(style.dwellTimeMs, () => {
-        deadline = null;
-        deps.select();
-      });
+      setDeadline("advance", delay, deps.advance);
+    } else if (style.kind === "singleStep" && armDwell) {
+      setDeadline("dwell", style.dwellTimeMs, deps.select);
     }
   }
 
   function stopRepeat(): void {
-    repeatCancel?.();
+    if (repeatCancel) {
+      repeatCancel();
+      pendingChanged(null);
+    }
     repeatCancel = null;
     repeatOwner = null;
   }
 
   function scheduleRepeat(repeat: StepScanRepeat, delay: number): void {
+    const startedAt = runtimeClock.now();
+    pendingChanged({
+      kind: "advance",
+      startedAt,
+      dueAt: startedAt + delay,
+    });
     repeatCancel = deps.scheduler.schedule(delay, () => {
       repeatCancel = null;
+      pendingChanged(null);
       if (repeatOwner === null || !deps.isScanning()) return;
       deps.advance();
       scheduleRepeat(repeat, repeat.intervalMs);
@@ -90,8 +123,12 @@ export function createStyleRuntime(deps: {
       }
       style = next;
     },
-    landed(firstOfPass) {
-      schedule(firstOfPass);
+    landed(policy) {
+      schedule(
+        typeof policy === "boolean"
+          ? { firstOfPass: policy, armDwell: true }
+          : policy,
+      );
     },
     cancelDeadline,
     halt() {
@@ -102,7 +139,7 @@ export function createStyleRuntime(deps: {
     scanPress(sourceKey, firstOfPass) {
       const wasHeld = activeScanSources.size > 0;
       activeScanSources.add(sourceKey);
-      if (!wasHeld) schedule(firstOfPass);
+      if (!wasHeld) schedule({ firstOfPass, armDwell: false });
     },
     scanRelease(sourceKey) {
       if (!activeScanSources.has(sourceKey)) return "missing";

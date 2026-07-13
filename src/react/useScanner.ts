@@ -4,6 +4,7 @@ import {
   type Scanner,
   type ScannerOptions,
 } from "../core/index.ts";
+import { scannerBehaviorSignature } from "../core/behaviorOptions.ts";
 
 /**
  * Lazily create a single scanner whose identity is stable for the component's
@@ -26,7 +27,7 @@ export function useScanner(options: ScannerOptions): Scanner {
   const optionsRef = useRef<ScannerOptions>(options);
   optionsRef.current = options;
 
-  const signature = serializeOptions(options);
+  const signature = scannerBehaviorSignature(options);
   const lastSignature = useRef<string | null>(null);
 
   useEffect(() => {
@@ -53,16 +54,4 @@ export function useScanner(options: ScannerOptions): Scanner {
   }, [scanner]);
 
   return scanner;
-}
-
-/** A stable structural key over the serializable option fields. */
-function serializeOptions(options: ScannerOptions): string {
-  return JSON.stringify({
-    style: options.style,
-    switches: options.switches ?? null,
-    startOn: options.startOn ?? null,
-    afterActivation: options.afterActivation ?? null,
-    groupExit: options.groupExit ?? null,
-    enabled: options.enabled ?? null,
-  });
 }

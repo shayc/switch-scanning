@@ -9,6 +9,8 @@ export interface KeyboardSwitchesOptions {
   enabled?: boolean;
   /** Element/document to listen on. Defaults to the global document. */
   target?: Document | HTMLElement | null;
+  /** Explicit ownership policy for mapped keydown events. */
+  shouldHandle?: (event: KeyboardEvent) => boolean;
 }
 
 /**
@@ -26,6 +28,8 @@ export function useKeyboardSwitches(
   bindingsRef.current = bindings;
   const enabledRef = useRef(options.enabled ?? true);
   enabledRef.current = options.enabled ?? true;
+  const shouldHandleRef = useRef(options.shouldHandle);
+  shouldHandleRef.current = options.shouldHandle;
 
   const explicitTarget = options.target;
 
@@ -36,29 +40,46 @@ export function useKeyboardSwitches(
 
     // Remember the binding accepted on keydown. Bindings may change before
     // keyup, but the logical switch that opened the gesture must be released.
-    const held = new Map<string, string>();
+    const held = new Map<
+      string,
+      { accepted: true; switchId: string } | { accepted: false }
+    >();
     const sourceId = (code: string): string => `key:${code}`;
 
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (!enabledRef.current || event.repeat) return;
       const switchId = bindingsRef.current[event.code];
       if (switchId === undefined) return;
+      const existing = held.get(event.code);
+      if (existing) {
+        if (existing.accepted) event.preventDefault();
+        return;
+      }
+      if (!enabledRef.current || event.repeat) return;
+
+      const accepted = shouldHandleRef.current?.(event) ?? true;
+      if (!accepted) {
+        held.set(event.code, { accepted: false });
+        return;
+      }
+
       event.preventDefault();
-      if (held.has(event.code)) return;
-      held.set(event.code, switchId);
+      held.set(event.code, { accepted: true, switchId });
       scanner.input.press(switchId, sourceId(event.code));
     };
 
     const onKeyUp = (event: KeyboardEvent): void => {
-      const switchId = held.get(event.code);
-      if (switchId === undefined) return;
-      if (enabledRef.current) event.preventDefault();
+      const decision = held.get(event.code);
+      if (!decision) return;
       held.delete(event.code);
-      scanner.input.release(switchId, sourceId(event.code));
+      if (!decision.accepted) return;
+      event.preventDefault();
+      scanner.input.release(decision.switchId, sourceId(event.code));
     };
 
     const disconnectAll = (): void => {
-      for (const code of held.keys()) scanner.input.disconnect(sourceId(code));
+      for (const [code, decision] of held) {
+        if (decision.accepted) scanner.input.disconnect(sourceId(code));
+      }
       held.clear();
     };
 

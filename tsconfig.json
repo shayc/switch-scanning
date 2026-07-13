@@ -30,5 +30,15 @@
       "@shayc/switch-scanning": ["./src/react/index.ts"]
     }
   },
-  "include": ["src", "demo", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "demo",
+    "examples",
+    "e2e",
+    "playwright.config.ts",
+    "scripts",
+    "vite.config.ts",
+    "vite.demo.config.ts",
+    "vitest.config.ts"
+  ]
 }

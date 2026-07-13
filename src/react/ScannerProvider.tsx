@@ -35,9 +35,9 @@ export function ScannerProvider({
     registry.flush();
 
     return () => {
+      scanner.stop();
       detachRegistry();
       detachHost();
-      scanner.stop();
     };
   }, [scanner, registry]);
 

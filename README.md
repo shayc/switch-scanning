@@ -17,6 +17,10 @@ speech, persistence, analytics, or business behavior. It is not a replacement
 for operating-system Switch Control / Switch Access — keep your native HTML,
 keyboard interaction, focus, and ARIA intact so system-level AT still works.
 
+[Open the reference playground](https://shayc.github.io/switch-scanning/) to
+try all four styles, row-column scanning, explicit keyboard ownership,
+auditory prompts, transition timing, and a dedicated touch-switch surface.
+
 ## Install
 
 ```sh
@@ -85,7 +89,7 @@ at activation time, but DOM-only changes do not themselves schedule a rebuild.
 ## Scan styles
 
 ```ts
-autoScan({ intervalMs, loops, firstItemPauseMs? })       // timer advances; switch selects
+autoScan({ intervalMs, loops, firstItemPauseMs?, transitionTimeMs? })
 stepScan({ repeat? })                                    // one action advances; another selects
 singleSwitchStepScan({ dwellTimeMs })                    // switch advances; stillness selects
 inverseScan({ intervalMs, loops, firstItemPauseMs? })    // hold advances; release selects
@@ -94,6 +98,11 @@ inverseScan({ intervalMs, loops, firstItemPauseMs? })    // hold advances; relea
 Timing and loop values that materially define an access method are required —
 no universal scan speed is implied. Style constructors return frozen, validated
 data.
+
+Use scanner-level `selectionDelay: { durationMs, resetOnInput? }` to protect
+the next semantic selection independently of per-switch `ignoreRepeatMs`.
+Input begun during that delay is intentionally suppressed through release;
+leave it at `0` for fast step users unless losing such a press is deliberate.
 
 ### Two switches (step scanning)
 
@@ -104,6 +113,24 @@ const scanner = useScanner({
 });
 useKeyboardSwitches(scanner, { Space: "next", Enter: "select" });
 ```
+
+Many commercial USB/Bluetooth switch interfaces appear to the browser as a
+keyboard. Dedicated switch keyboards should use the default document capture,
+which prevents Space/Enter from also activating a focused control. Mixed-input
+applications should scope ownership explicitly:
+
+```tsx
+useKeyboardSwitches(
+  scanner,
+  { Space: "next", Enter: "select" },
+  {
+    shouldHandle: (event) => !settingsPanel.contains(event.target as Node),
+  },
+);
+```
+
+The decision is remembered from keydown through keyup, so option changes
+cannot strand an accepted gesture.
 
 ### One switch: tap to advance, hold to select
 
@@ -148,8 +175,45 @@ function KeyboardRow({ row, index }: RowProps) {
 }
 ```
 
-Every entered non-root group gets a **virtual exit** (unless `groupExit: "none"`)
-so a one-switch route out always exists.
+Every entered non-root group gets a **virtual exit**. Advanced
+`groupExit: "back-only"` removes it only when a declared logical switch maps to
+`back`; unsafe configurations throw before scanner state changes.
+
+## Physical input and semantic commands
+
+`scanner.input` is the end-user path for hardware adapters. Declare logical
+switches and translate device signals into `press`, `release`, and
+`disconnect`. `scanner.next()`, `back()`, `pause()`, and the other methods are
+semantic host/caregiver/testing commands; physical-switch safety validation
+does not treat them as hardware bindings.
+
+### Real hardware recipes
+
+- Keyboard-emulating auto scan: map Space to a declared `select` switch.
+- Two-switch step: map one channel to `next` and another to `select`; this has
+  no moving-highlight response-time window.
+- One-switch tap/hold: map tap to `next` and hold to `select` as shown above.
+- Switch-driven rest: add `{ action: "togglePause" }` and bind a key/channel.
+- Custom adapter: call `scanner.input.press("next", deviceSourceId)` and the
+  matching `release`; call `disconnect(deviceSourceId)` when a release or
+  connection is lost.
+
+### Touch, pen, or mouse as a switch
+
+```tsx
+const touch = usePointerSwitch(scanner, { switchId: "select" });
+return (
+  <button {...touch.props} className="switch-pad">
+    Press here
+  </button>
+);
+```
+
+Apply `touch-action: none` to this dedicated surface. It captures pointers,
+coalesces multiple contacts, disconnects on lost capture/blur, and suppresses
+generated pointer clicks on the surface while permitting programmatic
+`.click()`. It intentionally prevents direct touch interaction, so do not
+place it over a mixed-input board.
 
 ## Two DOM channels
 
@@ -167,6 +231,17 @@ Components that want reactive scanner state opt in with
 analytics) observes events with `useScannerEvents(listener)`. Commands issued
 by a listener run after the transition being observed; listener failures are
 reported without interrupting scanning.
+
+Snapshots include zero-based `position` and effective `pending` timing. During
+a post-selection wait, status is `transitioning`, the logical cursor is
+retained, and the presented `highlight` is `null`. `highlight.changed` reports
+both landings and clearing; check `event.current === null` before reading its
+landing-only `label`.
+
+See the [full API reference](docs/API.md),
+[auditory scanning recipe](docs/auditory-scanning.md),
+[OBF adapter example](examples/obf/README.md), and
+[0.1 → 0.2 migration guide](docs/MIGRATION.md).
 
 ## Testing without a browser
 
@@ -201,6 +276,7 @@ No browser events, wall-clock waiting, or reducer internals required.
 ```sh
 npm install
 npm run dev            # Serve the demo playground (see below)
+npm run demo:build     # Build the GitHub Pages playground
 npm run lint           # ESLint, including the Rules of Hooks
 npm run format:check   # Prettier check
 npm run typecheck      # TypeScript without emitting
@@ -216,13 +292,26 @@ four scan styles with live timing controls, drives row–column scanning with
 keyboard switches, streams the scanner's event log, and optionally speaks
 highlights and activations.
 
+## Support and limitations
+
+The package supports React 18 and 19 and targets current evergreen Chromium,
+Firefox, and WebKit browsers. Native controls, focus, keyboard behavior, and
+ARIA remain host responsibilities so operating-system assistive technology can
+coexist. The library enables accessible timing choices; it cannot make a host
+WCAG or EN 301 549 conformant by itself.
+
+Speech routing/voices, settings persistence, calibration, point scanning,
+switch elimination, and application actions remain outside the package. Real
+switch-user and AAC-practitioner evaluation is still required before treating
+any timing preset as broadly suitable.
+
 ## Status
 
-Implements the v1 design: automatic, step, single-switch step, and
-inverse styles; logical switches with stabilization, tap/hold, and phaseful
-scan; nested scopes with virtual exits; deterministic time and a serialized
-runtime; host-owned native activation; and wrapper-free React registration with
-imperative highlight presentation.
+Implements automatic, step, single-switch step, and inverse styles; logical
+switches with stabilization, tap/hold, and phaseful scan; causal dwell;
+guaranteed group escape; observable transition timing; keyboard and pointer
+adapters; deterministic time and a serialized runtime; host-owned native
+activation; and wrapper-free React registration with imperative presentation.
 
 ## License
 

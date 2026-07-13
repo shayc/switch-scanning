@@ -9,21 +9,30 @@ import type { DiscreteAction, NormalizedSwitch } from "./switches.ts";
  * results through the {@link GestureSink}.
  */
 export interface GestureSink {
+  /** A new declared source contact began, before stabilization. */
+  pressStarted(ctx: GestureContext): void;
   /** A discrete action was recognized. `heldPress` means a press is still down. */
   discreteAction(
     action: DiscreteAction,
-    ctx: { switchId: string; sourceKey: string; heldPress: boolean },
+    ctx: GestureContext & { heldPress: boolean },
   ): void;
   /** An accepted, still-held discrete press was released (repeat cleanup). */
-  pressReleased(sourceKey: string): void;
+  pressReleased(ctx: GestureContext): void;
   /** The press phase of a phaseful `scan` switch opened for this source. */
-  scanPress(ctx: { switchId: string; sourceKey: string }): void;
+  scanPress(ctx: GestureContext): void;
   /** The press phase closed by a normal release. */
-  scanRelease(ctx: { switchId: string; sourceKey: string }): void;
+  scanRelease(ctx: GestureContext): void;
   /** The scan source was disconnected without a release. */
-  scanCancel(sourceKey: string): void;
+  scanCancel(ctx: GestureContext): void;
   /** An input bound to an undeclared logical switch was seen. */
   unknownSwitch(switchId: string): void;
+}
+
+export interface GestureContext {
+  readonly switchId: string;
+  readonly sourceKey: string;
+  /** Captured once at raw press; never inferred from later scanner state. */
+  readonly startedDuringTransition: boolean;
 }
 
 interface SourceState {
@@ -36,6 +45,7 @@ interface SourceState {
   holdFired: boolean;
   scanAccepted: boolean;
   heldDiscrete: boolean;
+  startedDuringTransition: boolean;
 }
 
 export interface GestureEngine {
@@ -53,6 +63,7 @@ export function createGestureEngine(deps: {
   clock: Clock;
   scheduler: Scheduler;
   sink: GestureSink;
+  isTransitioning: () => boolean;
 }): GestureEngine {
   let switches = deps.switches;
   const { clock, scheduler, sink } = deps;
@@ -100,8 +111,10 @@ export function createGestureEngine(deps: {
       holdFired: false,
       scanAccepted: false,
       heldDiscrete: false,
+      startedDuringTransition: deps.isTransitioning(),
     };
     sources.set(sourceKey, state);
+    sink.pressStarted(contextOf(state));
 
     switch (def.type) {
       case "discrete": {
@@ -137,8 +150,7 @@ export function createGestureEngine(deps: {
           if (tryAccept(state.switchId, def)) {
             state.holdFired = true;
             sink.discreteAction(def.holdAction, {
-              switchId: state.switchId,
-              sourceKey: state.sourceKey,
+              ...contextOf(state),
               heldPress: true,
             });
           } else {
@@ -157,8 +169,7 @@ export function createGestureEngine(deps: {
     if (!tryAccept(state.switchId, def)) return;
     state.heldDiscrete = true;
     sink.discreteAction(def.action, {
-      switchId: state.switchId,
-      sourceKey: state.sourceKey,
+      ...contextOf(state),
       heldPress: true,
     });
   }
@@ -168,7 +179,7 @@ export function createGestureEngine(deps: {
     if (def.type !== "scan") return;
     if (!tryAccept(state.switchId, def)) return;
     state.scanAccepted = true;
-    sink.scanPress({ switchId: state.switchId, sourceKey: state.sourceKey });
+    sink.scanPress(contextOf(state));
   }
 
   function release(switchId: string, sourceId: string | undefined): void {
@@ -188,22 +199,18 @@ export function createGestureEngine(deps: {
         if (def.performOn === "release") {
           if (heldFor >= def.holdDurationMs && tryAccept(state.switchId, def)) {
             sink.discreteAction(def.action, {
-              switchId: state.switchId,
-              sourceKey: state.sourceKey,
+              ...contextOf(state),
               heldPress: false,
             });
           }
         } else if (state.heldDiscrete) {
-          sink.pressReleased(state.sourceKey);
+          sink.pressReleased(contextOf(state));
         }
         return;
       }
       case "scan": {
         if (state.scanAccepted) {
-          sink.scanRelease({
-            switchId: state.switchId,
-            sourceKey: state.sourceKey,
-          });
+          sink.scanRelease(contextOf(state));
         }
         return;
       }
@@ -211,8 +218,7 @@ export function createGestureEngine(deps: {
         if (state.holdFired) return; // hold already consumed the gesture
         if (heldFor >= def.holdDurationMs && tryAccept(state.switchId, def)) {
           sink.discreteAction(def.tap, {
-            switchId: state.switchId,
-            sourceKey: state.sourceKey,
+            ...contextOf(state),
             heldPress: false,
           });
         }
@@ -227,9 +233,9 @@ export function createGestureEngine(deps: {
       sources.delete(key);
       clearDeadline(state);
       if (state.scanAccepted) {
-        sink.scanCancel(state.sourceKey);
+        sink.scanCancel(contextOf(state));
       } else if (state.heldDiscrete) {
-        sink.pressReleased(state.sourceKey);
+        sink.pressReleased(contextOf(state));
       }
     }
   }
@@ -245,9 +251,9 @@ export function createGestureEngine(deps: {
         sources.delete(key);
         clearDeadline(state);
         if (state.scanAccepted) {
-          sink.scanCancel(state.sourceKey);
+          sink.scanCancel(contextOf(state));
         } else if (state.heldDiscrete) {
-          sink.pressReleased(state.sourceKey);
+          sink.pressReleased(contextOf(state));
         }
       }
     }
@@ -257,12 +263,25 @@ export function createGestureEngine(deps: {
   function reset(): void {
     for (const state of sources.values()) {
       clearDeadline(state);
+      if (state.scanAccepted) {
+        sink.scanCancel(contextOf(state));
+      } else if (state.heldDiscrete) {
+        sink.pressReleased(contextOf(state));
+      }
     }
     sources.clear();
     blockedUntil.clear();
   }
 
   return { press, release, disconnect, setSwitches, reset };
+}
+
+function contextOf(state: SourceState): GestureContext {
+  return {
+    switchId: state.switchId,
+    sourceKey: state.sourceKey,
+    startedDuringTransition: state.startedDuringTransition,
+  };
 }
 
 function switchDefinitionsEqual(

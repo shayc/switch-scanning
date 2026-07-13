@@ -29,6 +29,8 @@ export function createScannerStore(
     highlight: null,
     path: [],
     loop: 0,
+    position: null,
+    pending: null,
   };
   let commitPending = false;
   let isDrainingTransitions = false;
@@ -49,13 +51,14 @@ export function createScannerStore(
     if (commitPending) {
       commitPending = false;
       const next = buildSnapshot();
-      if (!snapshotEquals(next, cachedSnapshot)) cachedSnapshot = next;
-
-      for (const subscriber of [...subscribers]) {
-        try {
-          subscriber();
-        } catch (error) {
-          reportBoundaryError(error, "listener");
+      if (!snapshotEquals(next, cachedSnapshot)) {
+        cachedSnapshot = next;
+        for (const subscriber of [...subscribers]) {
+          try {
+            subscriber();
+          } catch (error) {
+            reportBoundaryError(error, "listener");
+          }
         }
       }
     }

@@ -6,7 +6,7 @@ import {
   type RefCallback,
 } from "react";
 import { useScannerContext } from "./context.ts";
-import { applyRef } from "./refs.ts";
+import { useRegistrationRef } from "./refs.ts";
 import type { ScanTargetOptions } from "./registry.ts";
 
 export interface UseScanTargetOptions extends ScanTargetOptions {
@@ -35,21 +35,14 @@ export function useScanTarget(
   const optionsRef = useRef<UseScanTargetOptions>(options);
   optionsRef.current = options;
 
-  const ref = useCallback<RefCallback<HTMLElement>>(
-    (element) => {
-      const forwardedRef = options.ref;
-      const unregister = registry.mountTarget(
-        id,
-        () => optionsRef.current,
-        element,
-      );
-      applyRef(forwardedRef, element);
-      return () => {
-        unregister();
-        applyRef(forwardedRef, null);
-      };
-    },
-    [registry, id, options.ref],
+  const register = useCallback(
+    (element: HTMLElement) =>
+      registry.mountTarget(id, () => optionsRef.current, element),
+    [registry, id],
+  );
+  const ref: RefCallback<HTMLElement> = useRegistrationRef(
+    register,
+    options.ref,
   );
 
   // Republish when a structural field changes; freshness of `activate` and

@@ -5,7 +5,8 @@
  */
 
 /** Actions produced by a stabilized, recognized gesture. */
-export type DiscreteAction = "select" | "next" | "previous" | "back";
+export type DiscreteAction =
+  "select" | "next" | "previous" | "back" | "togglePause";
 
 /** The phaseful action: press begins advancement, release selects. */
 export type ScanAction = "scan";
@@ -81,7 +82,8 @@ function isDiscreteAction(action: string): action is DiscreteAction {
     action === "select" ||
     action === "next" ||
     action === "previous" ||
-    action === "back"
+    action === "back" ||
+    action === "togglePause"
   );
 }
 

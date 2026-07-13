@@ -268,6 +268,49 @@ describe("forwarded refs", () => {
     expect(first.current).toBeNull();
     expect(second.current?.textContent).toBe("X");
   });
+
+  it("moves registry identity when a target ID changes", async () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+    function DynamicTarget({ id }: { id: string }) {
+      const target = useScanTarget({ id, label: id.toUpperCase() });
+      return <button {...target.props}>{id}</button>;
+    }
+    const app = (id: string) => (
+      <ScannerProvider scanner={scanner}>
+        <DynamicTarget id={id} />
+      </ScannerProvider>
+    );
+    const view = render(app("first"));
+    await flushMicrotasks();
+    view.rerender(app("second"));
+    await flushMicrotasks();
+    act(() => scanner.start());
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "second",
+    });
+  });
+
+  it("leaves no phantom registration after callback-ref unmount", async () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+    function App({ show }: { show: boolean }) {
+      return (
+        <ScannerProvider scanner={scanner}>
+          {show ? <TargetButton id="x" label="X" /> : null}
+        </ScannerProvider>
+      );
+    }
+    const view = render(<App show />);
+    await flushMicrotasks();
+    view.rerender(<App show={false} />);
+    await flushMicrotasks();
+    act(() => scanner.start());
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "complete",
+      highlight: null,
+      position: null,
+    });
+  });
 });
 
 describe("unmount cleanup", () => {

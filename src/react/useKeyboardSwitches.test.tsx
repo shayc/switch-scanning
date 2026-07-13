@@ -6,6 +6,7 @@ import {
   manualClock,
   stepScan,
 } from "../core/index.ts";
+import { createScannerFixture } from "../core/testing/index.ts";
 import { ScannerProvider } from "./ScannerProvider.tsx";
 import { useKeyboardSwitches } from "./useKeyboardSwitches.ts";
 import { useScanner } from "./useScanner.ts";
@@ -117,5 +118,224 @@ describe("keyboard switches", () => {
       document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
     });
     expect(activated).toEqual(["x"]);
+  });
+
+  it("passes rejected mapped keys through without opening a gesture", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "switch",
+      switches: { next: { action: "next" } },
+    });
+
+    function KeyApp() {
+      useKeyboardSwitches(
+        scanner,
+        { Space: "next" },
+        {
+          shouldHandle: () => false,
+        },
+      );
+      return null;
+    }
+
+    render(<KeyApp />);
+    const down = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    const up = new KeyboardEvent("keyup", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      document.dispatchEvent(down);
+      document.dispatchEvent(up);
+    });
+    expect(down.defaultPrevented).toBe(false);
+    expect(up.defaultPrevented).toBe(false);
+    expect(scanner.getSnapshot().status).toBe("idle");
+  });
+
+  it("honors an explicit target across rejected, disabled, and repeated keys", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "switch",
+      switches: { next: { action: "next" } },
+    });
+    const target = document.createElement("div");
+
+    function KeyApp({
+      enabled,
+      accept,
+    }: {
+      enabled: boolean;
+      accept: boolean;
+    }) {
+      useKeyboardSwitches(
+        scanner,
+        { Space: "next" },
+        {
+          target,
+          enabled,
+          shouldHandle: () => accept,
+        },
+      );
+      return null;
+    }
+
+    const view = render(<KeyApp enabled accept={false} />);
+    const unmapped = new KeyboardEvent("keydown", {
+      code: "KeyA",
+      cancelable: true,
+    });
+    const rejected = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    const rejectedAgain = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      target.dispatchEvent(unmapped);
+      target.dispatchEvent(rejected);
+      target.dispatchEvent(rejectedAgain);
+    });
+    expect(unmapped.defaultPrevented).toBe(false);
+    expect(rejected.defaultPrevented).toBe(false);
+    expect(rejectedAgain.defaultPrevented).toBe(false);
+
+    // Cleanup includes a remembered rejected key but must not disconnect it.
+    view.unmount();
+    const disabledView = render(<KeyApp enabled={false} accept />);
+    const disabled = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      target.dispatchEvent(disabled);
+    });
+    expect(disabled.defaultPrevented).toBe(false);
+
+    disabledView.rerender(<KeyApp enabled accept />);
+    const repeated = new KeyboardEvent("keydown", {
+      code: "Space",
+      repeat: true,
+      cancelable: true,
+    });
+    act(() => {
+      target.dispatchEvent(repeated);
+    });
+    expect(repeated.defaultPrevented).toBe(false);
+
+    const accepted = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      target.dispatchEvent(accepted);
+      target.dispatchEvent(
+        new KeyboardEvent("keyup", { code: "Space", cancelable: true }),
+      );
+    });
+    expect(accepted.defaultPrevented).toBe(true);
+    // No scan tree is attached in this adapter-only test, so the accepted
+    // start gesture reaches the deterministic empty-tree completion state.
+    expect(scanner.getSnapshot().status).toBe("complete");
+  });
+
+  it("closes an accepted key even when disabled before keyup", () => {
+    const scanner = createScanner({
+      style: inverseScan({ intervalMs: 1000, loops: "infinite" }),
+      startOn: "command",
+      switches: { scan: { action: "scan" } },
+    });
+    const fixture = createScannerFixture(scanner, [
+      { kind: "target", id: "x", label: "X" },
+    ]);
+
+    function KeyApp({ enabled }: { enabled: boolean }) {
+      useKeyboardSwitches(scanner, { Space: "scan" }, { enabled });
+      return null;
+    }
+
+    const view = render(<KeyApp enabled />);
+    act(() => scanner.start());
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    });
+    view.rerender(<KeyApp enabled={false} />);
+    const up = new KeyboardEvent("keyup", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      document.dispatchEvent(up);
+    });
+    expect(up.defaultPrevented).toBe(true);
+    expect(fixture.activations).toEqual(["x"]);
+  });
+
+  it("disconnects a held phaseful switch on window blur", () => {
+    const scanner = createScanner({
+      style: inverseScan({ intervalMs: 1000, loops: "infinite" }),
+      startOn: "command",
+      switches: { scan: { action: "scan" } },
+    });
+    const fixture = createScannerFixture(scanner, [
+      { kind: "target", id: "x", label: "X" },
+    ]);
+    function KeyApp() {
+      useKeyboardSwitches(scanner, { Space: "scan" });
+      return null;
+    }
+    render(<KeyApp />);
+    act(() => scanner.start());
+    const repeated = new KeyboardEvent("keydown", {
+      code: "Space",
+      repeat: true,
+      cancelable: true,
+    });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+      document.dispatchEvent(repeated);
+      window.dispatchEvent(new Event("blur"));
+      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    });
+    expect(repeated.defaultPrevented).toBe(true);
+    expect(fixture.activations).toEqual([]);
+  });
+
+  it("disconnects a held phaseful switch when the document becomes hidden", () => {
+    const scanner = createScanner({
+      style: inverseScan({ intervalMs: 1000, loops: "infinite" }),
+      startOn: "command",
+      switches: { scan: { action: "scan" } },
+    });
+    const fixture = createScannerFixture(scanner, [
+      { kind: "target", id: "x", label: "X" },
+    ]);
+    function KeyApp() {
+      useKeyboardSwitches(scanner, { Space: "scan" });
+      return null;
+    }
+    render(<KeyApp />);
+    act(() => scanner.start());
+    const previousVisibility = document.visibilityState;
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: "hidden",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: previousVisibility,
+      });
+      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    });
+    expect(fixture.activations).toEqual([]);
   });
 });

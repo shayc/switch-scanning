@@ -94,6 +94,52 @@ describe("performOn release with hold duration", () => {
   });
 });
 
+describe("press stabilization", () => {
+  it("accepts a press-edge discrete action only after its hold duration", () => {
+    const { clock, scanner } = build({
+      style: stepScan(),
+      switches: { next: { action: "next", holdDurationMs: 100 } },
+    });
+    scanner.start();
+    scanner.input.press("next");
+    clock.advanceBy(99);
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "yes" });
+    clock.advanceBy(1);
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
+    scanner.input.release("next");
+  });
+
+  it("accepts a phaseful scan only after its hold duration", () => {
+    const { clock, scanner, fixture } = build({
+      style: inverseScan({ intervalMs: 100, loops: "infinite" }),
+      switches: { scan: { action: "scan", holdDurationMs: 50 } },
+      startOn: "command",
+    });
+    scanner.start();
+    scanner.input.press("scan");
+    clock.advanceBy(49);
+    scanner.input.release("scan");
+    expect(fixture.activations).toEqual([]);
+
+    scanner.input.press("scan");
+    clock.advanceBy(50);
+    scanner.input.release("scan");
+    expect(fixture.activations).toEqual(["yes"]);
+  });
+
+  it("ignores duplicate press signals for one held source", () => {
+    const { scanner } = build({
+      style: stepScan(),
+      switches: { next: { action: "next", performOn: "release" } },
+    });
+    scanner.start();
+    scanner.input.press("next", "same");
+    scanner.input.press("next", "same");
+    scanner.input.release("next", "same");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
+  });
+});
+
 describe("ignore repeat", () => {
   it("rejects a second activation of the same switch inside the window", () => {
     const { clock, scanner } = build({
@@ -115,6 +161,27 @@ describe("ignore repeat", () => {
       kind: "target",
       id: "yes",
     });
+  });
+
+  it("consumes a tap/hold gesture when its hold edge is repeat-blocked", () => {
+    const { clock, scanner } = build({
+      style: stepScan(),
+      switches: {
+        primary: {
+          tap: "next",
+          hold: { afterMs: 100, action: "previous" },
+          ignoreRepeatMs: 1_000,
+        },
+      },
+    });
+    scanner.start();
+    scanner.input.press("primary");
+    scanner.input.release("primary");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
+    scanner.input.press("primary");
+    clock.advanceBy(100);
+    scanner.input.release("primary");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
   });
 });
 
@@ -236,6 +303,69 @@ describe("multi-source phaseful scan", () => {
     });
     scanner.input.release("scan", "sourceA");
 
+    expect(fixture.activations).toEqual(["yes"]);
+  });
+
+  it("cancels an accepted scan gesture when its definition changes", () => {
+    const { clock, scanner, fixture } = build(options);
+    scanner.start();
+    scanner.input.press("scan", "sourceA");
+    scanner.setOptions({
+      style: inverseScan({ intervalMs: 900, loops: "infinite" }),
+      switches: { scan: { action: "next" } },
+      startOn: "switch",
+      clock,
+    });
+    scanner.input.release("scan", "sourceA");
+    expect(fixture.activations).toEqual([]);
+    expect(clock.pending).toBe(0);
+  });
+
+  it("resets an accepted scan gesture when pausing", () => {
+    const { scanner, fixture } = build(options);
+    scanner.start();
+    scanner.input.press("scan", "sourceA");
+    scanner.pause();
+    scanner.input.release("scan", "sourceA");
+    expect(fixture.activations).toEqual([]);
+    expect(scanner.getSnapshot().status).toBe("paused");
+  });
+});
+
+describe("definition replacement", () => {
+  it("cancels held discrete repeat ownership when the definition changes", () => {
+    const { clock, scanner } = build({
+      style: stepScan({ repeat: { delayMs: 100, intervalMs: 50 } }),
+      switches: { next: { action: "next" } },
+    });
+    scanner.start();
+    scanner.input.press("next");
+    scanner.setOptions({
+      style: stepScan({ repeat: { delayMs: 100, intervalMs: 50 } }),
+      switches: { next: { action: "previous" } },
+      clock,
+    });
+    clock.advanceBy(500);
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
+  });
+
+  it("preserves an equivalent held tap/hold definition", () => {
+    const definition = {
+      tap: "next" as const,
+      hold: { afterMs: 100, action: "select" as const },
+    };
+    const { clock, scanner, fixture } = build({
+      style: stepScan(),
+      switches: { primary: definition },
+    });
+    scanner.start();
+    scanner.input.press("primary");
+    scanner.setOptions({
+      style: stepScan(),
+      switches: { primary: { ...definition, hold: { ...definition.hold } } },
+      clock,
+    });
+    clock.advanceBy(100);
     expect(fixture.activations).toEqual(["yes"]);
   });
 });

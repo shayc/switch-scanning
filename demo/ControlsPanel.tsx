@@ -41,6 +41,10 @@ interface ControlsPanelProps {
   onTiming: (patch: Partial<Timing>) => void;
   speech: boolean;
   onSpeech: (on: boolean) => void;
+  keyboardOwnership: "mixed" | "dedicated";
+  onKeyboardOwnership: (value: "mixed" | "dedicated") => void;
+  pointerSwitch: boolean;
+  onPointerSwitch: (on: boolean) => void;
 }
 
 /**
@@ -55,6 +59,10 @@ export function ControlsPanel({
   onTiming,
   speech,
   onSpeech,
+  keyboardOwnership,
+  onKeyboardOwnership,
+  pointerSwitch,
+  onPointerSwitch,
 }: ControlsPanelProps) {
   const meta = STYLE_META[styleKind];
 
@@ -89,6 +97,14 @@ export function ControlsPanel({
               min={1}
               onChange={(intervalMs) => onTiming({ intervalMs })}
             />
+            {styleKind === "auto" && (
+              <NumberField
+                label="Transition time (ms)"
+                value={timing.transitionTimeMs}
+                min={0}
+                onChange={(transitionTimeMs) => onTiming({ transitionTimeMs })}
+              />
+            )}
             <NumberField
               label="Loops"
               value={timing.loops}
@@ -143,6 +159,42 @@ export function ControlsPanel({
             )}
           </>
         )}
+        <NumberField
+          label="Selection delay (ms)"
+          value={timing.selectionDelayMs}
+          min={0}
+          onChange={(selectionDelayMs) => onTiming({ selectionDelayMs })}
+        />
+      </fieldset>
+
+      <fieldset className="field-group">
+        <legend>Input ownership</legend>
+        <label className="radio">
+          <input
+            type="radio"
+            name="keyboard-ownership"
+            checked={keyboardOwnership === "mixed"}
+            onChange={() => onKeyboardOwnership("mixed")}
+          />
+          Mixed input (settings keep native keys)
+        </label>
+        <label className="radio">
+          <input
+            type="radio"
+            name="keyboard-ownership"
+            checked={keyboardOwnership === "dedicated"}
+            onChange={() => onKeyboardOwnership("dedicated")}
+          />
+          Dedicated switch keyboard
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={pointerSwitch}
+            onChange={(event) => onPointerSwitch(event.target.checked)}
+          />
+          Show dedicated touch switch
+        </label>
       </fieldset>
 
       <fieldset className="field-group">
@@ -173,7 +225,7 @@ export function ControlsPanel({
 
       <div className="field-group">
         <p className="hint">
-          <strong>Keys:</strong> {meta.keys}
+          <strong>Keys:</strong> {meta.keys} · P = pause/resume
         </p>
         <StatusLine />
       </div>
@@ -189,12 +241,22 @@ function StatusLine() {
     (s) => s.path.join(" › "),
     (a, b) => a === b,
   );
+  const position = useScannerSnapshot((s) => s.position);
+  const pending = useScannerSnapshot((s) => s.pending);
 
   return (
     <dl className="status">
       <div>
         <dt>Status</dt>
         <dd data-status={status}>{status}</dd>
+      </div>
+      <div>
+        <dt>Position</dt>
+        <dd>{position ? `${position.index + 1}/${position.count}` : "—"}</dd>
+      </div>
+      <div>
+        <dt>Pending</dt>
+        <dd>{pending?.kind ?? "waiting"}</dd>
       </div>
       <div>
         <dt>Scope</dt>

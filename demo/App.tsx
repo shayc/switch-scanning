@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   ScannerProvider,
   useKeyboardSwitches,
+  usePointerSwitch,
   useScanner,
   autoScan,
   inverseScan,
@@ -27,6 +28,8 @@ export interface Timing {
   repeatEnabled: boolean;
   repeatDelayMs: number;
   repeatIntervalMs: number;
+  selectionDelayMs: number;
+  transitionTimeMs: number;
 }
 
 const DEFAULT_TIMING: Timing = {
@@ -37,6 +40,8 @@ const DEFAULT_TIMING: Timing = {
   repeatEnabled: false,
   repeatDelayMs: 600,
   repeatIntervalMs: 500,
+  selectionDelayMs: 0,
+  transitionTimeMs: 0,
 };
 
 /**
@@ -47,18 +52,38 @@ const SWITCHES: Record<
   ScanStyleKind,
   Readonly<Record<string, SwitchDefinition>>
 > = {
-  auto: { select: { action: "select" } },
-  step: { next: { action: "next" }, select: { action: "select" } },
-  singleStep: { next: { action: "next" } },
-  inverse: { hold: { action: "scan" } },
+  auto: {
+    select: { action: "select" },
+    pause: { action: "togglePause" },
+  },
+  step: {
+    next: { action: "next" },
+    select: { action: "select" },
+    pause: { action: "togglePause" },
+  },
+  singleStep: {
+    next: { action: "next" },
+    pause: { action: "togglePause" },
+  },
+  inverse: {
+    hold: { action: "scan" },
+    pause: { action: "togglePause" },
+  },
 };
 
 /** Keyboard bindings mirror the switch IDs declared above. */
 const BINDINGS: Record<ScanStyleKind, KeyboardSwitchBindings> = {
-  auto: { Space: "select" },
-  step: { Space: "next", Enter: "select" },
-  singleStep: { Space: "next" },
-  inverse: { Space: "hold" },
+  auto: { Space: "select", KeyP: "pause" },
+  step: { Space: "next", Enter: "select", KeyP: "pause" },
+  singleStep: { Space: "next", KeyP: "pause" },
+  inverse: { Space: "hold", KeyP: "pause" },
+};
+
+const POINTER_SWITCH: Record<ScanStyleKind, string> = {
+  auto: "select",
+  step: "next",
+  singleStep: "next",
+  inverse: "hold",
 };
 
 function buildStyle(kind: ScanStyleKind, t: Timing): ScanStyle {
@@ -68,6 +93,7 @@ function buildStyle(kind: ScanStyleKind, t: Timing): ScanStyle {
         intervalMs: t.intervalMs,
         loops: t.loops,
         firstItemPauseMs: t.firstItemPauseMs,
+        transitionTimeMs: t.transitionTimeMs,
       });
     case "inverse":
       return inverseScan({
@@ -95,6 +121,10 @@ export function App() {
   const [styleKind, setStyleKind] = useState<ScanStyleKind>("auto");
   const [timing, setTiming] = useState<Timing>(DEFAULT_TIMING);
   const [speech, setSpeech] = useState(false);
+  const [keyboardOwnership, setKeyboardOwnership] = useState<
+    "mixed" | "dedicated"
+  >("mixed");
+  const [pointerSwitch, setPointerSwitch] = useState(false);
 
   // Style constructors throw on invalid values; while a field is mid-edit the
   // parsed number may be out of range, so fall back to the defaults for that
@@ -111,8 +141,21 @@ export function App() {
     style,
     switches: SWITCHES[styleKind],
     startOn: "switch",
+    selectionDelay: { durationMs: timing.selectionDelayMs },
   });
-  useKeyboardSwitches(scanner, BINDINGS[styleKind]);
+  useKeyboardSwitches(
+    scanner,
+    BINDINGS[styleKind],
+    keyboardOwnership === "dedicated"
+      ? {}
+      : {
+          shouldHandle: (event) =>
+            !(
+              event.target instanceof Element &&
+              event.target.closest('[aria-label="Controls"]')
+            ),
+        },
+  );
 
   return (
     <ScannerProvider scanner={scanner}>
@@ -133,10 +176,43 @@ export function App() {
           onTiming={(patch) => setTiming((prev) => ({ ...prev, ...patch }))}
           speech={speech}
           onSpeech={setSpeech}
+          keyboardOwnership={keyboardOwnership}
+          onKeyboardOwnership={setKeyboardOwnership}
+          pointerSwitch={pointerSwitch}
+          onPointerSwitch={setPointerSwitch}
         />
         <PhraseBoard />
-        <EventLog speech={speech} />
+        <EventLog scanner={scanner} speech={speech} />
+        <PointerSurface
+          scanner={scanner}
+          switchId={POINTER_SWITCH[styleKind]}
+          enabled={pointerSwitch}
+        />
       </main>
     </ScannerProvider>
+  );
+}
+
+function PointerSurface({
+  scanner,
+  switchId,
+  enabled,
+}: {
+  scanner: ReturnType<typeof useScanner>;
+  switchId: string;
+  enabled: boolean;
+}) {
+  const binding = usePointerSwitch(scanner, { switchId, enabled });
+  if (!enabled) return null;
+  return (
+    <section className="panel pointer-panel" aria-label="Touch switch">
+      <h2>Dedicated touch switch</h2>
+      <button {...binding.props} className="pointer-switch" type="button">
+        Press and release here
+      </button>
+      <p className="hint">
+        This surface intentionally owns touch and pen input.
+      </p>
+    </section>
   );
 }
