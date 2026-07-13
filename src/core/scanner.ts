@@ -23,6 +23,7 @@ import type {
   ActivationResult,
   AfterActivation,
   GroupExit,
+  Highlight,
   ScanGroupNode,
   Scanner,
   ScannerDiagnosticCode,
@@ -105,6 +106,17 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     sink,
   });
 
+  // Drive the host's optional presentation, isolating a faulty host so a reveal
+  // failure never interrupts publication. Passing `null` clears any decoration.
+  function revealHighlight(highlight: Highlight): void {
+    if (!host?.reveal) return;
+    try {
+      host.reveal(highlight);
+    } catch (error) {
+      reportBoundaryError(error, "host reveal");
+    }
+  }
+
   function applySessionEffects(effects: readonly SessionEffect[]): void {
     for (const effect of effects) {
       switch (effect.type) {
@@ -115,13 +127,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
             current: effect.current,
             label: effect.label,
           });
-          if (host?.reveal) {
-            try {
-              host.reveal(effect.current);
-            } catch (error) {
-              reportBoundaryError(error, "host reveal");
-            }
-          }
+          revealHighlight(effect.current);
           styleRuntime.landed(session.firstOfPass);
           break;
         case "group-entered":
@@ -236,6 +242,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       case "stop":
         styleRuntime.halt();
         session.clear();
+        revealHighlight(null);
         status = "idle";
         emit({ type: "scan.stopped", reason: "after-activation" });
         break;
@@ -268,6 +275,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function completeScan(reason: "loops" | "empty"): void {
     styleRuntime.halt();
     session.clear();
+    revealHighlight(null);
     status = "complete";
     emit({ type: "scan.completed", reason });
   }
@@ -276,6 +284,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     styleRuntime.halt();
     gestures.reset();
     session.clear();
+    revealHighlight(null);
     status = "idle";
     emit({ type: "scan.stopped", reason });
   }
@@ -507,6 +516,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       styleRuntime.halt();
       gestures.reset();
       session.clear();
+      revealHighlight(null);
       status = "idle";
       store.clearListeners();
       host = null;

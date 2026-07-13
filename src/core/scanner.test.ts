@@ -3,7 +3,7 @@ import { manualClock } from "./clock.ts";
 import { createScanner } from "./scanner.ts";
 import { autoScan, stepScan } from "./styles.ts";
 import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
-import type { ScanNode, ScannerOptions } from "./types.ts";
+import type { Highlight, ScanNode, ScannerOptions } from "./types.ts";
 
 const YES_NO: ScanNode[] = [
   { kind: "target", id: "yes", label: "Yes" },
@@ -161,6 +161,47 @@ describe("serialized transitions", () => {
       expect.objectContaining({ message: "reveal failed" }),
     );
     reported.mockRestore();
+  });
+});
+
+describe("clearing host decorations", () => {
+  function withRecordingHost(style: ScannerOptions["style"]) {
+    const clock = manualClock();
+    const scanner = createScanner({ style, startOn: "command", clock });
+    const reveals: Highlight[] = [];
+    scanner.attachHost({
+      activate: () => ({ activated: true }),
+      reveal: (highlight) => reveals.push(highlight),
+    });
+    scanner.setTree({
+      kind: "group",
+      id: "root",
+      label: "root",
+      children: YES_NO,
+    });
+    return { clock, scanner, reveals };
+  }
+
+  it("reveals null so the host clears decorations when stopped", () => {
+    const { scanner, reveals } = withRecordingHost(
+      autoScan({ intervalMs: 1000, loops: 5 }),
+    );
+    scanner.start();
+    expect(reveals.at(-1)).toEqual({ kind: "target", id: "yes" });
+
+    scanner.stop();
+    expect(reveals.at(-1)).toBeNull();
+  });
+
+  it("reveals null when a timed scan completes its loops", () => {
+    const { clock, scanner, reveals } = withRecordingHost(
+      autoScan({ intervalMs: 1000, loops: 1 }),
+    );
+    scanner.start();
+    while (scanner.getSnapshot().status === "scanning") clock.advanceBy(1000);
+
+    expect(scanner.getSnapshot().status).toBe("complete");
+    expect(reveals.at(-1)).toBeNull();
   });
 });
 

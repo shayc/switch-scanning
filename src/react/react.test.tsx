@@ -186,6 +186,61 @@ describe("imperative driving", () => {
   });
 });
 
+describe("clearing decorations on exit", () => {
+  it("removes highlight decorations when the scanner stops", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+    const view = render(
+      <Harness clock={clock} onReady={(s) => (scanner = s)} />,
+    );
+    await flushMicrotasks();
+
+    act(() => scanner.start());
+    expect(view.getByText("Yes").getAttribute("data-scan-highlighted")).toBe(
+      "",
+    );
+
+    act(() => scanner.stop());
+    expect(document.querySelector("[data-scan-highlighted]")).toBeNull();
+  });
+
+  it("removes highlight decorations when a timed scan completes", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+    render(<Harness clock={clock} onReady={(s) => (scanner = s)} />);
+    await flushMicrotasks();
+
+    act(() => scanner.start());
+    act(() => {
+      // Exhaust the loop budget so the scan completes.
+      for (
+        let i = 0;
+        i < 20 && scanner.getSnapshot().status === "scanning";
+        i++
+      ) {
+        clock.advanceBy(1000);
+      }
+    });
+    expect(scanner.getSnapshot().status).toBe("complete");
+    expect(document.querySelector("[data-scan-highlighted]")).toBeNull();
+  });
+
+  it("retains the highlight decoration while paused", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+    const view = render(
+      <Harness clock={clock} onReady={(s) => (scanner = s)} />,
+    );
+    await flushMicrotasks();
+
+    act(() => scanner.start());
+    act(() => scanner.pause());
+    expect(view.getByText("Yes").getAttribute("data-scan-highlighted")).toBe(
+      "",
+    );
+  });
+});
+
 describe("forwarded refs", () => {
   it("moves target ownership when the forwarded ref changes", () => {
     const first = createRef<HTMLElement>();
