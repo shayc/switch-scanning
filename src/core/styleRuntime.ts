@@ -9,9 +9,9 @@ export interface LandingPolicy {
 }
 
 export interface StyleRuntime {
-  readonly scanHeld: boolean;
+  readonly pending: PendingTiming | null;
   setStyle(style: ScanStyle): void;
-  landed(policy: LandingPolicy | boolean): void;
+  landed(policy: LandingPolicy): void;
   cancelDeadline(): void;
   halt(): void;
   scanPress(sourceKey: string, firstOfPass: boolean): void;
@@ -26,29 +26,23 @@ export type ScanPhaseResult = "missing" | "open" | "closed";
 /** Executes the timing semantics of declarative scan styles. */
 export function createStyleRuntime(deps: {
   style: ScanStyle;
-  clock?: Clock;
+  clock: Clock;
   scheduler: Scheduler;
   isScanning: () => boolean;
   advance: () => void;
   select: () => void;
-  pendingChanged?: (pending: PendingTiming | null) => void;
 }): StyleRuntime {
   let style = deps.style;
   let deadline: CancelScheduled | null = null;
   let repeatCancel: CancelScheduled | null = null;
   let repeatOwner: string | null = null;
+  let pending: PendingTiming | null = null;
   const activeScanSources = new Set<string>();
-  const runtimeClock: Clock =
-    deps.clock ??
-    ("now" in deps.scheduler && typeof deps.scheduler.now === "function"
-      ? (deps.scheduler as Scheduler & Clock)
-      : { now: () => Date.now() });
-  const pendingChanged = deps.pendingChanged ?? (() => undefined);
 
   function cancelDeadline(): void {
     if (deadline) {
       deadline();
-      pendingChanged(null);
+      pending = null;
     }
     deadline = null;
   }
@@ -58,11 +52,11 @@ export function createStyleRuntime(deps: {
     delay: number,
     callback: () => void,
   ): void {
-    const startedAt = runtimeClock.now();
-    pendingChanged({ kind, startedAt, dueAt: startedAt + delay });
+    const startedAt = deps.clock.now();
+    pending = { kind, startedAt, dueAt: startedAt + delay };
     deadline = deps.scheduler.schedule(delay, () => {
       deadline = null;
-      pendingChanged(null);
+      pending = null;
       callback();
     });
   }
@@ -88,22 +82,22 @@ export function createStyleRuntime(deps: {
   function stopRepeat(): void {
     if (repeatCancel) {
       repeatCancel();
-      pendingChanged(null);
+      pending = null;
     }
     repeatCancel = null;
     repeatOwner = null;
   }
 
   function scheduleRepeat(repeat: StepScanRepeat, delay: number): void {
-    const startedAt = runtimeClock.now();
-    pendingChanged({
+    const startedAt = deps.clock.now();
+    pending = {
       kind: "advance",
       startedAt,
       dueAt: startedAt + delay,
-    });
+    };
     repeatCancel = deps.scheduler.schedule(delay, () => {
       repeatCancel = null;
-      pendingChanged(null);
+      pending = null;
       if (repeatOwner === null || !deps.isScanning()) return;
       deps.advance();
       scheduleRepeat(repeat, repeat.intervalMs);
@@ -111,8 +105,8 @@ export function createStyleRuntime(deps: {
   }
 
   return {
-    get scanHeld() {
-      return activeScanSources.size > 0;
+    get pending() {
+      return pending;
     },
     setStyle(next) {
       if (
@@ -124,11 +118,7 @@ export function createStyleRuntime(deps: {
       style = next;
     },
     landed(policy) {
-      schedule(
-        typeof policy === "boolean"
-          ? { firstOfPass: policy, armDwell: true }
-          : policy,
-      );
+      schedule(policy);
     },
     cancelDeadline,
     halt() {

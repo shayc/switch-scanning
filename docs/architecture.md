@@ -18,6 +18,11 @@ coordinator waits for the later effective deadline, hides presentation while
 selection is blocked, exposes `status: "transitioning"` and `pending` timing,
 and defines pause/resume/cancel behavior in one place.
 
+Pending timing is pull-based: the snapshot reads `transition.pending ??
+style.pending`, with a development invariant that both owners can never be
+active together. This keeps each timer's state with its owner and avoids a
+shared writable pending field.
+
 ## React 18/19 registration
 
 React registration callbacks always return `void`. A shared callback-ref

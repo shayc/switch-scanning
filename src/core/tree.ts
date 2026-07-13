@@ -3,7 +3,6 @@ import type { ScanGroupNode, ScanNode } from "./types.ts";
 export interface CompiledTree {
   readonly root: ScanGroupNode;
   readonly byId: ReadonlyMap<string, ScanNode>;
-  readonly parentOf: ReadonlyMap<string, string | null>;
 }
 
 export class DuplicateScanNodeIdError extends Error {
@@ -18,19 +17,17 @@ export class DuplicateScanNodeIdError extends Error {
 
 export function compileTree(root: ScanGroupNode): CompiledTree {
   const byId = new Map<string, ScanNode>();
-  const parentOf = new Map<string, string | null>();
 
-  const walk = (node: ScanNode, parentId: string | null): void => {
+  const walk = (node: ScanNode): void => {
     if (byId.has(node.id)) throw new DuplicateScanNodeIdError(node.id);
     byId.set(node.id, node);
-    parentOf.set(node.id, parentId);
     if (node.kind === "group") {
-      for (const child of node.children) walk(child, node.id);
+      for (const child of node.children) walk(child);
     }
   };
-  for (const child of root.children) walk(child, null);
+  for (const child of root.children) walk(child);
 
-  return { root, byId, parentOf };
+  return { root, byId };
 }
 
 export function exitLabelFor(group: ScanGroupNode): string {

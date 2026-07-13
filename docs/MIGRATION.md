@@ -14,6 +14,8 @@
   idle snapshot; call `stop()` first when observers need a lifecycle event.
 - Dedicated keyboard capture remains the default. Mixed-input controls should
   scope `target` or provide `shouldHandle`.
+- Remove `metadata` from scan targets. The engine never interpreted or exposed
+  it; keep application data in a host-owned map keyed by target ID.
 
 The preview adds `selectionDelay`, automatic `transitionTimeMs`, the
 `togglePause` switch action, and `usePointerSwitch`.

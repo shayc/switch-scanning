@@ -102,7 +102,8 @@ data.
 Use scanner-level `selectionDelay: { durationMs, resetOnInput? }` to protect
 the next semantic selection independently of per-switch `ignoreRepeatMs`.
 Input begun during that delay is intentionally suppressed through release;
-leave it at `0` for fast step users unless losing such a press is deliberate.
+`togglePause` remains available as the deliberate lifecycle exception. Leave
+the delay at `0` for fast step users unless losing such a press is deliberate.
 
 ### Two switches (step scanning)
 

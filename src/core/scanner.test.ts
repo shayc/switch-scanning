@@ -7,6 +7,7 @@ import type {
   Highlight,
   HostAttachment,
   ScanNode,
+  ScannerBehaviorOptions,
   ScannerOptions,
 } from "./types.ts";
 
@@ -160,6 +161,31 @@ describe("serialized transitions", () => {
     ]);
   });
 
+  it("throws invalid re-entrant option updates at their own call site", () => {
+    const { scanner } = build({ style: stepScan() }, YES_NO);
+    let caught: unknown;
+    scanner.observe((event) => {
+      if (event.type !== "scan.started") return;
+      try {
+        scanner.setOptions({
+          style: stepScan(),
+          enabled: "invalid",
+        } as unknown as ScannerBehaviorOptions);
+      } catch (error) {
+        caught = error;
+      }
+    });
+
+    expect(() => scanner.start()).not.toThrow();
+    expect(caught).toEqual(
+      expect.objectContaining({
+        message:
+          "[switch-scanning] enabled must be a boolean (received invalid)",
+      }),
+    );
+    expect(scanner.getSnapshot().status).toBe("scanning");
+  });
+
   it("reports re-entrant host acquisition truthfully before queued setup", () => {
     const scanner = createScanner({ style: stepScan() });
     const activations: string[] = [];
@@ -257,6 +283,47 @@ describe("clearing host decorations", () => {
 
     expect(scanner.getSnapshot().status).toBe("complete");
     expect(reveals.at(-1)).toBeNull();
+  });
+
+  it("restores the visible cursor before a replacement host can activate it", () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+    const firstReveals: Highlight[] = [];
+    const detach = scanner.attachHost({
+      activate: () => ({ activated: true }),
+      reveal: (highlight) => firstReveals.push(highlight),
+    });
+    scanner.setTree({
+      kind: "group",
+      id: "root",
+      label: "root",
+      children: YES_NO,
+    });
+    scanner.start();
+    detach();
+    expect(firstReveals.at(-1)).toBeNull();
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: null,
+      position: { index: 0, count: 2 },
+    });
+
+    const activations: string[] = [];
+    const replacementReveals: Highlight[] = [];
+    scanner.attachHost({
+      activate: (id) => {
+        activations.push(id);
+        return { activated: true };
+      },
+      reveal: (highlight) => replacementReveals.push(highlight),
+    });
+
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
+    expect(replacementReveals).toEqual([{ kind: "target", id: "yes" }]);
+    scanner.select();
+    expect(activations).toEqual(["yes"]);
   });
 });
 

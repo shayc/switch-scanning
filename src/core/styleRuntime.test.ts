@@ -9,13 +9,14 @@ describe("style runtime", () => {
     const advance = vi.fn();
     const runtime = createStyleRuntime({
       style: autoScan({ intervalMs: 100, loops: 2, firstItemPauseMs: 50 }),
+      clock,
       scheduler: clock,
       isScanning: () => true,
       advance,
       select: vi.fn(),
     });
 
-    runtime.landed(true);
+    runtime.landed({ firstOfPass: true, armDwell: true });
     clock.advanceBy(149);
     expect(advance).not.toHaveBeenCalled();
     clock.advanceBy(1);
@@ -27,13 +28,14 @@ describe("style runtime", () => {
     const advance = vi.fn();
     const runtime = createStyleRuntime({
       style: inverseScan({ intervalMs: 100, loops: "infinite" }),
+      clock,
       scheduler: clock,
       isScanning: () => true,
       advance,
       select: vi.fn(),
     });
 
-    runtime.landed(true);
+    runtime.landed({ firstOfPass: true, armDwell: true });
     expect(clock.pending).toBe(0);
     runtime.scanPress("source", true);
     clock.advanceBy(100);
@@ -46,6 +48,7 @@ describe("style runtime", () => {
     const advance = vi.fn();
     const runtime = createStyleRuntime({
       style: stepScan({ repeat: { delayMs: 200, intervalMs: 50 } }),
+      clock,
       scheduler: clock,
       isScanning: () => true,
       advance,

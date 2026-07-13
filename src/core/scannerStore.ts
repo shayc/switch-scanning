@@ -6,7 +6,6 @@ export interface ScannerStore {
   serialized: <Args extends unknown[]>(
     work: (...args: Args) => void,
   ) => (...args: Args) => void;
-  commit: () => void;
   emit: (event: ScannerEvent) => void;
   getSnapshot: () => ScannerSnapshot;
   subscribe: (onChange: () => void) => Unsubscribe;
@@ -32,7 +31,6 @@ export function createScannerStore(
     position: null,
     pending: null,
   };
-  let commitPending = false;
   let isDrainingTransitions = false;
   const pendingEvents: ScannerEvent[] = [];
   const pendingTransitions: Array<() => void> = [];
@@ -48,17 +46,14 @@ export function createScannerStore(
   }
 
   function publishChanges(): void {
-    if (commitPending) {
-      commitPending = false;
-      const next = buildSnapshot();
-      if (!snapshotEquals(next, cachedSnapshot)) {
-        cachedSnapshot = next;
-        for (const subscriber of [...subscribers]) {
-          try {
-            subscriber();
-          } catch (error) {
-            reportBoundaryError(error, "listener");
-          }
+    const next = buildSnapshot();
+    if (!snapshotEquals(next, cachedSnapshot)) {
+      cachedSnapshot = next;
+      for (const subscriber of [...subscribers]) {
+        try {
+          subscriber();
+        } catch (error) {
+          reportBoundaryError(error, "listener");
         }
       }
     }
@@ -100,9 +95,6 @@ export function createScannerStore(
   return {
     runTransition,
     serialized,
-    commit() {
-      commitPending = true;
-    },
     emit(event) {
       pendingEvents.push(event);
     },

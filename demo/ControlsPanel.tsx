@@ -65,9 +65,12 @@ export function ControlsPanel({
   onPointerSwitch,
 }: ControlsPanelProps) {
   const meta = STYLE_META[styleKind];
+  const status = useScannerSnapshot(scanner, (snapshot) => snapshot.status);
+  const canStart = status === "idle" || status === "complete";
+  const canPause = status === "scanning" || status === "transitioning";
 
   return (
-    <section className="panel" aria-label="Controls">
+    <section className="panel controls-panel" aria-label="Controls">
       <h2>Controls</h2>
 
       <fieldset className="field-group">
@@ -200,17 +203,36 @@ export function ControlsPanel({
       <fieldset className="field-group">
         <legend>Run</legend>
         <div className="button-row">
-          <button type="button" onClick={() => scanner.start()}>
+          <button
+            type="button"
+            disabled={!canStart}
+            onClick={() => scanner.start()}
+          >
             Start
           </button>
-          <button type="button" onClick={() => scanner.pause()}>
+          <button
+            type="button"
+            disabled={!canPause}
+            onClick={() => scanner.pause()}
+          >
             Pause
           </button>
-          <button type="button" onClick={() => scanner.resume()}>
+          <button
+            type="button"
+            disabled={status !== "paused"}
+            onClick={() => scanner.resume()}
+          >
             Resume
           </button>
-          <button type="button" onClick={() => scanner.stop()}>
+          <button
+            type="button"
+            disabled={status === "idle"}
+            onClick={() => scanner.stop()}
+          >
             Stop
+          </button>
+          <button type="button" onClick={() => scanner.restart()}>
+            Restart
           </button>
         </div>
         <label className="checkbox">

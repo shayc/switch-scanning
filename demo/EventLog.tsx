@@ -4,6 +4,7 @@ import {
   type Scanner,
   type ScannerEvent,
 } from "@shayc/switch-scanning";
+import type { ScanStyleKind } from "./App.tsx";
 
 interface LoggedEvent {
   id: number;
@@ -20,9 +21,11 @@ const MAX_EVENTS = 50;
 export function EventLog({
   scanner,
   speech,
+  styleKind,
 }: {
   scanner: Scanner;
   speech: boolean;
+  styleKind: ScanStyleKind;
 }) {
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const nextId = useRef(0);
@@ -41,7 +44,12 @@ export function EventLog({
     const synth = window.speechSynthesis;
     const token = ++generation.current;
     synth.cancel();
-    if (scanner.getSnapshot().status === "scanning") {
+    // Inverse scanning owns a phaseful held gesture. Pausing here would reset
+    // that gesture and make its eventual release unable to select.
+    if (
+      styleKind !== "inverse" &&
+      scanner.getSnapshot().status === "scanning"
+    ) {
       scanner.pause();
       promptPaused.current = true;
     }
@@ -90,7 +98,10 @@ export function EventLog({
           promptPaused.current = false;
         }
       } else if (messageActive.current) {
-        if (scanner.getSnapshot().status === "scanning") {
+        if (
+          styleKind !== "inverse" &&
+          scanner.getSnapshot().status === "scanning"
+        ) {
           scanner.pause();
           promptPaused.current = true;
         }

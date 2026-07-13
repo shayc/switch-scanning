@@ -7,6 +7,7 @@ import {
   type GestureSink,
   type GestureStartState,
 } from "./gestures.ts";
+import { decideDiscreteInput, decideScanPress } from "./inputDecisions.ts";
 import { highlightEquals, ScanSession, type SessionEffect } from "./session.ts";
 import { createScannerStore } from "./scannerStore.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
@@ -64,6 +65,7 @@ interface ActiveTransition {
   quietDurationMs: number;
   resetOnInput: boolean;
   effectiveDueAt: number;
+  pending: PendingTiming | null;
   cancel: CancelScheduled | null;
 }
 
@@ -83,7 +85,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   const session = new ScanSession(tree, options.groupExit);
   let host: ScannerHost | null = null;
   let presentation: Presentation = null;
-  let pending: PendingTiming | null = null;
   let transition: ActiveTransition | null = null;
   let disposed = false;
   let hasPublishedTree = false;
@@ -91,10 +92,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   let status: ScannerStatus = "idle";
 
   const store = createScannerStore(() =>
-    session.snapshot(status, presentation?.highlight ?? null, pending),
+    session.snapshot(
+      status,
+      presentation?.highlight ?? null,
+      effectivePending(),
+    ),
   );
-  const { runTransition, serialized, commit, emit, reportBoundaryError } =
-    store;
+  const { runTransition, serialized, emit, reportBoundaryError } = store;
 
   function diagnostic(code: ScannerDiagnosticCode, message: string): void {
     emit({ type: "diagnostic", code, message });
@@ -106,10 +110,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     },
   };
 
-  function setPending(next: PendingTiming | null): void {
-    pending = next;
-  }
-
   const styleRuntime: StyleRuntime = createStyleRuntime({
     style: options.style,
     clock,
@@ -117,8 +117,22 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     isScanning: () => status === "scanning",
     advance: onAdvanceTick,
     select: onDwellExpire,
-    pendingChanged: setPending,
   });
+
+  function effectivePending(): PendingTiming | null {
+    const transitionPending = transition?.pending ?? null;
+    const stylePending = styleRuntime.pending;
+    if (
+      transitionPending !== null &&
+      stylePending !== null &&
+      isDevelopmentBuild()
+    ) {
+      throw new Error(
+        "[switch-scanning] invariant violated: transition and style timing cannot both be pending",
+      );
+    }
+    return transitionPending ?? stylePending;
+  }
 
   const sink: GestureSink = {
     pressStarted: onRawPressStarted,
@@ -126,7 +140,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       handleSwitchAction(action, context.heldPress, context),
     pressReleased: (context) => {
       styleRuntime.releaseRepeatOwner(context.sourceKey);
-      commit();
     },
     scanPress: onScanPress,
     scanRelease: onScanRelease,
@@ -254,13 +267,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       present: true,
       armDwell: false,
     });
-    commit();
   }
 
   function onDwellExpire(): void {
     if (status !== "scanning") return;
     selectCurrent();
-    commit();
   }
 
   function selectCurrent(): void {
@@ -374,6 +385,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       quietDurationMs,
       resetOnInput: options.selectionDelay.resetOnInput,
       effectiveDueAt: dueAt,
+      pending: null,
       cancel: null,
     };
     status = "transitioning";
@@ -389,12 +401,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     const dueAt = Math.max(active.fixedDueAt, active.quietDueAt);
     active.effectiveDueAt = dueAt;
     const delay = Math.max(0, dueAt - clock.now());
-    pending = { kind: "transition", startedAt, dueAt };
+    active.pending = { kind: "transition", startedAt, dueAt };
     active.cancel = scheduler.schedule(delay, () => {
       if (transition !== active || status !== "transitioning") return;
       active.cancel = null;
       finishTransition(true);
-      commit();
     });
   }
 
@@ -402,7 +413,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (!transition) return;
     transition.cancel?.();
     transition = null;
-    pending = null;
     status = "scanning";
     if (natural) emit({ type: "scan.transitionEnded" });
     presentLogical(false);
@@ -412,7 +422,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (!transition) return;
     transition.cancel?.();
     transition.cancel = null;
-    if (pending?.kind === "transition") pending = null;
+    transition.pending = null;
   }
 
   function dropTransition(): void {
@@ -437,7 +447,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     active.quietDueAt = nextQuietDueAt;
     if (nextEffectiveDueAt !== active.effectiveDueAt) {
       scheduleTransition(clock.now());
-      commit();
     }
   }
 
@@ -462,7 +471,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return false;
     mountStartPending = false;
     startScan(false);
-    commit();
     return true;
   }
 
@@ -515,56 +523,27 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     context: GestureContext,
   ): void {
     if (disposed || !options.enabled) return;
-    if (context.startedIn === "disabled") return;
-    if (
-      context.startedIn === "inactive" &&
-      status !== "idle" &&
-      status !== "complete"
-    ) {
+    const decision = decideDiscreteInput(
+      action,
+      context.startedIn,
+      status,
+      options.startOn,
+    );
+    if (decision === "ignore") return;
+    if (decision === "diagnose-toggle-pause") {
+      diagnostic(
+        "command-inapplicable",
+        `togglePause ignored while status is "${status}"`,
+      );
       return;
     }
-    if (
-      context.startedIn === "startable" &&
-      status !== "idle" &&
-      status !== "complete"
-    ) {
-      return;
-    }
-
-    if (action === "togglePause") {
-      if (context.startedIn === "active" && status !== "scanning") return;
-      if (context.startedIn === "transitioning" && status !== "transitioning") {
-        return;
-      }
-      if (context.startedIn === "paused" && status !== "paused") return;
+    if (decision === "toggle-pause") {
       if (status === "paused") resumeInternal();
-      else if (status === "scanning" || status === "transitioning")
-        pauseInternal();
-      else
-        diagnostic(
-          "command-inapplicable",
-          `togglePause ignored while status is "${status}"`,
-        );
-      commit();
+      else pauseInternal();
       return;
     }
-
-    if (context.startedIn === "inactive") return;
-
-    if (
-      context.startedIn === "transitioning" ||
-      context.startedIn === "paused" ||
-      status === "transitioning" ||
-      status === "paused"
-    ) {
-      return;
-    }
-
-    if (status === "idle" || status === "complete") {
-      if (context.startedIn !== "startable" || options.startOn !== "switch")
-        return;
+    if (decision === "start") {
       startScan(true);
-      commit();
       return;
     }
 
@@ -589,48 +568,36 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         backCommand();
         break;
     }
-    commit();
   }
 
   function onScanPress(context: GestureContext): void {
-    if (
-      disposed ||
-      !options.enabled ||
-      context.startedIn === "disabled" ||
-      context.startedIn === "inactive" ||
-      context.startedIn === "paused" ||
-      context.startedIn === "transitioning"
-    ) {
-      return;
-    }
-
-    if (context.startedIn === "startable") {
-      if (status !== "idle" && status !== "complete") return;
-      if (options.startOn !== "switch") return;
+    if (disposed || !options.enabled) return;
+    const decision = decideScanPress(
+      context.startedIn,
+      status,
+      options.startOn,
+    );
+    if (decision === "ignore") return;
+    if (decision === "start") {
       startScan(true);
-      if ((status as ScannerStatus) === "scanning") {
+      if (status === "scanning") {
         styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
       }
-      commit();
       return;
     }
 
-    if (status !== "scanning") return;
     styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
-    commit();
   }
 
   function onScanRelease(context: GestureContext): void {
     const phase = styleRuntime.scanRelease(context.sourceKey);
     if (phase === "missing") return;
     if (status === "scanning" && phase === "closed") selectCurrent();
-    commit();
   }
 
   function onScanCancel(context: GestureContext): void {
     const phase = styleRuntime.scanCancel(context.sourceKey);
     if (phase === "missing") return;
-    commit();
   }
 
   function requireScanning(command: string): boolean {
@@ -676,7 +643,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       // policy: automatic styles restart; single-step dwell is not rearmed.
       presentLogical(false);
     }
-    commit();
   }
 
   const input: ScannerInputPort = {
@@ -703,7 +669,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         return;
       }
       startScan(false);
-      commit();
     }),
     pause: serialized(() => {
       if (disposed) return;
@@ -712,7 +677,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         return;
       }
       pauseInternal();
-      commit();
     }),
     resume: serialized(() => {
       if (disposed) return;
@@ -724,12 +688,10 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         return;
       }
       resumeInternal();
-      commit();
     }),
     stop: serialized(() => {
       if (disposed || status === "idle") return;
       internalStop("command");
-      commit();
     }),
     restart: serialized(() => {
       if (disposed) return;
@@ -740,7 +702,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       setPresentation(null);
       status = "idle";
       startScan(false);
-      commit();
     }),
     next: serialized(() => {
       if (disposed || !requireScanning("next")) return;
@@ -748,7 +709,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         present: true,
         armDwell: true,
       });
-      commit();
     }),
     previous: serialized(() => {
       if (disposed || !requireScanning("previous")) return;
@@ -756,17 +716,14 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         present: true,
         armDwell: true,
       });
-      commit();
     }),
     select: serialized(() => {
       if (disposed || !requireScanning("select")) return;
       selectCurrent();
-      commit();
     }),
     back: serialized(() => {
       if (disposed || !requireScanning("back")) return;
       backCommand();
-      commit();
     }),
     getSnapshot() {
       return store.getSnapshot();
@@ -777,11 +734,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     observe(listener) {
       return store.observe(listener);
     },
-    setOptions: serialized((next: ScannerBehaviorOptions) => {
+    setOptions(next: ScannerBehaviorOptions) {
       if (disposed) return;
-      applyOptions(next);
-      commit();
-    }),
+      const normalized = validateOptionsUpdate(next);
+      runTransition(() => {
+        if (!disposed) applyOptions(normalized);
+      });
+    },
     setTree: serialized((root: ScanGroupNode) => {
       if (disposed) return;
       let nextTree: CompiledTree;
@@ -819,7 +778,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
           if (!attached || host !== next) return;
           setPresentation(null);
           host = null;
-          commit();
         });
       };
 
@@ -833,7 +791,17 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
           return;
         }
         if (detached || disposed || host !== next) return;
-        if (presentation) revealWith(next, presentation.highlight);
+        if (presentation) {
+          revealWith(next, presentation.highlight);
+        } else if (
+          status === "scanning" ||
+          (status === "paused" && transition === null)
+        ) {
+          // Detaching a host clears its decorations but deliberately preserves
+          // the logical session. Restore that cursor before the replacement
+          // host can accept a selection, so no target is activated invisibly.
+          setPresentation(session.currentPresentation);
+        }
         if (options.startOn === "mount") {
           mountStartPending = true;
           if (hasPublishedTree) maybeStartOnMount();
@@ -850,21 +818,24 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       session.clear();
       setPresentation(null);
       status = "idle";
-      commit();
       disposed = true;
       store.clearListeners();
       host = null;
     }),
   };
 
-  function applyOptions(next: ScannerBehaviorOptions): void {
-    // Normalize and validate everything before mutating active runtime state.
+  function validateOptionsUpdate(
+    next: ScannerBehaviorOptions,
+  ): NormalizedOptions {
     if ("clock" in next || "scheduler" in next) {
       throw new TypeError(
         "[switch-scanning] clock and scheduler are creation-only and cannot be changed with setOptions()",
       );
     }
-    const normalized = normalizeOptions(next);
+    return normalizeOptions(next);
+  }
+
+  function applyOptions(normalized: NormalizedOptions): void {
     const previous = options;
     options = normalized;
     styleRuntime.setStyle(options.style);
@@ -1041,4 +1012,15 @@ function assertNonNegative(value: number, name: string): void {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isDevelopmentBuild(): boolean {
+  try {
+    if (typeof process !== "undefined" && process.env?.NODE_ENV) {
+      return process.env.NODE_ENV !== "production";
+    }
+  } catch {
+    // Browsers without a process shim should retain invariant checks.
+  }
+  return true;
 }

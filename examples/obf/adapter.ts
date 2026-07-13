@@ -122,7 +122,6 @@ export function buildObfScanRows(
       kind: "target",
       id: button.id,
       label: speech ?? button.id,
-      metadata: { obfButtonId: button.id },
     }));
     return [
       {

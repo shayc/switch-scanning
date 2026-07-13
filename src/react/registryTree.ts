@@ -51,15 +51,31 @@ export function compileRegistryTree(
 
   const resolveTargetParent = (entry: RegistryTargetEntry): ParentId => {
     const explicit = entry.getOptions().groupId;
-    if (explicit !== undefined)
-      return groups.has(explicit) ? explicit : ROOT_PARENT;
+    if (explicit !== undefined) {
+      if (groups.has(explicit)) return explicit;
+      if (isDevelopment()) {
+        diagnostics.warn(
+          "missing-parent",
+          `target "${entry.id}" references unknown group "${explicit}"; keeping it at the root`,
+        );
+      }
+      return ROOT_PARENT;
+    }
     return domParent(entry.element, entry.id);
   };
 
   const resolveGroupParent = (entry: RegistryGroupEntry): ParentId => {
     const explicit = entry.getOptions().parentId;
-    if (explicit !== undefined)
-      return groups.has(explicit) ? explicit : ROOT_PARENT;
+    if (explicit !== undefined) {
+      if (groups.has(explicit)) return explicit;
+      if (isDevelopment()) {
+        diagnostics.warn(
+          "missing-parent",
+          `group "${entry.id}" references unknown parent "${explicit}"; keeping it at the root`,
+        );
+      }
+      return ROOT_PARENT;
+    }
     return domParent(entry.element, entry.id);
   };
 
@@ -146,10 +162,8 @@ export function compileRegistryTree(
       id: string;
       label: string;
       disabled?: boolean;
-      metadata?: Readonly<Record<string, unknown>>;
     } = { kind: "target", id: entry.id, label: options.label };
     if (disabled) node.disabled = true;
-    if (options.metadata !== undefined) node.metadata = options.metadata;
     return node;
   };
 

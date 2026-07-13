@@ -20,7 +20,6 @@ export interface ScanTargetNode {
   readonly id: string;
   readonly label: string;
   readonly disabled?: boolean;
-  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 // Snapshot

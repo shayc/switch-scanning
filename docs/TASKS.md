@@ -1,5 +1,9 @@
 # Improvement Plan (v3)
 
+> Historical implementation plan. Completed sections preserve the rationale
+> and acceptance criteria that produced the current code; `README.md`,
+> `docs/API.md`, and `docs/architecture.md` describe the current runtime.
+
 The implementation roadmap for taking `@shayc/switch-scanning` from a strong
 0.1 foundation to a production-grade, best-in-class web switch-scanning
 library. This plan supersedes v2. It combines the research in `docs/SPEC.md`,

@@ -13,13 +13,15 @@
 - `enabled`: disabling cancels active scanning and timers.
 - `selectionDelay`: `{ durationMs, resetOnInput?: true }`. Every semantic
   group, exit, or target selection starts protection, including failed target
-  activation. Any switch gesture begun during the delay is suppressed through
-  release; fast steppers should leave this at `0` unless losing such input is
-  an intentional access-method decision.
+  activation. Navigation and selection gestures begun during the delay are
+  suppressed through release; the deliberate `togglePause` lifecycle action
+  remains available. Fast steppers should leave this at `0` unless losing such
+  input is an intentional access-method decision.
 - `clock`/`scheduler`: creation-only deterministic timing infrastructure.
 
 `scanner.setOptions(...)` replaces behavior options only; the clock and
-scheduler remain fixed for the scanner's lifetime.
+scheduler remain fixed for the scanner's lifetime. Validation is synchronous
+at the call site even when a valid update is queued behind event delivery.
 
 `autoScan` additionally accepts `transitionTimeMs`, a fixed wait before
 automatic movement resumes after selection. The scanner waits for the later
@@ -42,7 +44,9 @@ fresh gesture is required after resume.
 
 `scanner.attachHost(host)` returns a callable detach handle whose `attached`
 property reports whether the exclusive host slot was acquired. A second live
-host is diagnosed and receives a handle with `attached: false`.
+host is diagnosed and receives a handle with `attached: false`. Detaching
+clears the old host's presentation without discarding the logical session; a
+replacement host restores any visible active cursor before accepting input.
 
 ## Snapshot
 
@@ -75,7 +79,8 @@ it as a normal release. Omit `sourceId` to disconnect every active source.
 - `ScannerProvider` attaches the DOM host and registry.
 - `useScanTarget` and `useScanGroup` decorate existing elements without
   wrappers. Use explicit `groupId`/`parentId` for portals and `sequence` when
-  DOM order is not scan order.
+  DOM order is not scan order. Unknown explicit parents stay at the root and
+  produce a development diagnostic.
 - `useKeyboardSwitches` captures a dedicated switch keyboard by default. Use
   `target` or `shouldHandle` for mixed-input applications. An undefined target
   defaults to the global document; `target: null` attaches no listeners, which
@@ -85,6 +90,12 @@ it as a normal release. Omit `sourceId` to disconnect every active source.
   intentionally unavailable.
 - `useScannerSnapshot` selects reactive state; `useScannerEvents` observes
   events without resubscribing when listener identity changes.
+
+`useScanner` keeps one scanner instance for the component lifetime. Runtime
+option changes are applied from a passive effect after React commits; callers
+that require an immediate imperative update should call `scanner.setOptions`
+directly. `ScanRegistry` is exported for advanced custom-provider integrations;
+ordinary applications should use `ScannerProvider` and the registration hooks.
 
 ## CSS
 

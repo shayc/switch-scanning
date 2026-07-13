@@ -181,13 +181,13 @@ export function App() {
           pointerSwitch={pointerSwitch}
           onPointerSwitch={setPointerSwitch}
         />
-        <PhraseBoard />
-        <EventLog scanner={scanner} speech={speech} />
         <PointerSurface
           scanner={scanner}
           switchId={POINTER_SWITCH[styleKind]}
           enabled={pointerSwitch}
         />
+        <PhraseBoard />
+        <EventLog scanner={scanner} speech={speech} styleKind={styleKind} />
       </main>
     </ScannerProvider>
   );

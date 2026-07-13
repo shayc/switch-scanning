@@ -16,7 +16,6 @@ export interface ScanTargetOptions {
   /** Structural eligibility; keep this aligned with the control's disabled state. */
   disabled?: boolean;
   activate?: () => void;
-  metadata?: Readonly<Record<string, unknown>>;
 }
 
 export interface ScanGroupOptions {

@@ -72,9 +72,48 @@ body {
   margin: 0 auto;
 }
 
+.controls-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.board-panel {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.log-panel {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.pointer-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
 @media (max-width: 60rem) {
   .app-grid {
     grid-template-columns: 1fr;
+  }
+
+  .controls-panel,
+  .pointer-panel,
+  .board-panel,
+  .log-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .pointer-panel {
+    position: sticky;
+    top: var(--demo-gap);
+    z-index: 1;
+  }
+
+  [data-scan-target],
+  [data-scan-group] {
+    scroll-margin-top: 10rem;
   }
 }
 
@@ -179,10 +218,6 @@ button:hover {
 
 .status dd[data-status="transitioning"] {
   color: #b45309;
-}
-
-.pointer-panel {
-  grid-column: 1 / -1;
 }
 
 .pointer-switch {

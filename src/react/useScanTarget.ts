@@ -45,8 +45,8 @@ export function useScanTarget(
     options.ref,
   );
 
-  // Republish when a structural field changes; freshness of `activate` and
-  // `metadata` does not require a new registration.
+  // Republish when a structural field changes; freshness of `activate` does
+  // not require a new registration.
   useEffect(() => {
     registry.touchTarget();
   }, [registry, id, options.label, options.disabled, options.groupId]);

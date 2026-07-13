@@ -40,8 +40,11 @@ test("timing controls reject values below their configured minimum", async ({
   });
   await selectionDelay.fill("-1");
   await expect(selectionDelay).toHaveValue("0");
-  await page.getByRole("button", { name: "Start" }).click();
+  const start = page.getByRole("button", { name: "Start", exact: true });
+  await start.click();
   await expect(page.locator(".status")).toContainText("scanning");
+  await expect(start).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Restart" })).toBeEnabled();
   expect(pageErrors).toEqual([]);
 });
 
@@ -59,6 +62,50 @@ test("direct and scanner activation share the native button path", async ({
   await expect(page.locator(".message-bar")).toContainText("I want");
 });
 
+test("auditory prompts preserve the held inverse-scan release", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    class MockUtterance {
+      voice: SpeechSynthesisVoice | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      constructor(readonly text: string) {}
+    }
+    const speech = {
+      cancel: () => undefined,
+      getVoices: (): SpeechSynthesisVoice[] => [],
+      speak: (utterance: MockUtterance) =>
+        queueMicrotask(() => utterance.onend?.()),
+    };
+    Object.defineProperty(window, "SpeechSynthesisUtterance", {
+      configurable: true,
+      value: MockUtterance,
+    });
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: speech,
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("radio", { name: "Inverse" }).check();
+  await page
+    .getByRole("checkbox", { name: "Speak highlights & activations" })
+    .check();
+  await page.getByRole("radio", { name: "Dedicated switch keyboard" }).check();
+
+  await page.keyboard.down("Space");
+  await expect(page.locator("[data-status]")).toHaveText("scanning");
+  await page.keyboard.up("Space");
+
+  const scope = page
+    .locator(".status div")
+    .filter({ hasText: "Scope" })
+    .locator("dd");
+  await expect(scope).toHaveText("row-wants");
+});
+
 test("dedicated pointer surface owns, coalesces, and safely disconnects input", async ({
   page,
 }) => {
@@ -74,7 +121,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
     .locator("dd");
   await expect(surface).toHaveAttribute("data-scan-pointer-switch", "");
   await expect(surface).toHaveCSS("touch-action", "none");
-  await page.getByRole("button", { name: "Start" }).click();
+  await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(position).toHaveText("1/4");
 
   await surface.dispatchEvent("pointerdown", {
@@ -225,6 +272,32 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
   ).toBe(1);
 });
 
+test("mobile touch switch remains reachable while scan events accumulate", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  await page.getByRole("radio", { name: "Step", exact: true }).check();
+  await page
+    .getByRole("checkbox", { name: "Show dedicated touch switch" })
+    .check();
+  await page.getByRole("radio", { name: "Dedicated switch keyboard" }).check();
+  const surface = page.getByRole("button", { name: "Press and release here" });
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+
+  for (let index = 0; index < 8; index += 1) {
+    await page.keyboard.press("Space");
+  }
+
+  expect(
+    await surface.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.bottom > 0 && rect.top < window.innerHeight;
+    }),
+  ).toBe(true);
+  await expect(page.locator("[data-scan-highlighted]")).toBeVisible();
+});
+
 test("highlight reveal scrolls an offscreen scan item into view", async ({
   page,
 }) => {
@@ -237,7 +310,7 @@ test("highlight reveal scrolls an offscreen scan item into view", async ({
   expect(before!.y).toBeGreaterThan(240);
 
   await page
-    .getByRole("button", { name: "Start" })
+    .getByRole("button", { name: "Start", exact: true })
     .evaluate((element) => (element as HTMLButtonElement).click());
   await expect(firstGroup).toHaveAttribute("data-scan-highlighted", "");
   await expect
@@ -277,7 +350,7 @@ test("default highlight remains visible in forced colors", async ({
   );
   await page.emulateMedia({ forcedColors: "active" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Start" }).click();
+  await page.getByRole("button", { name: "Start", exact: true }).click();
   const highlighted = page.locator("[data-scan-highlighted]");
   await expect(highlighted).toBeVisible();
   expect(

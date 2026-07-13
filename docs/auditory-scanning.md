@@ -3,14 +3,24 @@
 Speech is host-owned. The scanner supplies complete highlight and activation
 events; the target's existing action remains the public message path.
 
-The prompt controller below pauses automatic movement while a cue plays,
-cancels stale cues when presentation changes, and resumes after completion or
-speech errors. Resuming does not emit another highlight landing, so it cannot
-create a replay loop.
+The prompt controller below can pause movement while a cue plays, cancels stale
+cues when presentation changes, and resumes after completion or speech errors.
+Resuming does not emit another highlight landing, so it cannot create a replay
+loop.
+
+Pass `pauseWhileSpeaking: false` for inverse scanning. Its held `scan` gesture
+is phaseful: pausing deliberately forgets held gestures, so pausing for a prompt
+would prevent the eventual release from selecting. Without the pause, choose an
+interval long enough for the prompt; a new landing cancels any stale cue.
 
 ```tsx
-function useAuditoryPrompts(scanner: Scanner, enabled: boolean) {
+function useAuditoryPrompts(
+  scanner: Scanner,
+  enabled: boolean,
+  { pauseWhileSpeaking = true } = {},
+) {
   const generation = useRef(0);
+  const pausedForPrompt = useRef(false);
 
   useScannerEvents(scanner, (event) => {
     if (event.type !== "highlight.changed") return;
@@ -18,13 +28,22 @@ function useAuditoryPrompts(scanner: Scanner, enabled: boolean) {
     speechSynthesis.cancel();
 
     if (!enabled || event.current === null) return;
-    scanner.pause();
+    if (pauseWhileSpeaking && scanner.getSnapshot().status === "scanning") {
+      scanner.pause();
+      pausedForPrompt.current = true;
+    }
     const cue = new SpeechSynthesisUtterance(event.label);
     cue.voice = choosePromptVoice();
 
     const settle = () => {
       if (generation.current !== token) return;
-      if (scanner.getSnapshot().status === "paused") scanner.resume();
+      if (
+        pausedForPrompt.current &&
+        scanner.getSnapshot().status === "paused"
+      ) {
+        pausedForPrompt.current = false;
+        scanner.resume();
+      }
     };
     cue.onend = settle;
     cue.onerror = settle;
@@ -35,8 +54,14 @@ function useAuditoryPrompts(scanner: Scanner, enabled: boolean) {
     () => () => {
       generation.current++;
       speechSynthesis.cancel();
+      if (
+        pausedForPrompt.current &&
+        scanner.getSnapshot().status === "paused"
+      ) {
+        scanner.resume();
+      }
     },
-    [],
+    [scanner],
   );
 }
 ```
