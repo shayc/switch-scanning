@@ -51,18 +51,22 @@ export function compileRegistryTree(
 
   const resolveTargetParent = (entry: RegistryTargetEntry): ParentId => {
     const explicit = entry.getOptions().groupId;
-    if (explicit !== undefined) return groups.has(explicit) ? explicit : ROOT_PARENT;
+    if (explicit !== undefined)
+      return groups.has(explicit) ? explicit : ROOT_PARENT;
     return domParent(entry.element, entry.id);
   };
 
   const resolveGroupParent = (entry: RegistryGroupEntry): ParentId => {
     const explicit = entry.getOptions().parentId;
-    if (explicit !== undefined) return groups.has(explicit) ? explicit : ROOT_PARENT;
+    if (explicit !== undefined)
+      return groups.has(explicit) ? explicit : ROOT_PARENT;
     return domParent(entry.element, entry.id);
   };
 
-  for (const entry of targets.values()) pushChild(resolveTargetParent(entry), entry.id);
-  for (const entry of groups.values()) groupParents.set(entry.id, resolveGroupParent(entry));
+  for (const entry of targets.values())
+    pushChild(resolveTargetParent(entry), entry.id);
+  for (const entry of groups.values())
+    groupParents.set(entry.id, resolveGroupParent(entry));
   repairParentCycles(groupParents, diagnostics);
   for (const [id, parentId] of groupParents) pushChild(parentId, id);
 
@@ -122,7 +126,10 @@ export function compileRegistryTree(
     return [...ordered, ...remainder];
   };
 
-  const orderChildren = (parentId: ParentId, ids: readonly string[]): string[] => {
+  const orderChildren = (
+    parentId: ParentId,
+    ids: readonly string[],
+  ): string[] => {
     const group = parentId === ROOT_PARENT ? null : groups.get(parentId);
     const sequence = group?.getOptions().sequence;
     return parentId !== ROOT_PARENT && sequence && sequence.length > 0
@@ -132,7 +139,8 @@ export function compileRegistryTree(
 
   const buildTargetNode = (entry: RegistryTargetEntry): ScanTargetNode => {
     const options = entry.getOptions();
-    const disabled = options.disabled === true || isElementDisabled(entry.element);
+    const disabled =
+      options.disabled === true || isElementDisabled(entry.element);
     const node: {
       kind: "target";
       id: string;
@@ -168,7 +176,10 @@ export function compileRegistryTree(
     return target ? buildTargetNode(target) : null;
   };
 
-  const rootChildren = orderChildren(ROOT_PARENT, childrenOf.get(ROOT_PARENT) ?? [])
+  const rootChildren = orderChildren(
+    ROOT_PARENT,
+    childrenOf.get(ROOT_PARENT) ?? [],
+  )
     .map(buildNode)
     .filter((node): node is ScanNode => node !== null);
 

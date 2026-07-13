@@ -63,13 +63,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   let status: ScannerStatus = "idle";
 
   const store = createScannerStore(() => session.snapshot(status));
-  const {
-    runTransition,
-    serialized,
-    commit,
-    emit,
-    reportBoundaryError,
-  } = store;
+  const { runTransition, serialized, commit, emit, reportBoundaryError } =
+    store;
 
   function diagnostic(code: ScannerDiagnosticCode, message: string): void {
     emit({ type: "diagnostic", code, message });

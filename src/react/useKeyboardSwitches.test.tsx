@@ -51,8 +51,16 @@ describe("keyboard switches", () => {
       useKeyboardSwitches(scanner, { Space: "next", Enter: "select" });
       return (
         <ScannerProvider scanner={scanner}>
-          <TargetButton id="x" label="X" onActivate={() => activated.push("x")} />
-          <TargetButton id="y" label="Y" onActivate={() => activated.push("y")} />
+          <TargetButton
+            id="x"
+            label="X"
+            onActivate={() => activated.push("x")}
+          />
+          <TargetButton
+            id="y"
+            label="Y"
+            onActivate={() => activated.push("y")}
+          />
         </ScannerProvider>
       );
     }
@@ -89,7 +97,11 @@ describe("keyboard switches", () => {
       useKeyboardSwitches(scanner, { Space: binding });
       return (
         <ScannerProvider scanner={scanner}>
-          <TargetButton id="x" label="X" onActivate={() => activated.push("x")} />
+          <TargetButton
+            id="x"
+            label="X"
+            onActivate={() => activated.push("x")}
+          />
         </ScannerProvider>
       );
     }

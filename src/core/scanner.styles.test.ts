@@ -106,7 +106,6 @@ describe("automatic scanning", () => {
   });
 });
 
-
 describe("post-activation policy", () => {
   const options = (
     afterActivation: NonNullable<ScannerOptions["afterActivation"]>,
@@ -173,7 +172,6 @@ describe("post-activation policy", () => {
   });
 });
 
-
 describe("step scanning", () => {
   it("moves with next/previous and selects the current candidate", () => {
     const { scanner, fixture } = build({ style: stepScan() }, YES_NO);
@@ -213,7 +211,6 @@ describe("step scanning", () => {
   });
 });
 
-
 describe("single-switch step scanning", () => {
   it("selects the current candidate when the dwell expires", () => {
     const { clock, scanner, fixture } = build(
@@ -231,7 +228,6 @@ describe("single-switch step scanning", () => {
     expect(fixture.activations).toEqual(["no"]);
   });
 });
-
 
 describe("inverse scanning", () => {
   it("advances while held and selects on release", () => {

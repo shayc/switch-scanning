@@ -36,7 +36,10 @@ describe("registry ownership", () => {
     registry.flush();
 
     scanner.start();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "__root__" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "__root__",
+    });
     scanner.select();
     expect(scanner.getSnapshot()).toMatchObject({
       path: ["__root__"],
@@ -47,18 +50,36 @@ describe("registry ownership", () => {
   it("rejects IDs shared by a target and group", () => {
     const registry = new ScanRegistry();
     const element = document.createElement("div");
-    registry.mountTarget("shared", () => ({ id: "shared", label: "Target" }), element);
+    registry.mountTarget(
+      "shared",
+      () => ({ id: "shared", label: "Target" }),
+      element,
+    );
     expect(() =>
-      registry.mountGroup("shared", () => ({ id: "shared", label: "Group" }), element),
+      registry.mountGroup(
+        "shared",
+        () => ({ id: "shared", label: "Group" }),
+        element,
+      ),
     ).toThrow('duplicate scan node id "shared"');
   });
 
   it("rejects cycles in explicit group parentage", () => {
     const registry = new ScanRegistry();
-    registry.mountGroup("a", () => ({ id: "a", label: "A", parentId: "b" }), null);
-    registry.mountGroup("b", () => ({ id: "b", label: "B", parentId: "a" }), null);
+    registry.mountGroup(
+      "a",
+      () => ({ id: "a", label: "A", parentId: "b" }),
+      null,
+    );
+    registry.mountGroup(
+      "b",
+      () => ({ id: "b", label: "B", parentId: "a" }),
+      null,
+    );
     registry.attach(createScanner({ style: stepScan() }));
 
-    expect(() => registry.flush()).toThrow("cyclic scan group parentage: a -> b -> a");
+    expect(() => registry.flush()).toThrow(
+      "cyclic scan group parentage: a -> b -> a",
+    );
   });
 });

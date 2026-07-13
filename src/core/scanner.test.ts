@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { manualClock } from "./clock.ts";
 import { createScanner } from "./scanner.ts";
-import {
-  autoScan,
-  stepScan,
-} from "./styles.ts";
+import { autoScan, stepScan } from "./styles.ts";
 import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
 import type { ScanNode, ScannerOptions } from "./types.ts";
 
@@ -91,7 +88,6 @@ describe("start rules", () => {
   });
 });
 
-
 describe("serialized transitions", () => {
   it("reports an observer error after publishing the complete transition", () => {
     const { clock, scanner } = build(
@@ -167,7 +163,6 @@ describe("serialized transitions", () => {
     reported.mockRestore();
   });
 });
-
 
 describe("time infrastructure", () => {
   it("rejects an unpaired clock with a descriptive error", () => {

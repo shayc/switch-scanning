@@ -42,7 +42,10 @@ describe("scan session", () => {
     });
 
     session.stepForward(null);
-    expect(session.snapshot("scanning").highlight).toEqual({ kind: "target", id: "b" });
+    expect(session.snapshot("scanning").highlight).toEqual({
+      kind: "target",
+      id: "b",
+    });
     session.stepForward(null);
     expect(session.snapshot("scanning").highlight).toEqual({
       kind: "exit",
@@ -58,10 +61,7 @@ describe("scan session", () => {
 
     const reordered: ScanGroupNode = {
       ...ROOT,
-      children: [
-        { kind: "target", id: "d", label: "D" },
-        ...ROOT.children,
-      ],
+      children: [{ kind: "target", id: "d", label: "D" }, ...ROOT.children],
     };
     session.setTree(compileTree(reordered));
 

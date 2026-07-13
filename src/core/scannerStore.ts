@@ -2,24 +2,26 @@ import { snapshotEquals } from "./session.ts";
 import type { ScannerEvent, ScannerSnapshot, Unsubscribe } from "./types.ts";
 
 export interface ScannerStore {
-  runTransition(work: () => void): void;
-  serialized<Args extends unknown[]>(
+  runTransition: (work: () => void) => void;
+  serialized: <Args extends unknown[]>(
     work: (...args: Args) => void,
-  ): (...args: Args) => void;
-  commit(): void;
-  emit(event: ScannerEvent): void;
-  getSnapshot(): ScannerSnapshot;
-  subscribe(onChange: () => void): Unsubscribe;
-  observe(listener: (event: ScannerEvent) => void): Unsubscribe;
-  reportBoundaryError(error: unknown, boundary: string): void;
-  clearListeners(): void;
+  ) => (...args: Args) => void;
+  commit: () => void;
+  emit: (event: ScannerEvent) => void;
+  getSnapshot: () => ScannerSnapshot;
+  subscribe: (onChange: () => void) => Unsubscribe;
+  observe: (listener: (event: ScannerEvent) => void) => Unsubscribe;
+  reportBoundaryError: (error: unknown, boundary: string) => void;
+  clearListeners: () => void;
 }
 
 /**
  * Owns scanner transaction ordering and publication. Domain mutations are
  * supplied by the coordinator and published only after each one completes.
  */
-export function createScannerStore(buildSnapshot: () => ScannerSnapshot): ScannerStore {
+export function createScannerStore(
+  buildSnapshot: () => ScannerSnapshot,
+): ScannerStore {
   const subscribers = new Set<() => void>();
   const observers = new Set<(event: ScannerEvent) => void>();
   let cachedSnapshot: ScannerSnapshot = {

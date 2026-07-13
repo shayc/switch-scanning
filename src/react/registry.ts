@@ -59,7 +59,12 @@ export class ScanRegistry {
       return noop;
     }
     const existing = this.targets.get(id);
-    if (existing && existing.element && element && existing.element !== element) {
+    if (
+      existing &&
+      existing.element &&
+      element &&
+      existing.element !== element
+    ) {
       this.reportDuplicate("target", id);
       return noop;
     }
@@ -124,7 +129,12 @@ export class ScanRegistry {
       return noop;
     }
     const existing = this.groups.get(id);
-    if (existing && existing.element && element && existing.element !== element) {
+    if (
+      existing &&
+      existing.element &&
+      element &&
+      existing.element !== element
+    ) {
       this.reportDuplicate("group", id);
       return noop;
     }

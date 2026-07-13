@@ -116,7 +116,6 @@ describe("groups and exits", () => {
   });
 });
 
-
 describe("tree identity", () => {
   it("rejects duplicate IDs and keeps the previous tree", () => {
     const { scanner, fixture, events } = build({ style: stepScan() }, YES_NO);

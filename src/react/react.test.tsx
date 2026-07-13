@@ -1,11 +1,7 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { createRef, StrictMode, useEffect, type Ref } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  createScanner,
-  manualClock,
-  type ManualClock,
-} from "../core/index.ts";
+import { createScanner, manualClock, type ManualClock } from "../core/index.ts";
 import { autoScan, stepScan } from "../core/index.ts";
 import { ScannerProvider } from "./ScannerProvider.tsx";
 import { useScanGroup } from "./useScanGroup.ts";
@@ -190,7 +186,6 @@ describe("imperative driving", () => {
   });
 });
 
-
 describe("forwarded refs", () => {
   it("moves target ownership when the forwarded ref changes", () => {
     const first = createRef<HTMLElement>();
@@ -215,7 +210,6 @@ describe("forwarded refs", () => {
     expect(second.current?.textContent).toBe("X");
   });
 });
-
 
 describe("Strict Mode", () => {
   it("survives the extra setup/cleanup/setup cycle without disposing", async () => {
