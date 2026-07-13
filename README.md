@@ -200,6 +200,7 @@ No browser events, wall-clock waiting, or reducer internals required.
 
 ```sh
 npm install
+npm run dev            # Serve the demo playground (see below)
 npm run lint           # ESLint, including the Rules of Hooks
 npm run format:check   # Prettier check
 npm run typecheck      # TypeScript without emitting
@@ -208,6 +209,12 @@ npm run test:coverage  # Coverage with regression thresholds
 npm run build          # ESM, declarations, source maps, and stylesheet
 npm run publint        # Validate the packed library shape
 ```
+
+`npm run dev` serves an AAC-style phrase board (in `demo/`, excluded from the
+published package) that exercises the full public API: it switches between all
+four scan styles with live timing controls, drives row–column scanning with
+keyboard switches, streams the scanner's event log, and optionally speaks
+highlights and activations.
 
 ## Status
 

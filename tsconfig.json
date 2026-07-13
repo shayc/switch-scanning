@@ -23,7 +23,12 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
 
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals", "node"],
+
+    "paths": {
+      "@shayc/switch-scanning/core": ["./src/core/index.ts"],
+      "@shayc/switch-scanning": ["./src/react/index.ts"]
+    }
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "demo", "vite.config.ts", "vitest.config.ts"]
 }
