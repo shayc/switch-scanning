@@ -49,17 +49,14 @@ const TOGGLEABLE_ID = "thank-you";
  * A grid of phrase keys. Each row is a scan group (row–column scanning) and each
  * phrase is a scan target whose native `onClick` writes to the message bar.
  */
-export function PhraseBoard() {
+export function PhraseBoard({ thanksDisabled }: { thanksDisabled: boolean }) {
   const [message, setMessage] = useState<string[]>([]);
-  const [thanksDisabled, setThanksDisabled] = useState(false);
 
   const append = (text: string) => setMessage((prev) => [...prev, text]);
   const clear = () => setMessage([]);
 
   return (
-    <section className="panel board-panel" aria-label="Phrase board">
-      <h2>Phrase board</h2>
-
+    <section className="board-panel" aria-label="Phrase board content">
       <output className="message-bar">
         {message.length === 0 ? (
           <span className="message-placeholder">
@@ -69,15 +66,6 @@ export function PhraseBoard() {
           message.join(" ")
         )}
       </output>
-
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={thanksDisabled}
-          onChange={(e) => setThanksDisabled(e.target.checked)}
-        />
-        Disable “Thank you” (the scan then skips it)
-      </label>
 
       <div className="board">
         {ROWS.map((row) => (

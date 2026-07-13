@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   useScannerEvents,
+  useScannerSnapshot,
   type Scanner,
   type ScannerEvent,
 } from "@shayc/switch-scanning";
@@ -13,6 +14,7 @@ interface LoggedEvent {
 }
 
 const MAX_EVENTS = 50;
+const WIDE_INSPECTOR_QUERY = "(min-width: 90rem)";
 
 /**
  * The documented "events → feedback" pattern: a single listener drives both the
@@ -28,6 +30,11 @@ export function EventLog({
   styleKind: ScanStyleKind;
 }) {
   const [events, setEvents] = useState<LoggedEvent[]>([]);
+  const [view, setView] = useState<"events" | "state">("events");
+  const [wideInspector, setWideInspector] = useState(
+    () => window.matchMedia(WIDE_INSPECTOR_QUERY).matches,
+  );
+  const [inspectorOpen, setInspectorOpen] = useState(wideInspector);
   const nextId = useRef(0);
   const generation = useRef(0);
   const promptPaused = useRef(false);
@@ -124,6 +131,20 @@ export function EventLog({
     }
   }, [scanner, speech]);
 
+  useEffect(() => {
+    const media = window.matchMedia(WIDE_INSPECTOR_QUERY);
+    const updateLayout = (matches: boolean) => {
+      setWideInspector(matches);
+      setInspectorOpen(matches);
+    };
+    const handleChange = (event: MediaQueryListEvent) =>
+      updateLayout(event.matches);
+
+    updateLayout(media.matches);
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
+
   useEffect(
     () => () => {
       generation.current++;
@@ -133,21 +154,117 @@ export function EventLog({
   );
 
   return (
-    <section className="panel log-panel" aria-label="Event log">
-      <h2>Event log</h2>
-      {events.length === 0 ? (
-        <p className="hint">Start scanning to see events stream in.</p>
-      ) : (
-        <ol className="event-list">
-          {events.map((event) => (
-            <li key={event.id} data-event={event.type}>
-              <code>{event.type}</code>
-              <span>{event.text}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+    <section
+      className="panel diagnostics-panel"
+      aria-label="Event inspector"
+      data-scanner-controls=""
+    >
+      <details
+        open={inspectorOpen}
+        onToggle={(event) => {
+          if (wideInspector && !event.currentTarget.open) {
+            event.currentTarget.open = true;
+            return;
+          }
+          setInspectorOpen(event.currentTarget.open);
+        }}
+      >
+        <summary>
+          <span className="console-summary">
+            <strong>Inspect events</strong>
+          </span>
+          {events.length > 0 && (
+            <span className="event-count">
+              {events.length} {events.length === 1 ? "event" : "events"}
+            </span>
+          )}
+        </summary>
+        <div className="console-body">
+          <div className="console-tabs" aria-label="Console view">
+            <button
+              type="button"
+              aria-pressed={view === "events"}
+              onClick={() => setView("events")}
+            >
+              Events
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "state"}
+              onClick={() => setView("state")}
+            >
+              State
+            </button>
+            {view === "events" && events.length > 0 && (
+              <button
+                type="button"
+                className="clear-events"
+                onClick={() => setEvents([])}
+              >
+                Clear events
+              </button>
+            )}
+          </div>
+
+          {view === "events" ? (
+            events.length === 0 ? (
+              <div className="console-empty">
+                <strong>No events yet</strong>
+                <span>Start the preview or press a mapped switch.</span>
+              </div>
+            ) : (
+              <ol className="event-list">
+                {events.map((event) => (
+                  <li key={event.id} data-event={event.type}>
+                    <code>{event.type}</code>
+                    <span>{event.text}</span>
+                  </li>
+                ))}
+              </ol>
+            )
+          ) : (
+            <StatusLine scanner={scanner} />
+          )}
+        </div>
+      </details>
     </section>
+  );
+}
+
+function StatusLine({ scanner }: { scanner: Scanner }) {
+  const status = useScannerSnapshot(scanner, (snapshot) => snapshot.status);
+  const loop = useScannerSnapshot(scanner, (snapshot) => snapshot.loop);
+  const path = useScannerSnapshot(
+    scanner,
+    (snapshot) => snapshot.path.join(" › "),
+    (a, b) => a === b,
+  );
+  const position = useScannerSnapshot(scanner, (snapshot) => snapshot.position);
+  const pending = useScannerSnapshot(scanner, (snapshot) => snapshot.pending);
+
+  return (
+    <dl className="status">
+      <div>
+        <dt>Status</dt>
+        <dd data-status={status}>{status}</dd>
+      </div>
+      <div>
+        <dt>Position</dt>
+        <dd>{position ? `${position.index + 1}/${position.count}` : "—"}</dd>
+      </div>
+      <div>
+        <dt>Timer</dt>
+        <dd>{pending?.kind ?? "none"}</dd>
+      </div>
+      <div>
+        <dt>Scope</dt>
+        <dd>{path === "" ? "root" : path}</dd>
+      </div>
+      <div>
+        <dt>Pass index</dt>
+        <dd>{loop}</dd>
+      </div>
+    </dl>
   );
 }
 

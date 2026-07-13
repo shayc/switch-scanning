@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   ScannerProvider,
   useKeyboardSwitches,
-  usePointerSwitch,
   useScanner,
   autoScan,
   inverseScan,
@@ -14,7 +13,7 @@ import {
 } from "@shayc/switch-scanning";
 import { ControlsPanel } from "./ControlsPanel.tsx";
 import { EventLog } from "./EventLog.tsx";
-import { PhraseBoard } from "./PhraseBoard.tsx";
+import { PreviewPanel } from "./PreviewPanel.tsx";
 
 /** The four access methods the demo can switch between at runtime. */
 export type ScanStyleKind = "auto" | "step" | "singleStep" | "inverse";
@@ -79,13 +78,6 @@ const BINDINGS: Record<ScanStyleKind, KeyboardSwitchBindings> = {
   inverse: { Space: "hold", KeyP: "pause" },
 };
 
-const POINTER_SWITCH: Record<ScanStyleKind, string> = {
-  auto: "select",
-  step: "next",
-  singleStep: "next",
-  inverse: "hold",
-};
-
 function buildStyle(kind: ScanStyleKind, t: Timing): ScanStyle {
   switch (kind) {
     case "auto":
@@ -125,6 +117,7 @@ export function App() {
     "mixed" | "dedicated"
   >("mixed");
   const [pointerSwitch, setPointerSwitch] = useState(false);
+  const [thanksDisabled, setThanksDisabled] = useState(false);
 
   // Style constructors throw on invalid values; while a field is mid-edit the
   // parsed number may be out of range, so fall back to the defaults for that
@@ -152,7 +145,7 @@ export function App() {
           shouldHandle: (event) =>
             !(
               event.target instanceof Element &&
-              event.target.closest('[aria-label="Controls"]')
+              event.target.closest("[data-scanner-controls]")
             ),
         },
   );
@@ -160,14 +153,31 @@ export function App() {
   return (
     <ScannerProvider scanner={scanner}>
       <header className="app-header">
-        <h1>switch-scanning playground</h1>
-        <p>
-          A tiny AAC-style phrase board driven by the library. Pick a scan
-          style, then operate it from the keyboard — every target runs its own
-          native <code>onClick</code>.
-        </p>
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">
+            S
+          </span>
+          <div>
+            <h1>Switch scanning</h1>
+          </div>
+        </div>
+        <a
+          className="source-link"
+          href="https://github.com/shayc/switch-scanning"
+        >
+          View source <span aria-hidden="true">↗</span>
+        </a>
       </header>
-      <main className="app-grid">
+      <main className="workbench">
+        <div className="preview-column">
+          <PreviewPanel
+            scanner={scanner}
+            styleKind={styleKind}
+            pointerSwitch={pointerSwitch}
+            thanksDisabled={thanksDisabled}
+          />
+          <EventLog scanner={scanner} speech={speech} styleKind={styleKind} />
+        </div>
         <ControlsPanel
           scanner={scanner}
           styleKind={styleKind}
@@ -180,39 +190,10 @@ export function App() {
           onKeyboardOwnership={setKeyboardOwnership}
           pointerSwitch={pointerSwitch}
           onPointerSwitch={setPointerSwitch}
+          thanksDisabled={thanksDisabled}
+          onThanksDisabled={setThanksDisabled}
         />
-        <PointerSurface
-          scanner={scanner}
-          switchId={POINTER_SWITCH[styleKind]}
-          enabled={pointerSwitch}
-        />
-        <PhraseBoard />
-        <EventLog scanner={scanner} speech={speech} styleKind={styleKind} />
       </main>
     </ScannerProvider>
-  );
-}
-
-function PointerSurface({
-  scanner,
-  switchId,
-  enabled,
-}: {
-  scanner: ReturnType<typeof useScanner>;
-  switchId: string;
-  enabled: boolean;
-}) {
-  const binding = usePointerSwitch(scanner, { switchId, enabled });
-  if (!enabled) return null;
-  return (
-    <section className="panel pointer-panel" aria-label="Touch switch">
-      <h2>Dedicated touch switch</h2>
-      <button {...binding.props} className="pointer-switch" type="button">
-        Press and release here
-      </button>
-      <p className="hint">
-        This surface intentionally owns touch and pen input.
-      </p>
-    </section>
   );
 }

@@ -3,15 +3,15 @@ import { expect, test } from "@playwright/test";
 
 test("mixed keyboard controls pass mapped Space through", async ({ page }) => {
   await page.goto("/");
+  await page.getByText("More options", { exact: true }).click();
   const speech = page.getByRole("checkbox", {
-    name: "Speak highlights & activations",
+    name: "Speak highlighted and selected items",
   });
   await speech.focus();
   await page.keyboard.press("Space");
   await expect(speech).toBeChecked();
-
   const dedicated = page.getByRole("radio", {
-    name: "Dedicated switch keyboard",
+    name: "Use the keyboard as a dedicated switch",
   });
   await dedicated.check();
   const prevented = await page.evaluate(() => {
@@ -35,17 +35,102 @@ test("timing controls reject values below their configured minimum", async ({
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
   await page.goto("/");
+  await page.getByText("More options", { exact: true }).click();
   const selectionDelay = page.getByRole("spinbutton", {
-    name: "Selection delay (ms)",
+    name: "Input lockout after selection (seconds)",
   });
   await selectionDelay.fill("-1");
   await expect(selectionDelay).toHaveValue("0");
-  const start = page.getByRole("button", { name: "Start", exact: true });
+  const start = page.getByRole("button", { name: "Start scanning" });
   await start.click();
-  await expect(page.locator(".status")).toContainText("scanning");
-  await expect(start).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Restart" })).toBeEnabled();
+  await expect(page.locator(".runtime-state")).toContainText("Scanning");
+  await expect(start).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Pause scanning" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("radio", { name: "Automatic scanning", exact: true }),
+  ).toBeDisabled();
   expect(pageErrors).toEqual([]);
+});
+
+test("control architecture stays responsive and exposes only relevant run actions", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", { name: "Phrase board" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Start scanning" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Setup" })).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Scanning preset" }),
+  ).toBeVisible();
+  await expect(page.getByRole("group", { name: "Pace" })).toBeVisible();
+  const moreOptions = page.locator("details").filter({
+    hasText: "More options",
+  });
+  await expect(moreOptions).not.toHaveAttribute("open", "");
+  await expect(
+    page.getByRole("checkbox", { name: "Show touch controls" }),
+  ).not.toBeVisible();
+  const previewBox = await page.locator(".preview-column").boundingBox();
+  const setupBox = await page.locator(".controls-panel").boundingBox();
+  expect(previewBox).not.toBeNull();
+  expect(setupBox).not.toBeNull();
+  expect(previewBox!.y).toBeLessThan(setupBox!.y);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(375);
+
+  await page.getByRole("button", { name: "Start scanning" }).click();
+  await expect(
+    page.getByRole("button", { name: "Pause scanning" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start over" })).toHaveCount(0);
+  const preview = page.getByRole("region", { name: "Phrase board" });
+  await expect(
+    preview.getByRole("button", { name: "Stop scanning", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Pause scanning" }).click();
+  await expect(
+    page.getByRole("button", { name: "Resume scanning" }),
+  ).toBeVisible();
+  await preview
+    .getByRole("button", { name: "Stop scanning", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Start scanning" }),
+  ).toBeVisible();
+});
+
+test("wide layouts keep a compact live event inspector open on the right", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto("/");
+
+  const preview = page.locator(".preview-panel");
+  const inspector = page.locator(".diagnostics-panel");
+  const details = inspector.locator("details");
+  const previewBox = await preview.boundingBox();
+  const inspectorBox = await inspector.boundingBox();
+
+  expect(previewBox).not.toBeNull();
+  expect(inspectorBox).not.toBeNull();
+  expect(inspectorBox!.x).toBeGreaterThan(previewBox!.x + previewBox!.width);
+  await expect(details).toHaveAttribute("open", "");
+
+  await page.getByRole("button", { name: "Start scanning" }).click();
+  await expect(inspector.locator(".event-list li").first()).toBeVisible();
+  await expect(inspector.locator(".event-list li").first()).toContainText(
+    "highlight.changed",
+  );
 });
 
 test("direct and scanner activation share the native button path", async ({
@@ -89,16 +174,21 @@ test("auditory prompts preserve the held inverse-scan release", async ({
     });
   });
   await page.goto("/");
-  await page.getByRole("radio", { name: "Inverse" }).check();
+  await page.getByRole("radio", { name: "Inverse scanning" }).check();
+  await page.getByText("More options", { exact: true }).click();
   await page
-    .getByRole("checkbox", { name: "Speak highlights & activations" })
+    .getByRole("checkbox", { name: "Speak highlighted and selected items" })
     .check();
-  await page.getByRole("radio", { name: "Dedicated switch keyboard" }).check();
+  await page
+    .getByRole("radio", { name: "Use the keyboard as a dedicated switch" })
+    .check();
 
   await page.keyboard.down("Space");
-  await expect(page.locator("[data-status]")).toHaveText("scanning");
+  await expect(page.locator(".runtime-state")).toContainText("Scanning");
   await page.keyboard.up("Space");
 
+  await page.getByText("Inspect events", { exact: true }).click();
+  await page.getByRole("button", { name: "State" }).click();
   const scope = page
     .locator(".status div")
     .filter({ hasText: "Scope" })
@@ -110,18 +200,22 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("radio", { name: "Step", exact: true }).check();
-  await page
-    .getByRole("checkbox", { name: "Show dedicated touch switch" })
-    .check();
-  const surface = page.getByRole("button", { name: "Press and release here" });
+  await page.getByRole("radio", { name: "Two-switch step" }).check();
+  await page.getByText("More options", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "Show touch controls" }).check();
+  const surface = page.getByRole("button", { name: "Next", exact: true });
+  await expect(
+    page.getByRole("button", { name: "Select", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Inspect events", { exact: true }).click();
+  await page.getByRole("button", { name: "State" }).click();
   const position = page
     .locator(".status div")
     .filter({ hasText: "Position" })
     .locator("dd");
   await expect(surface).toHaveAttribute("data-scan-pointer-switch", "");
   await expect(surface).toHaveCSS("touch-action", "none");
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.getByRole("button", { name: "Start scanning" }).click();
   await expect(position).toHaveText("1/4");
 
   await surface.dispatchEvent("pointerdown", {
@@ -277,13 +371,14 @@ test("mobile touch switch remains reachable while scan events accumulate", async
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  await page.getByRole("radio", { name: "Step", exact: true }).check();
+  await page.getByRole("radio", { name: "Two-switch step" }).check();
+  await page.getByText("More options", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "Show touch controls" }).check();
   await page
-    .getByRole("checkbox", { name: "Show dedicated touch switch" })
+    .getByRole("radio", { name: "Use the keyboard as a dedicated switch" })
     .check();
-  await page.getByRole("radio", { name: "Dedicated switch keyboard" }).check();
-  const surface = page.getByRole("button", { name: "Press and release here" });
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  const surface = page.getByRole("button", { name: "Next", exact: true });
+  await page.getByRole("button", { name: "Start scanning" }).click();
 
   for (let index = 0; index < 8; index += 1) {
     await page.keyboard.press("Space");
@@ -310,7 +405,7 @@ test("highlight reveal scrolls an offscreen scan item into view", async ({
   expect(before!.y).toBeGreaterThan(240);
 
   await page
-    .getByRole("button", { name: "Start", exact: true })
+    .getByRole("button", { name: "Start scanning" })
     .evaluate((element) => (element as HTMLButtonElement).click());
   await expect(firstGroup).toHaveAttribute("data-scan-highlighted", "");
   await expect
@@ -350,7 +445,7 @@ test("default highlight remains visible in forced colors", async ({
   );
   await page.emulateMedia({ forcedColors: "active" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.getByRole("button", { name: "Start scanning" }).click();
   const highlighted = page.locator("[data-scan-highlighted]");
   await expect(highlighted).toBeVisible();
   expect(
