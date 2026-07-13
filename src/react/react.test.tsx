@@ -1,7 +1,12 @@
 import { act, cleanup, render } from "@testing-library/react";
-import { createRef, StrictMode, type Ref } from "react";
+import { createRef, StrictMode, useEffect, type Ref } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { createScanner, inverseScan, manualClock, type ManualClock } from "../core/index.ts";
+import {
+  createScanner,
+  inverseScan,
+  manualClock,
+  type ManualClock,
+} from "../core/index.ts";
 import { autoScan, stepScan } from "../core/index.ts";
 import { ScannerProvider } from "./ScannerProvider.tsx";
 import { ScanRegistry } from "./registry.ts";
@@ -84,30 +89,48 @@ describe("imperative driving", () => {
   it("writes data-scan-highlighted imperatively and follows the interval", async () => {
     const clock = manualClock();
     let scanner!: ReturnType<typeof useScanner>;
-    const view = render(<Harness clock={clock} onReady={(s) => (scanner = s)} />);
+    const view = render(
+      <Harness clock={clock} onReady={(s) => (scanner = s)} />,
+    );
     await flushMicrotasks();
 
     act(() => scanner.start());
-    expect(view.getByText("Yes").getAttribute("data-scan-highlighted")).toBe("");
-    expect(view.getByText("No").hasAttribute("data-scan-highlighted")).toBe(false);
+    expect(view.getByText("Yes").getAttribute("data-scan-highlighted")).toBe(
+      "",
+    );
+    expect(view.getByText("No").hasAttribute("data-scan-highlighted")).toBe(
+      false,
+    );
 
     act(() => clock.advanceBy(1000));
-    expect(view.getByText("Yes").hasAttribute("data-scan-highlighted")).toBe(false);
+    expect(view.getByText("Yes").hasAttribute("data-scan-highlighted")).toBe(
+      false,
+    );
     expect(view.getByText("No").getAttribute("data-scan-highlighted")).toBe("");
   });
 
   it("derives group structure from DOM containment and exposes an exit", async () => {
     const clock = manualClock();
     let scanner!: ReturnType<typeof useScanner>;
-    const view = render(<Harness clock={clock} grouped onReady={(s) => (scanner = s)} />);
+    const view = render(
+      <Harness clock={clock} grouped onReady={(s) => (scanner = s)} />,
+    );
     await flushMicrotasks();
 
     act(() => scanner.start());
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "row1" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "row1",
+    });
     act(() => scanner.select());
     expect(scanner.getSnapshot().path).toEqual(["row1"]);
     expect(view.getByText("A").getAttribute("data-scan-highlighted")).toBe("");
-    expect(view.getByText("A").closest("[data-scan-group]")?.getAttribute("data-scan-within")).toBe("");
+    expect(
+      view
+        .getByText("A")
+        .closest("[data-scan-group]")
+        ?.getAttribute("data-scan-within"),
+    ).toBe("");
   });
 
   it("follows a replacement scanner through provider context", async () => {
@@ -139,7 +162,11 @@ describe("imperative driving", () => {
 
     function DisabledTarget({ disabled }: { disabled: boolean }) {
       const target = useScanTarget({ id: "x", label: "X", disabled });
-      return <button {...target.props} disabled={disabled}>X</button>;
+      return (
+        <button {...target.props} disabled={disabled}>
+          X
+        </button>
+      );
     }
 
     const app = (disabled: boolean) => (
@@ -152,11 +179,17 @@ describe("imperative driving", () => {
     const view = render(app(false));
     await flushMicrotasks();
     act(() => scanner.start());
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "x" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "x",
+    });
 
     view.rerender(app(true));
     await flushMicrotasks();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "y" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "y",
+    });
   });
 });
 
@@ -175,8 +208,16 @@ describe("keyboard switches", () => {
       useKeyboardSwitches(scanner, { Space: "next", Enter: "select" });
       return (
         <ScannerProvider scanner={scanner}>
-          <TargetButton id="x" label="X" onActivate={() => activated.push("x")} />
-          <TargetButton id="y" label="Y" onActivate={() => activated.push("y")} />
+          <TargetButton
+            id="x"
+            label="X"
+            onActivate={() => activated.push("x")}
+          />
+          <TargetButton
+            id="y"
+            label="Y"
+            onActivate={() => activated.push("y")}
+          />
         </ScannerProvider>
       );
     }
@@ -217,7 +258,11 @@ describe("keyboard switches", () => {
       useKeyboardSwitches(scanner, { Space: binding });
       return (
         <ScannerProvider scanner={scanner}>
-          <TargetButton id="x" label="X" onActivate={() => activated.push("x")} />
+          <TargetButton
+            id="x"
+            label="X"
+            onActivate={() => activated.push("x")}
+          />
         </ScannerProvider>
       );
     }
@@ -225,19 +270,26 @@ describe("keyboard switches", () => {
     const view = render(<KeyApp binding="first" />);
     await flushMicrotasks();
     act(() => scanner.start());
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" })));
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    });
     view.rerender(<KeyApp binding="second" />);
-    act(() => document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" })));
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    });
     expect(activated).toEqual(["x"]);
   });
-
 });
 
 describe("registry ownership", () => {
   it("does not let stale cleanup remove a newer registration", () => {
     const registry = new ScanRegistry();
     const element = document.createElement("button");
-    const firstCleanup = registry.mountTarget("x", () => ({ id: "x", label: "First" }), element);
+    const firstCleanup = registry.mountTarget(
+      "x",
+      () => ({ id: "x", label: "First" }),
+      element,
+    );
     registry.mountTarget("x", () => ({ id: "x", label: "Second" }), element);
     firstCleanup();
     expect(registry.getTarget("x")?.getOptions().label).toBe("Second");
@@ -250,7 +302,11 @@ describe("registry ownership", () => {
     const target = document.createElement("button");
 
     registry.attach(scanner);
-    registry.mountGroup("__root__", () => ({ id: "__root__", label: "User root" }), group);
+    registry.mountGroup(
+      "__root__",
+      () => ({ id: "__root__", label: "User root" }),
+      group,
+    );
     registry.mountTarget(
       "inside",
       () => ({ id: "inside", label: "Inside", groupId: "__root__" }),
@@ -259,31 +315,52 @@ describe("registry ownership", () => {
     registry.flush();
     scanner.start();
 
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "__root__" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "__root__",
+    });
   });
 
   it("rejects IDs shared by a target and group", () => {
     const registry = new ScanRegistry();
     const element = document.createElement("button");
-    registry.mountTarget("shared", () => ({ id: "shared", label: "Target" }), element);
+    registry.mountTarget(
+      "shared",
+      () => ({ id: "shared", label: "Target" }),
+      element,
+    );
 
     expect(() =>
-      registry.mountGroup("shared", () => ({ id: "shared", label: "Group" }), element),
+      registry.mountGroup(
+        "shared",
+        () => ({ id: "shared", label: "Group" }),
+        element,
+      ),
     ).toThrow('duplicate scan node id "shared"');
   });
 
   it("rejects cycles in explicit group parentage", () => {
     const registry = new ScanRegistry();
-    registry.mountGroup("a", () => ({ id: "a", label: "A", parentId: "b" }), null);
-    registry.mountGroup("b", () => ({ id: "b", label: "B", parentId: "a" }), null);
+    registry.mountGroup(
+      "a",
+      () => ({ id: "a", label: "A", parentId: "b" }),
+      null,
+    );
+    registry.mountGroup(
+      "b",
+      () => ({ id: "b", label: "B", parentId: "a" }),
+      null,
+    );
     registry.attach(createScanner({ style: stepScan() }));
 
-    expect(() => registry.flush()).toThrow("cyclic scan group parentage: a -> b -> a");
+    expect(() => registry.flush()).toThrow(
+      "cyclic scan group parentage: a -> b -> a",
+    );
   });
 });
 
 describe("forwarded refs", () => {
-  it("moves target ownership when the forwarded ref changes", async () => {
+  it("moves target ownership when the forwarded ref changes", () => {
     const first = createRef<HTMLElement>();
     const second = createRef<HTMLElement>();
     const scanner = createScanner({ style: stepScan() });
@@ -322,7 +399,10 @@ describe("Strict Mode", () => {
     act(() => scanner.start());
     expect(scanner.getSnapshot().status).toBe("scanning");
     act(() => clock.advanceBy(1000));
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
   });
 
   it("reapplies mount startup after the extra attachment cycle", async () => {
@@ -330,8 +410,14 @@ describe("Strict Mode", () => {
     let scanner!: ReturnType<typeof useScanner>;
 
     function MountApp() {
-      const current = useScanner({ style: stepScan(), startOn: "mount", clock });
-      scanner = current;
+      const current = useScanner({
+        style: stepScan(),
+        startOn: "mount",
+        clock,
+      });
+      useEffect(() => {
+        scanner = current;
+      }, [current]);
       return (
         <ScannerProvider scanner={current}>
           <TargetButton id="x" label="X" />

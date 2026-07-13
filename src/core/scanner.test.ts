@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { manualClock } from "./clock.ts";
 import { createScanner } from "./scanner.ts";
-import { autoScan, inverseScan, singleSwitchStepScan, stepScan } from "./styles.ts";
 import {
-  createScannerFixture,
-  recordScannerEvents,
-} from "./testing/index.ts";
+  autoScan,
+  inverseScan,
+  singleSwitchStepScan,
+  stepScan,
+} from "./styles.ts";
+import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
 import type { ScanNode, ScannerOptions } from "./types.ts";
 
 const YES_NO: ScanNode[] = [
@@ -13,7 +15,10 @@ const YES_NO: ScanNode[] = [
   { kind: "target", id: "no", label: "No" },
 ];
 
-function build(options: Omit<ScannerOptions, "clock" | "scheduler">, nodes: ScanNode[]) {
+function build(
+  options: Omit<ScannerOptions, "clock" | "scheduler">,
+  nodes: ScanNode[],
+) {
   const clock = manualClock();
   const scanner = createScanner({ ...options, clock });
   const fixture = createScannerFixture(scanner, nodes);
@@ -28,27 +33,44 @@ describe("automatic scanning", () => {
       YES_NO,
     );
     scanner.start();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     clock.advanceBy(1000);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
     scanner.select();
     expect(fixture.activations).toEqual(["no"]);
   });
 
   it("adds firstItemPauseMs only to the first candidate of each pass", () => {
     const { clock, scanner } = build(
-      { style: autoScan({ intervalMs: 1000, loops: 3, firstItemPauseMs: 500 }) },
+      {
+        style: autoScan({ intervalMs: 1000, loops: 3, firstItemPauseMs: 500 }),
+      },
       YES_NO,
     );
     scanner.start();
     // First candidate waits interval + pause = 1500.
     clock.advanceBy(1400);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     clock.advanceBy(100);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
     // Second candidate waits only the interval.
     clock.advanceBy(1000);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     expect(scanner.getSnapshot().loop).toBe(2);
   });
 
@@ -66,19 +88,28 @@ describe("automatic scanning", () => {
     clock.advanceBy(100);
     expect(scanner.getSnapshot().status).toBe("complete");
     expect(scanner.getSnapshot().highlight).toBeNull();
-    expect(events.ofType("scan.completed")).toEqual([{ type: "scan.completed", reason: "loops" }]);
+    expect(events.ofType("scan.completed")).toEqual([
+      { type: "scan.completed", reason: "loops" },
+    ]);
   });
 
   it("emits scan.completed empty for an empty root", () => {
-    const { scanner, events } = build({ style: autoScan({ intervalMs: 100, loops: 1 }) }, []);
+    const { scanner, events } = build(
+      { style: autoScan({ intervalMs: 100, loops: 1 }) },
+      [],
+    );
     scanner.start();
     expect(scanner.getSnapshot().status).toBe("complete");
-    expect(events.ofType("scan.completed")).toEqual([{ type: "scan.completed", reason: "empty" }]);
+    expect(events.ofType("scan.completed")).toEqual([
+      { type: "scan.completed", reason: "empty" },
+    ]);
   });
 });
 
 describe("post-activation policy", () => {
-  const options = (afterActivation: NonNullable<ScannerOptions["afterActivation"]>): ScannerOptions => ({
+  const options = (
+    afterActivation: NonNullable<ScannerOptions["afterActivation"]>,
+  ): ScannerOptions => ({
     style: autoScan({ intervalMs: 100, loops: 5 }),
     afterActivation,
   });
@@ -89,14 +120,20 @@ describe("post-activation policy", () => {
     clock.advanceBy(100);
     scanner.select();
     expect(fixture.activations).toEqual(["no"]);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
   });
 
   it("continue advances within the current scope", () => {
     const { scanner } = build(options("continue"), YES_NO);
     scanner.start();
     scanner.select();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
   });
 
   it("stop enters idle and emits after-activation", () => {
@@ -110,16 +147,28 @@ describe("post-activation policy", () => {
   });
 
   it("keeps highlight and restarts timing when activation fails", () => {
-    const { clock, scanner, fixture, events } = build(options("restart"), YES_NO);
+    const { clock, scanner, fixture, events } = build(
+      options("restart"),
+      YES_NO,
+    );
     fixture.failActivation("yes", "boom");
     scanner.start();
     scanner.select();
     expect(fixture.activations).toEqual([]);
-    expect(events.ofType("target.activationFailed")[0]).toMatchObject({ id: "yes", reason: "boom" });
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(events.ofType("target.activationFailed")[0]).toMatchObject({
+      id: "yes",
+      reason: "boom",
+    });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     // Activation failure restarts the full deadline.
     clock.advanceBy(100);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
   });
 });
 
@@ -127,13 +176,25 @@ describe("step scanning", () => {
   it("moves with next/previous and selects the current candidate", () => {
     const { scanner, fixture } = build({ style: stepScan() }, YES_NO);
     scanner.start();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     scanner.next();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
     scanner.next();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     scanner.previous();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
     scanner.select();
     expect(fixture.activations).toEqual(["no"]);
   });
@@ -143,7 +204,10 @@ describe("step scanning", () => {
     scanner.start();
     expect(clock.pending).toBe(0);
     clock.advanceBy(100000);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
   });
 });
 
@@ -162,26 +226,47 @@ describe("groups and exits", () => {
   ];
 
   it("enters a group, exposes an exit after its children, and leaves via exit", () => {
-    const { scanner, events } = build({ style: stepScan(), groupExit: "after" }, tree);
+    const { scanner, events } = build(
+      { style: stepScan(), groupExit: "after" },
+      tree,
+    );
     scanner.start();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "row1" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "row1",
+    });
     scanner.select();
     expect(scanner.getSnapshot().path).toEqual(["row1"]);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
     scanner.next();
     scanner.next();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "exit", groupId: "row1" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "exit",
+      groupId: "row1",
+    });
     scanner.select();
     expect(scanner.getSnapshot().path).toEqual([]);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "row1" });
-    expect(events.ofType("group.exited")[0]).toMatchObject({ id: "row1", reason: "selected-exit" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "row1",
+    });
+    expect(events.ofType("group.exited")[0]).toMatchObject({
+      id: "row1",
+      reason: "selected-exit",
+    });
   });
 
   it("places the exit before children when groupExit is 'before'", () => {
     const { scanner } = build({ style: stepScan(), groupExit: "before" }, tree);
     scanner.start();
     scanner.select();
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "exit", groupId: "row1" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "exit",
+      groupId: "row1",
+    });
   });
 
   it("back() leaves the group, and is a no-op at the root", () => {
@@ -191,7 +276,11 @@ describe("groups and exits", () => {
     scanner.back();
     expect(scanner.getSnapshot().path).toEqual([]);
     scanner.back();
-    expect(events.ofType("diagnostic").some((d) => d.code === "command-inapplicable")).toBe(true);
+    expect(
+      events
+        .ofType("diagnostic")
+        .some((d) => d.code === "command-inapplicable"),
+    ).toBe(true);
   });
 
   it("treats a group named root as an ordinary user group", () => {
@@ -232,14 +321,20 @@ describe("tree identity", () => {
       code: "duplicate-id",
       message: 'duplicate scan node id "duplicate"; keeping the previous tree',
     });
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
   });
 });
 
 describe("single-switch step scanning", () => {
   it("selects the current candidate when the dwell expires", () => {
     const { clock, scanner, fixture } = build(
-      { style: singleSwitchStepScan({ dwellTimeMs: 1500 }), switches: { next: { action: "next" } } },
+      {
+        style: singleSwitchStepScan({ dwellTimeMs: 1500 }),
+        switches: { next: { action: "next" } },
+      },
       YES_NO,
     );
     scanner.start();
@@ -262,9 +357,15 @@ describe("inverse scanning", () => {
       YES_NO,
     );
     scanner.input.press("scan");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     clock.advanceBy(900);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
     scanner.input.release("scan");
     expect(fixture.activations).toEqual(["no"]);
   });
@@ -296,25 +397,39 @@ describe("start rules", () => {
     });
 
     scanner.stop();
-    fixture.setNodes([...YES_NO, { kind: "target", id: "maybe", label: "Maybe" }]);
+    fixture.setNodes([
+      ...YES_NO,
+      { kind: "target", id: "maybe", label: "Maybe" },
+    ]);
     expect(scanner.getSnapshot().status).toBe("idle");
   });
 
   it("first accepted switch while idle starts and consumes the action", () => {
     const { scanner, fixture } = build(
-      { style: stepScan(), switches: { select: { action: "select" } }, startOn: "switch" },
+      {
+        style: stepScan(),
+        switches: { select: { action: "select" } },
+        startOn: "switch",
+      },
       YES_NO,
     );
     scanner.input.press("select");
     expect(scanner.getSnapshot().status).toBe("scanning");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     // The select was consumed by starting, not performed.
     expect(fixture.activations).toEqual([]);
   });
 
   it("does not start from input when startOn is 'command'", () => {
     const { scanner } = build(
-      { style: stepScan(), switches: { select: { action: "select" } }, startOn: "command" },
+      {
+        style: stepScan(),
+        switches: { select: { action: "select" } },
+        startOn: "command",
+      },
       YES_NO,
     );
     scanner.input.press("select");
@@ -323,7 +438,11 @@ describe("start rules", () => {
 
   it("ignores physical input while paused", () => {
     const { scanner } = build(
-      { style: stepScan(), switches: { next: { action: "next" } }, startOn: "switch" },
+      {
+        style: stepScan(),
+        switches: { next: { action: "next" } },
+        startOn: "switch",
+      },
       YES_NO,
     );
     scanner.start();
@@ -342,7 +461,9 @@ describe("serialized transitions", () => {
     scanner.observe((event) => {
       if (event.type === "scan.started") throw new Error("listener failed");
     });
-    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reported = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     expect(() => scanner.start()).not.toThrow();
     expect(scanner.getSnapshot()).toMatchObject({
@@ -365,7 +486,10 @@ describe("serialized transitions", () => {
 
     scanner.start();
 
-    expect(scanner.getSnapshot()).toMatchObject({ status: "idle", highlight: null });
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "idle",
+      highlight: null,
+    });
     expect(events.events.map((event) => event.type)).toEqual([
       "scan.started",
       "highlight.changed",
@@ -387,7 +511,9 @@ describe("serialized transitions", () => {
         throw new Error("reveal failed");
       },
     });
-    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reported = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     expect(() => scanner.start()).not.toThrow();
     expect(scanner.getSnapshot()).toMatchObject({

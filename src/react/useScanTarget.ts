@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, type Ref, type RefCallback } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Ref,
+  type RefCallback,
+} from "react";
 import { useScannerContext } from "./context.ts";
 import { applyRef } from "./refs.ts";
 import type { ScanTargetOptions } from "./registry.ts";
@@ -20,7 +26,9 @@ export interface ScanTargetBinding {
  * ref and a static registration attribute; ordinary DOM controls need no
  * `activate` because selection invokes their native action path.
  */
-export function useScanTarget(options: UseScanTargetOptions): ScanTargetBinding {
+export function useScanTarget(
+  options: UseScanTargetOptions,
+): ScanTargetBinding {
   const { registry } = useScannerContext("useScanTarget");
   const { id } = options;
 
@@ -30,7 +38,11 @@ export function useScanTarget(options: UseScanTargetOptions): ScanTargetBinding 
   const ref = useCallback<RefCallback<HTMLElement>>(
     (element) => {
       const forwardedRef = options.ref;
-      const unregister = registry.mountTarget(id, () => optionsRef.current, element);
+      const unregister = registry.mountTarget(
+        id,
+        () => optionsRef.current,
+        element,
+      );
       applyRef(forwardedRef, element);
       return () => {
         unregister();

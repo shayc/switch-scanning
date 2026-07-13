@@ -10,7 +10,10 @@ const YES_NO: ScanNode[] = [
   { kind: "target", id: "no", label: "No" },
 ];
 
-function build(options: Omit<ScannerOptions, "clock">, nodes: ScanNode[] = YES_NO) {
+function build(
+  options: Omit<ScannerOptions, "clock">,
+  nodes: ScanNode[] = YES_NO,
+) {
   const clock = manualClock();
   const scanner = createScanner({ ...options, clock });
   const fixture = createScannerFixture(scanner, nodes);
@@ -36,7 +39,10 @@ describe("tap versus hold", () => {
     scanner.input.press("primary");
     clock.advanceBy(100); // < 700, >= 80
     scanner.input.release("primary");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
   });
 
   it("performs hold once and suppresses the tap", () => {
@@ -55,7 +61,10 @@ describe("tap versus hold", () => {
     scanner.input.press("primary");
     clock.advanceBy(50); // < 80
     scanner.input.release("primary");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
   });
 });
 
@@ -63,17 +72,25 @@ describe("performOn release with hold duration", () => {
   it("performs on release only when the hold duration is met", () => {
     const { clock, scanner } = build({
       style: stepScan(),
-      switches: { next: { action: "next", performOn: "release", holdDurationMs: 100 } },
+      switches: {
+        next: { action: "next", performOn: "release", holdDurationMs: 100 },
+      },
     });
     scanner.start();
     scanner.input.press("next");
     clock.advanceBy(50);
     scanner.input.release("next");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
     scanner.input.press("next");
     clock.advanceBy(150);
     scanner.input.release("next");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
   });
 });
 
@@ -88,10 +105,16 @@ describe("ignore repeat", () => {
     scanner.input.release("next");
     scanner.input.press("next");
     scanner.input.release("next");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
     clock.advanceBy(200);
     scanner.input.press("next");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
   });
 });
 
@@ -111,14 +134,26 @@ describe("move repeat", () => {
     );
     scanner.start();
     scanner.input.press("next");
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "b" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "b",
+    });
     clock.advanceBy(500);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "c" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "c",
+    });
     clock.advanceBy(200);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
     scanner.input.release("next");
     clock.advanceBy(10000);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
   });
 
   it("cancels the old repeat schedule when the scan style changes", () => {
@@ -144,10 +179,16 @@ describe("move repeat", () => {
       startOn: "command",
       clock,
     });
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
 
     clock.advanceBy(500);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
     expect(clock.pending).toBe(1);
   });
 });
@@ -177,7 +218,10 @@ describe("multi-source phaseful scan", () => {
     expect(fixture.activations).toEqual([]);
     expect(scanner.getSnapshot().status).toBe("scanning");
     clock.advanceBy(5000);
-    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "no",
+    });
   });
 
   it("preserves a held scan gesture across unrelated option changes", () => {

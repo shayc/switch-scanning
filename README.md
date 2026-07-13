@@ -23,16 +23,16 @@ keyboard interaction, focus, and ARIA intact so system-level AT still works.
 npm install @shayc/switch-scanning
 ```
 
-`react` and `react-dom` v19 are peer dependencies.
+`react` and `react-dom` v18 or v19 are peer dependencies.
 
 ## Entry points
 
-| Import                                    | Contents                                          |
-| ----------------------------------------- | ------------------------------------------------- |
-| `@shayc/switch-scanning`                  | React hooks + provider (re-exports the core)      |
-| `@shayc/switch-scanning/core`             | Framework-agnostic engine, styles, switches       |
-| `@shayc/switch-scanning/core/testing`     | `manualClock`, `createScannerFixture`, recorders  |
-| `@shayc/switch-scanning/styles.css`       | Optional, forced-colors-aware highlight styles    |
+| Import                                | Contents                                         |
+| ------------------------------------- | ------------------------------------------------ |
+| `@shayc/switch-scanning`              | React hooks + provider (re-exports the core)     |
+| `@shayc/switch-scanning/core`         | Framework-agnostic engine, styles, switches      |
+| `@shayc/switch-scanning/core/testing` | `manualClock`, `createScannerFixture`, recorders |
+| `@shayc/switch-scanning/styles.css`   | Optional, forced-colors-aware highlight styles   |
 
 ## Automatic scanning in 30 seconds
 
@@ -172,10 +172,16 @@ reported without interrupting scanning.
 
 ```ts
 import { createScanner, autoScan } from "@shayc/switch-scanning/core";
-import { manualClock, createScannerFixture } from "@shayc/switch-scanning/core/testing";
+import {
+  manualClock,
+  createScannerFixture,
+} from "@shayc/switch-scanning/core/testing";
 
 const clock = manualClock();
-const scanner = createScanner({ style: autoScan({ intervalMs: 1_000, loops: 3 }), clock });
+const scanner = createScanner({
+  style: autoScan({ intervalMs: 1_000, loops: 3 }),
+  clock,
+});
 const fixture = createScannerFixture(scanner, [
   { kind: "target", id: "yes", label: "Yes" },
   { kind: "target", id: "no", label: "No" },
@@ -194,8 +200,13 @@ No browser events, wall-clock waiting, or reducer internals required.
 
 ```sh
 npm install
-npm test          # vitest
-npm run build     # tsc --noEmit && vite build (ESM + .d.ts)
+npm run lint           # ESLint, including the Rules of Hooks
+npm run format:check   # Prettier check
+npm run typecheck      # TypeScript without emitting
+npm test               # Vitest in jsdom
+npm run test:coverage  # Coverage with regression thresholds
+npm run build          # ESM, declarations, source maps, and stylesheet
+npm run publint        # Validate the packed library shape
 ```
 
 ## Status

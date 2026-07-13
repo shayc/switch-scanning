@@ -5,6 +5,8 @@ import type {
   ScanNode,
   ScanTargetNode,
 } from "../core/index.ts";
+
+const noop = (): void => undefined;
 import { isDevelopment } from "./env.ts";
 
 export interface ScanTargetOptions {
@@ -74,12 +76,17 @@ export class ScanRegistry {
   ): Detach {
     if (this.groups.has(id)) {
       this.reportDuplicate("node", id);
-      return () => {};
+      return noop;
     }
     const existing = this.targets.get(id);
-    if (existing && existing.element && element && existing.element !== element) {
+    if (
+      existing &&
+      existing.element &&
+      element &&
+      existing.element !== element
+    ) {
       this.reportDuplicate("target", id);
-      return () => {};
+      return noop;
     }
     const entry: TargetEntry = { id, getOptions, element };
     this.targets.set(id, entry);
@@ -142,12 +149,17 @@ export class ScanRegistry {
   ): Detach {
     if (this.targets.has(id)) {
       this.reportDuplicate("node", id);
-      return () => {};
+      return noop;
     }
     const existing = this.groups.get(id);
-    if (existing && existing.element && element && existing.element !== element) {
+    if (
+      existing &&
+      existing.element &&
+      element &&
+      existing.element !== element
+    ) {
       this.reportDuplicate("group", id);
-      return () => {};
+      return noop;
     }
     if (existing?.element && existing.element !== element) {
       this.groupElements.delete(existing.element);
@@ -201,7 +213,8 @@ export class ScanRegistry {
       else childrenOf.set(parent, [id]);
     };
 
-    for (const entry of this.targets.values()) pushChild(this.resolveTargetParent(entry), entry.id);
+    for (const entry of this.targets.values())
+      pushChild(this.resolveTargetParent(entry), entry.id);
     for (const entry of this.groups.values()) {
       groupParents.set(entry.id, this.resolveGroupParent(entry));
     }
@@ -233,7 +246,10 @@ export class ScanRegistry {
       return null;
     };
 
-    const rootChildren = this.orderChildren(ROOT_PARENT, childrenOf.get(ROOT_PARENT) ?? [])
+    const rootChildren = this.orderChildren(
+      ROOT_PARENT,
+      childrenOf.get(ROOT_PARENT) ?? [],
+    )
       .map(buildNode)
       .filter((node): node is ScanNode => node !== null);
 
@@ -248,7 +264,13 @@ export class ScanRegistry {
   private buildTargetNode(entry: TargetEntry): ScanTargetNode {
     const opts = entry.getOptions();
     const disabled = opts.disabled === true || isElementDisabled(entry.element);
-    const node: { kind: "target"; id: string; label: string; disabled?: boolean; metadata?: Readonly<Record<string, unknown>> } = {
+    const node: {
+      kind: "target";
+      id: string;
+      label: string;
+      disabled?: boolean;
+      metadata?: Readonly<Record<string, unknown>>;
+    } = {
       kind: "target",
       id: entry.id,
       label: opts.label,
@@ -260,13 +282,15 @@ export class ScanRegistry {
 
   private resolveTargetParent(entry: TargetEntry): ParentId {
     const explicit = entry.getOptions().groupId;
-    if (explicit !== undefined) return this.groups.has(explicit) ? explicit : ROOT_PARENT;
+    if (explicit !== undefined)
+      return this.groups.has(explicit) ? explicit : ROOT_PARENT;
     return this.domParent(entry.element, entry.id);
   }
 
   private resolveGroupParent(entry: GroupEntry): ParentId {
     const explicit = entry.getOptions().parentId;
-    if (explicit !== undefined) return this.groups.has(explicit) ? explicit : ROOT_PARENT;
+    if (explicit !== undefined)
+      return this.groups.has(explicit) ? explicit : ROOT_PARENT;
     return this.domParent(entry.element, entry.id);
   }
 
@@ -326,10 +350,16 @@ export class ScanRegistry {
     for (const id of sequence) {
       if (isDevelopment()) {
         if (seenInSequence.has(id)) {
-          this.warn("sequence-mismatch", `group "${parentId}" lists "${id}" more than once`);
+          this.warn(
+            "sequence-mismatch",
+            `group "${parentId}" lists "${id}" more than once`,
+          );
         }
         if (!present.has(id)) {
-          this.warn("sequence-mismatch", `group "${parentId}" sequence references unknown child "${id}"`);
+          this.warn(
+            "sequence-mismatch",
+            `group "${parentId}" sequence references unknown child "${id}"`,
+          );
         }
       }
       seenInSequence.add(id);
@@ -364,7 +394,9 @@ export class ScanRegistry {
   }
 
   private elementOf(id: string): HTMLElement | null {
-    return this.targets.get(id)?.element ?? this.groups.get(id)?.element ?? null;
+    return (
+      this.targets.get(id)?.element ?? this.groups.get(id)?.element ?? null
+    );
   }
 
   private reportDuplicate(kind: string, id: string): void {

@@ -13,7 +13,10 @@ export type ScannerEventListener = (event: ScannerEvent) => void;
  *   useScannerEvents(scanner, listener)  // explicit scanner
  */
 export function useScannerEvents(listener: ScannerEventListener): void;
-export function useScannerEvents(scanner: Scanner, listener: ScannerEventListener): void;
+export function useScannerEvents(
+  scanner: Scanner,
+  listener: ScannerEventListener,
+): void;
 export function useScannerEvents(
   a: Scanner | ScannerEventListener,
   b?: ScannerEventListener,

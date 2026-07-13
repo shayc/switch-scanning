@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
-import { createScanner, type Scanner, type ScannerOptions } from "../core/index.ts";
+import {
+  createScanner,
+  type Scanner,
+  type ScannerOptions,
+} from "../core/index.ts";
 
 /**
  * Lazily create a single scanner whose identity is stable for the component's

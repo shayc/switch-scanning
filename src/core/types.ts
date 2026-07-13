@@ -86,8 +86,7 @@ export type ScannerEvent =
 // Host
 
 export type ActivationResult =
-  | { activated: true }
-  | { activated: false; reason: string };
+  { activated: true } | { activated: false; reason: string };
 
 export interface ScannerHost {
   activate(targetId: string): ActivationResult;
@@ -121,7 +120,8 @@ type ScannerInfrastructureOptions =
  * A custom time source must either implement both ports itself or be paired
  * with a scheduler that uses the same time base.
  */
-export type ScannerOptions = ScannerBehaviorOptions & ScannerInfrastructureOptions;
+export type ScannerOptions = ScannerBehaviorOptions &
+  ScannerInfrastructureOptions;
 
 // Input port
 

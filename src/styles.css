@@ -11,18 +11,21 @@
  */
 
 [data-scan-highlighted] {
-  outline: var(--scan-outline-width, 4px) solid var(--scan-outline-color, CanvasText);
+  outline: var(--scan-outline-width, 4px) solid
+    var(--scan-outline-color, CanvasText);
   outline-offset: var(--scan-outline-offset, 3px);
 }
 
 [data-scan-within] {
-  outline: var(--scan-within-width, 2px) dashed var(--scan-within-color, CanvasText);
+  outline: var(--scan-within-width, 2px) dashed
+    var(--scan-within-color, CanvasText);
   outline-offset: var(--scan-within-offset, 2px);
 }
 
 [data-scan-exit-highlighted] {
   position: relative;
-  outline: var(--scan-outline-width, 4px) dashed var(--scan-outline-color, CanvasText);
+  outline: var(--scan-outline-width, 4px) dashed
+    var(--scan-outline-color, CanvasText);
   outline-offset: var(--scan-outline-offset, 3px);
 }
 

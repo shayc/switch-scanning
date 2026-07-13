@@ -36,10 +36,7 @@ export interface InverseScanStyle {
 }
 
 export type ScanStyle =
-  | AutoScanStyle
-  | StepScanStyle
-  | SingleSwitchStepScanStyle
-  | InverseScanStyle;
+  AutoScanStyle | StepScanStyle | SingleSwitchStepScanStyle | InverseScanStyle;
 
 export interface AutoScanOptions {
   intervalMs: number;
@@ -80,7 +77,9 @@ function assertNonNegative(value: number, name: string): void {
 function assertLoops(loops: LoopLimit): void {
   if (loops === "infinite") return;
   if (!Number.isInteger(loops) || loops <= 0) {
-    fail(`loops must be "infinite" or a positive integer (received ${String(loops)})`);
+    fail(
+      `loops must be "infinite" or a positive integer (received ${String(loops)})`,
+    );
   }
 }
 
@@ -104,7 +103,10 @@ export function stepScan(options: StepScanOptions = {}): StepScanStyle {
     assertPositive(repeat.intervalMs, "repeat.intervalMs");
     return Object.freeze({
       kind: "step",
-      repeat: Object.freeze({ delayMs: repeat.delayMs, intervalMs: repeat.intervalMs }),
+      repeat: Object.freeze({
+        delayMs: repeat.delayMs,
+        intervalMs: repeat.intervalMs,
+      }),
     });
   }
   return Object.freeze({ kind: "step", repeat: false as const });
@@ -114,7 +116,10 @@ export function singleSwitchStepScan(
   options: SingleSwitchStepScanOptions,
 ): SingleSwitchStepScanStyle {
   assertPositive(options.dwellTimeMs, "dwellTimeMs");
-  return Object.freeze({ kind: "singleStep", dwellTimeMs: options.dwellTimeMs });
+  return Object.freeze({
+    kind: "singleStep",
+    dwellTimeMs: options.dwellTimeMs,
+  });
 }
 
 export function inverseScan(options: InverseScanOptions): InverseScanStyle {
@@ -131,6 +136,8 @@ export function inverseScan(options: InverseScanOptions): InverseScanStyle {
 }
 
 /** True when a style advances the highlight on a timer of its own. */
-export function isTimedStyle(style: ScanStyle): style is AutoScanStyle | InverseScanStyle {
+export function isTimedStyle(
+  style: ScanStyle,
+): style is AutoScanStyle | InverseScanStyle {
   return style.kind === "auto" || style.kind === "inverse";
 }

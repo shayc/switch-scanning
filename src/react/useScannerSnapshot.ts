@@ -36,7 +36,7 @@ export function useScannerSnapshot<T>(
   let isEqual: SnapshotEquality<T> | undefined;
 
   if (typeof a === "function") {
-    selector = a as SnapshotSelector<T>;
+    selector = a;
     isEqual = b as SnapshotEquality<T> | undefined;
   } else {
     scanner = a;

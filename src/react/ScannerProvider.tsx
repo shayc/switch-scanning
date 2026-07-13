@@ -15,12 +15,20 @@ export interface ScannerProviderProps {
  * Mode's extra cleanup) the host detaches and the scanner stops, but the
  * scanner object is never terminally disposed.
  */
-export function ScannerProvider({ scanner, children }: ScannerProviderProps): ReactNode {
+export function ScannerProvider({
+  scanner,
+  children,
+}: ScannerProviderProps): ReactNode {
   const [registry] = useState(() => new ScanRegistry());
-  const value = useMemo<ScannerContextValue>(() => ({ scanner, registry }), [scanner, registry]);
+  const value = useMemo<ScannerContextValue>(
+    () => ({ scanner, registry }),
+    [scanner, registry],
+  );
 
   useEffect(() => {
-    const host = createDomHost(registry, (groupId) => registry.exitLabelFor(groupId));
+    const host = createDomHost(registry, (groupId) =>
+      registry.exitLabelFor(groupId),
+    );
     const detachHost = scanner.attachHost(host);
     const detachRegistry = registry.attach(scanner);
     // Publish the initial tree synchronously so a mount-start rule can fire.
@@ -33,5 +41,7 @@ export function ScannerProvider({ scanner, children }: ScannerProviderProps): Re
     };
   }, [scanner, registry]);
 
-  return <ScannerContext.Provider value={value}>{children}</ScannerContext.Provider>;
+  return (
+    <ScannerContext.Provider value={value}>{children}</ScannerContext.Provider>
+  );
 }

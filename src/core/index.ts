@@ -31,7 +31,12 @@ export type {
   SwitchAction,
 } from "./switches.ts";
 
-export type { Clock, Scheduler, CancelScheduled, ManualClock } from "./clock.ts";
+export type {
+  Clock,
+  Scheduler,
+  CancelScheduled,
+  ManualClock,
+} from "./clock.ts";
 export { systemClock, manualClock } from "./clock.ts";
 
 export type {

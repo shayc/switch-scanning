@@ -200,7 +200,10 @@ export function createGestureEngine(deps: {
       }
       case "scan": {
         if (state.scanAccepted) {
-          sink.scanRelease({ switchId: state.switchId, sourceKey: state.sourceKey });
+          sink.scanRelease({
+            switchId: state.switchId,
+            sourceKey: state.sourceKey,
+          });
         }
         return;
       }
@@ -262,7 +265,10 @@ export function createGestureEngine(deps: {
   return { press, release, disconnect, setSwitches, reset };
 }
 
-function switchDefinitionsEqual(a: NormalizedSwitch, b: NormalizedSwitch): boolean {
+function switchDefinitionsEqual(
+  a: NormalizedSwitch,
+  b: NormalizedSwitch,
+): boolean {
   if (a.type !== b.type) return false;
 
   if (a.type === "discrete" && b.type === "discrete") {

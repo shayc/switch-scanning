@@ -63,14 +63,18 @@ export function useKeyboardSwitches(
     };
 
     const onVisibility = (): void => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
         disconnectAll();
       }
     };
 
     target.addEventListener("keydown", onKeyDown as EventListener);
     target.addEventListener("keyup", onKeyUp as EventListener);
-    if (typeof window !== "undefined") window.addEventListener("blur", disconnectAll);
+    if (typeof window !== "undefined")
+      window.addEventListener("blur", disconnectAll);
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", onVisibility);
     }
@@ -78,7 +82,8 @@ export function useKeyboardSwitches(
     return () => {
       target.removeEventListener("keydown", onKeyDown as EventListener);
       target.removeEventListener("keyup", onKeyUp as EventListener);
-      if (typeof window !== "undefined") window.removeEventListener("blur", disconnectAll);
+      if (typeof window !== "undefined")
+        window.removeEventListener("blur", disconnectAll);
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", onVisibility);
       }

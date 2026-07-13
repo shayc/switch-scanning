@@ -2,7 +2,10 @@
 // complete entry point for React applications.
 export * from "../core/index.ts";
 
-export { ScannerProvider, type ScannerProviderProps } from "./ScannerProvider.tsx";
+export {
+  ScannerProvider,
+  type ScannerProviderProps,
+} from "./ScannerProvider.tsx";
 export { useScanner } from "./useScanner.ts";
 export {
   useScanTarget,

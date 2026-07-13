@@ -1,4 +1,8 @@
-import type { ActivationResult, Highlight, ScannerHost } from "../core/index.ts";
+import type {
+  ActivationResult,
+  Highlight,
+  ScannerHost,
+} from "../core/index.ts";
 import type { ScanRegistry } from "./registry.ts";
 
 const ATTR_HIGHLIGHTED = "data-scan-highlighted";
@@ -71,7 +75,10 @@ export function createDomHost(
       if (!entry) return { activated: false, reason: "target not registered" };
 
       const options = entry.getOptions();
-      if (options.disabled === true || registry.isTargetElementDisabled(targetId)) {
+      if (
+        options.disabled === true ||
+        registry.isTargetElementDisabled(targetId)
+      ) {
         return { activated: false, reason: "target disabled" };
       }
 

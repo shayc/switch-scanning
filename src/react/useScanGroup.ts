@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, type Ref, type RefCallback } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Ref,
+  type RefCallback,
+} from "react";
 import { useScannerContext } from "./context.ts";
 import { applyRef } from "./refs.ts";
 import type { ScanGroupOptions } from "./registry.ts";
@@ -30,7 +36,11 @@ export function useScanGroup(options: UseScanGroupOptions): ScanGroupBinding {
   const ref = useCallback<RefCallback<HTMLElement>>(
     (element) => {
       const forwardedRef = options.ref;
-      const unregister = registry.mountGroup(id, () => optionsRef.current, element);
+      const unregister = registry.mountGroup(
+        id,
+        () => optionsRef.current,
+        element,
+      );
       applyRef(forwardedRef, element);
       return () => {
         unregister();
@@ -43,7 +53,15 @@ export function useScanGroup(options: UseScanGroupOptions): ScanGroupBinding {
   const sequenceKey = options.sequence ? options.sequence.join("\0") : "";
   useEffect(() => {
     registry.touchGroup();
-  }, [registry, id, options.label, options.exitLabel, options.disabled, options.parentId, sequenceKey]);
+  }, [
+    registry,
+    id,
+    options.label,
+    options.exitLabel,
+    options.disabled,
+    options.parentId,
+    sequenceKey,
+  ]);
 
   return { props: { ref, "data-scan-group": "" } };
 }

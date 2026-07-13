@@ -32,7 +32,10 @@ export function systemClock(): Clock & Scheduler {
 }
 
 function performanceNow(): number {
-  if (typeof performance !== "undefined" && typeof performance.now === "function") {
+  if (
+    typeof performance !== "undefined" &&
+    typeof performance.now === "function"
+  ) {
     return performance.now();
   }
   // Fall back to Date for environments without `performance`.
@@ -122,7 +125,8 @@ export function manualClock(startAt = 0): ManualClock {
     flush() {
       // Fire everything by pushing the deadline to the furthest pending entry.
       const maxDeadline = entries.reduce(
-        (max, entry) => (entry.callback !== null ? Math.max(max, entry.deadline) : max),
+        (max, entry) =>
+          entry.callback !== null ? Math.max(max, entry.deadline) : max,
         current,
       );
       drainUntil(maxDeadline);

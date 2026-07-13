@@ -36,9 +36,7 @@ export interface TapHoldSwitchDefinition {
 }
 
 export type SwitchDefinition =
-  | DiscreteSwitchDefinition
-  | ScanSwitchDefinition
-  | TapHoldSwitchDefinition;
+  DiscreteSwitchDefinition | ScanSwitchDefinition | TapHoldSwitchDefinition;
 
 export type NormalizedSwitch =
   | {
@@ -79,16 +77,27 @@ function assertPositive(value: number, name: string): void {
 }
 
 function isDiscreteAction(action: string): action is DiscreteAction {
-  return action === "select" || action === "next" || action === "previous" || action === "back";
+  return (
+    action === "select" ||
+    action === "next" ||
+    action === "previous" ||
+    action === "back"
+  );
 }
 
-export function normalizeSwitch(id: string, def: SwitchDefinition): NormalizedSwitch {
+export function normalizeSwitch(
+  id: string,
+  def: SwitchDefinition,
+): NormalizedSwitch {
   if (id.trim() === "") {
     fail("switch IDs must be non-empty strings");
   }
 
   if ("tap" in def) {
-    if ((def.tap as string) === "scan" || (def.hold.action as string) === "scan") {
+    if (
+      (def.tap as string) === "scan" ||
+      (def.hold.action as string) === "scan"
+    ) {
       fail(`switch "${id}": tap/hold cannot use the phaseful "scan" action`);
     }
     if (!isDiscreteAction(def.tap)) {
