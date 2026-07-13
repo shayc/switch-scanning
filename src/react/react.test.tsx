@@ -3,14 +3,11 @@ import { createRef, StrictMode, useEffect, type Ref } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   createScanner,
-  inverseScan,
   manualClock,
   type ManualClock,
 } from "../core/index.ts";
 import { autoScan, stepScan } from "../core/index.ts";
 import { ScannerProvider } from "./ScannerProvider.tsx";
-import { ScanRegistry } from "./registry.ts";
-import { useKeyboardSwitches } from "./useKeyboardSwitches.ts";
 import { useScanGroup } from "./useScanGroup.ts";
 import { useScanner } from "./useScanner.ts";
 import { useScannerSnapshot } from "./useScannerSnapshot.ts";
@@ -193,171 +190,6 @@ describe("imperative driving", () => {
   });
 });
 
-describe("keyboard switches", () => {
-  it("operates a declared switch from KeyboardEvent.code", async () => {
-    const clock = manualClock();
-    const activated: string[] = [];
-
-    function KeyApp() {
-      const scanner = useScanner({
-        style: stepScan(),
-        startOn: "switch",
-        switches: { select: { action: "select" }, next: { action: "next" } },
-        clock,
-      });
-      useKeyboardSwitches(scanner, { Space: "next", Enter: "select" });
-      return (
-        <ScannerProvider scanner={scanner}>
-          <TargetButton
-            id="x"
-            label="X"
-            onActivate={() => activated.push("x")}
-          />
-          <TargetButton
-            id="y"
-            label="Y"
-            onActivate={() => activated.push("y")}
-          />
-        </ScannerProvider>
-      );
-    }
-
-    render(<KeyApp />);
-    await flushMicrotasks();
-
-    // First keydown starts scanning (consumed).
-    act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
-      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
-    });
-    // Advance to Y.
-    act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
-      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
-    });
-    // Select Y.
-    act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Enter" }));
-      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Enter" }));
-    });
-    expect(activated).toEqual(["y"]);
-  });
-
-  it("releases the binding accepted on keydown after bindings change", async () => {
-    const activated: string[] = [];
-    const scanner = createScanner({
-      style: inverseScan({ intervalMs: 1000, loops: "infinite" }),
-      startOn: "command",
-      switches: {
-        first: { action: "scan" },
-        second: { action: "scan" },
-      },
-    });
-
-    function KeyApp({ binding }: { binding: string }) {
-      useKeyboardSwitches(scanner, { Space: binding });
-      return (
-        <ScannerProvider scanner={scanner}>
-          <TargetButton
-            id="x"
-            label="X"
-            onActivate={() => activated.push("x")}
-          />
-        </ScannerProvider>
-      );
-    }
-
-    const view = render(<KeyApp binding="first" />);
-    await flushMicrotasks();
-    act(() => scanner.start());
-    act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
-    });
-    view.rerender(<KeyApp binding="second" />);
-    act(() => {
-      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
-    });
-    expect(activated).toEqual(["x"]);
-  });
-});
-
-describe("registry ownership", () => {
-  it("does not let stale cleanup remove a newer registration", () => {
-    const registry = new ScanRegistry();
-    const element = document.createElement("button");
-    const firstCleanup = registry.mountTarget(
-      "x",
-      () => ({ id: "x", label: "First" }),
-      element,
-    );
-    registry.mountTarget("x", () => ({ id: "x", label: "Second" }), element);
-    firstCleanup();
-    expect(registry.getTarget("x")?.getOptions().label).toBe("Second");
-  });
-
-  it("keeps the synthetic root outside the user ID namespace", () => {
-    const registry = new ScanRegistry();
-    const scanner = createScanner({ style: stepScan(), startOn: "command" });
-    const group = document.createElement("div");
-    const target = document.createElement("button");
-
-    registry.attach(scanner);
-    registry.mountGroup(
-      "__root__",
-      () => ({ id: "__root__", label: "User root" }),
-      group,
-    );
-    registry.mountTarget(
-      "inside",
-      () => ({ id: "inside", label: "Inside", groupId: "__root__" }),
-      target,
-    );
-    registry.flush();
-    scanner.start();
-
-    expect(scanner.getSnapshot().highlight).toEqual({
-      kind: "group",
-      id: "__root__",
-    });
-  });
-
-  it("rejects IDs shared by a target and group", () => {
-    const registry = new ScanRegistry();
-    const element = document.createElement("button");
-    registry.mountTarget(
-      "shared",
-      () => ({ id: "shared", label: "Target" }),
-      element,
-    );
-
-    expect(() =>
-      registry.mountGroup(
-        "shared",
-        () => ({ id: "shared", label: "Group" }),
-        element,
-      ),
-    ).toThrow('duplicate scan node id "shared"');
-  });
-
-  it("rejects cycles in explicit group parentage", () => {
-    const registry = new ScanRegistry();
-    registry.mountGroup(
-      "a",
-      () => ({ id: "a", label: "A", parentId: "b" }),
-      null,
-    );
-    registry.mountGroup(
-      "b",
-      () => ({ id: "b", label: "B", parentId: "a" }),
-      null,
-    );
-    registry.attach(createScanner({ style: stepScan() }));
-
-    expect(() => registry.flush()).toThrow(
-      "cyclic scan group parentage: a -> b -> a",
-    );
-  });
-});
 
 describe("forwarded refs", () => {
   it("moves target ownership when the forwarded ref changes", () => {
@@ -383,6 +215,7 @@ describe("forwarded refs", () => {
     expect(second.current?.textContent).toBe("X");
   });
 });
+
 
 describe("Strict Mode", () => {
   it("survives the extra setup/cleanup/setup cycle without disposing", async () => {

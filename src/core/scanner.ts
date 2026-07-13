@@ -5,7 +5,8 @@ import {
   type GestureEngine,
   type GestureSink,
 } from "./gestures.ts";
-import { ScanSession, snapshotEquals, type SessionEffect } from "./session.ts";
+import { ScanSession, type SessionEffect } from "./session.ts";
+import { createScannerStore } from "./scannerStore.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
 import type { ScanStyle } from "./styles.ts";
 import {
@@ -25,11 +26,9 @@ import type {
   ScanGroupNode,
   Scanner,
   ScannerDiagnosticCode,
-  ScannerEvent,
   ScannerHost,
   ScannerInputPort,
   ScannerOptions,
-  ScannerSnapshot,
   ScannerStatus,
   StartOn,
 } from "./types.ts";
@@ -63,87 +62,14 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   let mountStartPending = options.startOn === "mount";
   let status: ScannerStatus = "idle";
 
-  const subscribers = new Set<() => void>();
-  const observers = new Set<(event: ScannerEvent) => void>();
-
-  let cachedSnapshot: ScannerSnapshot = {
-    status: "idle",
-    highlight: null,
-    path: [],
-    loop: 0,
-  };
-  let commitPending = false;
-  let isDrainingTransitions = false;
-  const pendingEvents: ScannerEvent[] = [];
-  const pendingTransitions: Array<() => void> = [];
-
-  /** Serialize mutations so callbacks cannot interrupt a partially published transition. */
-  function runTransition(work: () => void): void {
-    pendingTransitions.push(work);
-    if (isDrainingTransitions) return;
-
-    isDrainingTransitions = true;
-    try {
-      while (pendingTransitions.length > 0) {
-        const transition = pendingTransitions.shift()!;
-        transition();
-        publishChanges();
-      }
-    } finally {
-      isDrainingTransitions = false;
-    }
-  }
-
-  function serialized<Args extends unknown[]>(
-    work: (...args: Args) => void,
-  ): (...args: Args) => void {
-    return (...args) => runTransition(() => work(...args));
-  }
-
-  function publishChanges(): void {
-    if (commitPending) {
-      commitPending = false;
-      const next = session.snapshot(status);
-      if (!snapshotEquals(next, cachedSnapshot)) cachedSnapshot = next;
-
-      for (const subscriber of [...subscribers]) {
-        try {
-          subscriber();
-        } catch (error) {
-          reportBoundaryError(error, "listener");
-        }
-      }
-    }
-
-    const events = pendingEvents.splice(0);
-    for (const event of events) {
-      for (const observer of [...observers]) {
-        try {
-          observer(event);
-        } catch (error) {
-          reportBoundaryError(error, "listener");
-        }
-      }
-    }
-  }
-
-  function reportBoundaryError(error: unknown, boundary: string): void {
-    if (typeof globalThis.reportError === "function") {
-      globalThis.reportError(error);
-      return;
-    }
-    if (typeof console !== "undefined") {
-      console.error(`[switch-scanning] scanner ${boundary} failed`, error);
-    }
-  }
-
-  function commit(): void {
-    commitPending = true;
-  }
-
-  function emit(event: ScannerEvent): void {
-    pendingEvents.push(event);
-  }
+  const store = createScannerStore(() => session.snapshot(status));
+  const {
+    runTransition,
+    serialized,
+    commit,
+    emit,
+    reportBoundaryError,
+  } = store;
 
   function diagnostic(code: ScannerDiagnosticCode, message: string): void {
     emit({ type: "diagnostic", code, message });
@@ -528,15 +454,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       commit();
     }),
     getSnapshot() {
-      return cachedSnapshot;
+      return store.getSnapshot();
     },
     subscribe(onChange) {
-      subscribers.add(onChange);
-      return () => subscribers.delete(onChange);
+      return store.subscribe(onChange);
     },
     observe(listener) {
-      observers.add(listener);
-      return () => observers.delete(listener);
+      return store.observe(listener);
     },
     setOptions: serialized((next: ScannerOptions) => {
       if (disposed) return;
@@ -589,8 +513,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       gestures.reset();
       session.clear();
       status = "idle";
-      subscribers.clear();
-      observers.clear();
+      store.clearListeners();
       host = null;
     }),
   };
