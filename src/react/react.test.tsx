@@ -1,12 +1,14 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { manualClock, type ManualClock } from "../core/index.ts";
+import { createScanner, inverseScan, manualClock, type ManualClock } from "../core/index.ts";
 import { autoScan, stepScan } from "../core/index.ts";
 import { ScannerProvider } from "./ScannerProvider.tsx";
+import { ScanRegistry } from "./registry.ts";
 import { useKeyboardSwitches } from "./useKeyboardSwitches.ts";
 import { useScanGroup } from "./useScanGroup.ts";
 import { useScanner } from "./useScanner.ts";
+import { useScannerSnapshot } from "./useScannerSnapshot.ts";
 import { useScanTarget } from "./useScanTarget.ts";
 
 afterEach(cleanup);
@@ -109,6 +111,31 @@ describe("imperative driving", () => {
     // The group element is marked as containing the highlight.
     expect(view.getByText("A").closest("[data-scan-group]")?.getAttribute("data-scan-within")).toBe("");
   });
+
+  it("follows a replacement scanner through provider context", async () => {
+    const first = createScanner({ style: stepScan(), startOn: "command" });
+    const second = createScanner({ style: stepScan(), startOn: "command" });
+
+    function Status() {
+      const status = useScannerSnapshot((snapshot) => snapshot.status);
+      return <output>{status}</output>;
+    }
+
+    const app = (scanner: typeof first) => (
+      <ScannerProvider scanner={scanner}>
+        <TargetButton id="x" label="X" />
+        <Status />
+      </ScannerProvider>
+    );
+
+    const view = render(app(first));
+    await flushMicrotasks();
+    view.rerender(app(second));
+    await flushMicrotasks();
+    act(() => second.start());
+    expect(view.getByText("scanning")).toBeTruthy();
+  });
+
 });
 
 describe("keyboard switches", () => {
@@ -152,6 +179,47 @@ describe("keyboard switches", () => {
     });
     expect(activated).toEqual(["y"]);
   });
+
+  it("releases the binding accepted on keydown after bindings change", async () => {
+    const activated: string[] = [];
+    const scanner = createScanner({
+      style: inverseScan({ intervalMs: 1000, loops: "infinite" }),
+      startOn: "command",
+      switches: {
+        first: { action: "scan" },
+        second: { action: "scan" },
+      },
+    });
+
+    function KeyApp({ binding }: { binding: string }) {
+      useKeyboardSwitches(scanner, { Space: binding });
+      return (
+        <ScannerProvider scanner={scanner}>
+          <TargetButton id="x" label="X" onActivate={() => activated.push("x")} />
+        </ScannerProvider>
+      );
+    }
+
+    const view = render(<KeyApp binding="first" />);
+    await flushMicrotasks();
+    act(() => scanner.start());
+    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" })));
+    view.rerender(<KeyApp binding="second" />);
+    act(() => document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" })));
+    expect(activated).toEqual(["x"]);
+  });
+
+});
+
+describe("registry ownership", () => {
+  it("does not let stale cleanup remove a newer registration", () => {
+    const registry = new ScanRegistry();
+    const element = document.createElement("button");
+    const firstCleanup = registry.mountTarget("x", () => ({ id: "x", label: "First" }), element);
+    registry.mountTarget("x", () => ({ id: "x", label: "Second" }), element);
+    firstCleanup();
+    expect(registry.getTarget("x")?.getOptions().label).toBe("Second");
+  });
 });
 
 describe("Strict Mode", () => {
@@ -171,5 +239,31 @@ describe("Strict Mode", () => {
     expect(scanner.getSnapshot().status).toBe("scanning");
     act(() => clock.advanceBy(1000));
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+  });
+
+  it("reapplies mount startup after the extra attachment cycle", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+
+    function MountApp() {
+      const current = useScanner({ style: stepScan(), startOn: "mount", clock });
+      scanner = current;
+      return (
+        <ScannerProvider scanner={current}>
+          <TargetButton id="x" label="X" />
+        </ScannerProvider>
+      );
+    }
+
+    render(
+      <StrictMode>
+        <MountApp />
+      </StrictMode>,
+    );
+    await flushMicrotasks();
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: { kind: "target", id: "x" },
+    });
   });
 });

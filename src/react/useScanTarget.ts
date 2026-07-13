@@ -29,10 +29,10 @@ export function useScanTarget(options: UseScanTargetOptions): ScanTargetBinding 
 
   const ref = useCallback<RefCallback<HTMLElement>>(
     (element) => {
-      registry.mountTarget(id, () => optionsRef.current, element);
+      const unregister = registry.mountTarget(id, () => optionsRef.current, element);
       applyRef(optionsRef.current.ref, element);
       return () => {
-        registry.unmountTarget(id);
+        unregister();
         applyRef(optionsRef.current.ref, null);
       };
     },

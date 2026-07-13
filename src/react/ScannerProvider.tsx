@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Scanner } from "../core/index.ts";
 import { ScannerContext, type ScannerContextValue } from "./context.ts";
 import { createDomHost } from "./domHost.ts";
@@ -16,20 +16,10 @@ export interface ScannerProviderProps {
  * scanner object is never terminally disposed.
  */
 export function ScannerProvider({ scanner, children }: ScannerProviderProps): ReactNode {
-  const [value] = useState<ScannerContextValue>(() => ({
-    scanner,
-    registry: new ScanRegistry(),
-  }));
-
-  // If the scanner prop identity changes, surface it rather than silently
-  // binding to a stale instance.
-  const scannerRef = useRef<Scanner>(scanner);
-  if (scannerRef.current !== scanner) {
-    scannerRef.current = scanner;
-  }
+  const [registry] = useState(() => new ScanRegistry());
+  const value = useMemo<ScannerContextValue>(() => ({ scanner, registry }), [scanner, registry]);
 
   useEffect(() => {
-    const { registry } = value;
     const host = createDomHost(registry, (groupId) => registry.exitLabelFor(groupId));
     const detachHost = scanner.attachHost(host);
     const detachRegistry = registry.attach(scanner);
@@ -41,7 +31,7 @@ export function ScannerProvider({ scanner, children }: ScannerProviderProps): Re
       detachHost();
       scanner.stop();
     };
-  }, [scanner, value]);
+  }, [scanner, registry]);
 
   return <ScannerContext.Provider value={value}>{children}</ScannerContext.Provider>;
 }

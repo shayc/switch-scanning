@@ -64,14 +64,23 @@ export class ScanRegistry {
 
   // -- target registration --------------------------------------------------
 
-  mountTarget(id: string, getOptions: () => ScanTargetOptions, element: HTMLElement | null): void {
+  mountTarget(
+    id: string,
+    getOptions: () => ScanTargetOptions,
+    element: HTMLElement | null,
+  ): Detach {
     const existing = this.targets.get(id);
     if (existing && existing.element && element && existing.element !== element) {
       this.reportDuplicate("target", id);
-      return;
+      return () => {};
     }
-    this.targets.set(id, { id, getOptions, element });
+    const entry: TargetEntry = { id, getOptions, element };
+    this.targets.set(id, entry);
     this.markDirty();
+    return () => {
+      if (this.targets.get(id) !== entry) return;
+      this.unmountTarget(id);
+    };
   }
 
   unmountTarget(id: string): void {
@@ -119,18 +128,27 @@ export class ScanRegistry {
 
   // -- group registration ---------------------------------------------------
 
-  mountGroup(id: string, getOptions: () => ScanGroupOptions, element: HTMLElement | null): void {
+  mountGroup(
+    id: string,
+    getOptions: () => ScanGroupOptions,
+    element: HTMLElement | null,
+  ): Detach {
     const existing = this.groups.get(id);
     if (existing && existing.element && element && existing.element !== element) {
       this.reportDuplicate("group", id);
-      return;
+      return () => {};
     }
     if (existing?.element && existing.element !== element) {
       this.groupElements.delete(existing.element);
     }
-    this.groups.set(id, { id, getOptions, element });
+    const entry: GroupEntry = { id, getOptions, element };
+    this.groups.set(id, entry);
     if (element) this.groupElements.set(element, id);
     this.markDirty();
+    return () => {
+      if (this.groups.get(id) !== entry) return;
+      this.unmountGroup(id);
+    };
   }
 
   unmountGroup(id: string): void {

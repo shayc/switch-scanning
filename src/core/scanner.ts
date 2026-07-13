@@ -48,6 +48,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   let tree: CompiledTree = compileTree(EMPTY_ROOT);
   let host: ScannerHost | null = null;
   let disposed = false;
+  let hasPublishedTree = false;
+  let mountStartPending = options.startOn === "mount";
 
   let status: ScannerStatus = "idle";
   let frames: ScopeFrame[] = [];
@@ -387,6 +389,14 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     land(null);
   }
 
+  function maybeStartOnMount(): boolean {
+    if (!mountStartPending || options.startOn !== "mount" || status !== "idle") return false;
+    mountStartPending = false;
+    startScan();
+    commit();
+    return true;
+  }
+
   function completeScan(reason: "loops" | "empty"): void {
     haltTiming();
     frames = [];
@@ -710,12 +720,18 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     setTree(root) {
       if (disposed) return;
       tree = compileTree(root);
+      hasPublishedTree = true;
+      if (maybeStartOnMount()) return;
       reconcile();
     },
     attachHost(next) {
       if (disposed) return () => {};
       if (host) diagnostic("second-host-attach", "a host is already attached");
       host = next;
+      if (options.startOn === "mount") {
+        mountStartPending = true;
+        if (hasPublishedTree) maybeStartOnMount();
+      }
       return () => {
         if (host === next) host = null;
       };

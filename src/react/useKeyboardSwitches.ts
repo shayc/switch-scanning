@@ -34,7 +34,9 @@ export function useKeyboardSwitches(
       explicitTarget ?? (typeof document !== "undefined" ? document : null!);
     if (!target) return;
 
-    const held = new Set<string>();
+    // Remember the binding accepted on keydown. Bindings may change before
+    // keyup, but the logical switch that opened the gesture must be released.
+    const held = new Map<string, string>();
     const sourceId = (code: string): string => `key:${code}`;
 
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -43,20 +45,20 @@ export function useKeyboardSwitches(
       if (switchId === undefined) return;
       event.preventDefault();
       if (held.has(event.code)) return;
-      held.add(event.code);
+      held.set(event.code, switchId);
       scanner.input.press(switchId, sourceId(event.code));
     };
 
     const onKeyUp = (event: KeyboardEvent): void => {
-      const switchId = bindingsRef.current[event.code];
+      const switchId = held.get(event.code);
       if (switchId === undefined) return;
       if (enabledRef.current) event.preventDefault();
-      if (!held.delete(event.code)) return;
+      held.delete(event.code);
       scanner.input.release(switchId, sourceId(event.code));
     };
 
     const disconnectAll = (): void => {
-      for (const code of held) scanner.input.disconnect(sourceId(code));
+      for (const code of held.keys()) scanner.input.disconnect(sourceId(code));
       held.clear();
     };
 

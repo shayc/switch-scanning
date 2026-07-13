@@ -245,6 +245,21 @@ describe("inverse scanning", () => {
 });
 
 describe("start rules", () => {
+  it("starts once when the initial tree is mounted", () => {
+    const { scanner, fixture } = build(
+      { style: stepScan(), startOn: "mount" },
+      YES_NO,
+    );
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: { kind: "target", id: "yes" },
+    });
+
+    scanner.stop();
+    fixture.setNodes([...YES_NO, { kind: "target", id: "maybe", label: "Maybe" }]);
+    expect(scanner.getSnapshot().status).toBe("idle");
+  });
+
   it("first accepted switch while idle starts and consumes the action (L1)", () => {
     const { scanner, fixture } = build(
       { style: stepScan(), switches: { select: { action: "select" } }, startOn: "switch" },
