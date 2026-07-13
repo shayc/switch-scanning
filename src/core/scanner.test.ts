@@ -48,7 +48,6 @@ describe("automatic scanning", () => {
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
     // Second candidate waits only the interval.
     clock.advanceBy(1000);
-    // Wrapped back to yes (pass 2), first of pass again.
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
     expect(scanner.getSnapshot().loop).toBe(2);
   });
@@ -59,12 +58,12 @@ describe("automatic scanning", () => {
       YES_NO,
     );
     scanner.start();
-    // pass 1: yes -> no ; pass 2: yes -> no ; then wrap beyond limit -> complete
-    clock.advanceBy(100); // -> no (pass1)
-    clock.advanceBy(100); // wrap -> yes (pass2)
+    // Two full yes/no passes complete on the next wrap.
+    clock.advanceBy(100);
+    clock.advanceBy(100);
     expect(scanner.getSnapshot().loop).toBe(2);
-    clock.advanceBy(100); // -> no (pass2)
-    clock.advanceBy(100); // wrap beyond limit -> complete
+    clock.advanceBy(100);
+    clock.advanceBy(100);
     expect(scanner.getSnapshot().status).toBe("complete");
     expect(scanner.getSnapshot().highlight).toBeNull();
     expect(events.ofType("scan.completed")).toEqual([{ type: "scan.completed", reason: "loops" }]);
@@ -87,7 +86,7 @@ describe("post-activation policy", () => {
   it("restart returns to the first root candidate", () => {
     const { clock, scanner, fixture } = build(options("restart"), YES_NO);
     scanner.start();
-    clock.advanceBy(100); // -> no
+    clock.advanceBy(100);
     scanner.select();
     expect(fixture.activations).toEqual(["no"]);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
@@ -95,8 +94,8 @@ describe("post-activation policy", () => {
 
   it("continue advances within the current scope", () => {
     const { scanner } = build(options("continue"), YES_NO);
-    scanner.start(); // yes
-    scanner.select(); // activates yes, then advances -> no
+    scanner.start();
+    scanner.select();
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
   });
 
@@ -113,12 +112,12 @@ describe("post-activation policy", () => {
   it("keeps highlight and restarts timing when activation fails", () => {
     const { clock, scanner, fixture, events } = build(options("restart"), YES_NO);
     fixture.failActivation("yes", "boom");
-    scanner.start(); // yes
+    scanner.start();
     scanner.select();
     expect(fixture.activations).toEqual([]);
     expect(events.ofType("target.activationFailed")[0]).toMatchObject({ id: "yes", reason: "boom" });
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
-    // fresh full deadline
+    // Activation failure restarts the full deadline.
     clock.advanceBy(100);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
   });
@@ -131,9 +130,9 @@ describe("step scanning", () => {
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
     scanner.next();
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
-    scanner.next(); // wrap
+    scanner.next();
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
-    scanner.previous(); // wrap back to no
+    scanner.previous();
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
     scanner.select();
     expect(fixture.activations).toEqual(["no"]);
@@ -166,13 +165,13 @@ describe("groups and exits", () => {
     const { scanner, events } = build({ style: stepScan(), groupExit: "after" }, tree);
     scanner.start();
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "row1" });
-    scanner.select(); // enter group
+    scanner.select();
     expect(scanner.getSnapshot().path).toEqual(["row1"]);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
-    scanner.next(); // b
-    scanner.next(); // exit (after)
+    scanner.next();
+    scanner.next();
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "exit", groupId: "row1" });
-    scanner.select(); // leave group, highlight the group just exited
+    scanner.select();
     expect(scanner.getSnapshot().path).toEqual([]);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "row1" });
     expect(events.ofType("group.exited")[0]).toMatchObject({ id: "row1", reason: "selected-exit" });
@@ -181,17 +180,17 @@ describe("groups and exits", () => {
   it("places the exit before children when groupExit is 'before'", () => {
     const { scanner } = build({ style: stepScan(), groupExit: "before" }, tree);
     scanner.start();
-    scanner.select(); // enter row1
+    scanner.select();
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "exit", groupId: "row1" });
   });
 
   it("back() leaves the group, and is a no-op at the root", () => {
     const { scanner, events } = build({ style: stepScan() }, tree);
     scanner.start();
-    scanner.select(); // enter
+    scanner.select();
     scanner.back();
     expect(scanner.getSnapshot().path).toEqual([]);
-    scanner.back(); // no-op at root
+    scanner.back();
     expect(events.ofType("diagnostic").some((d) => d.code === "command-inapplicable")).toBe(true);
   });
 
@@ -243,8 +242,8 @@ describe("single-switch step scanning", () => {
       { style: singleSwitchStepScan({ dwellTimeMs: 1500 }), switches: { next: { action: "next" } } },
       YES_NO,
     );
-    scanner.start(); // yes, dwell scheduled
-    scanner.next(); // -> no, dwell restarts
+    scanner.start();
+    scanner.next();
     clock.advanceBy(1499);
     expect(fixture.activations).toEqual([]);
     clock.advanceBy(1);
@@ -262,11 +261,11 @@ describe("inverse scanning", () => {
       },
       YES_NO,
     );
-    scanner.input.press("scan"); // start + hold, highlight yes
+    scanner.input.press("scan");
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
-    clock.advanceBy(900); // first movement -> no
+    clock.advanceBy(900);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
-    scanner.input.release("scan"); // select current
+    scanner.input.release("scan");
     expect(fixture.activations).toEqual(["no"]);
   });
 

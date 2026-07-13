@@ -103,12 +103,10 @@ describe("imperative driving", () => {
     await flushMicrotasks();
 
     act(() => scanner.start());
-    // First root candidate is the group itself.
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "row1" });
-    act(() => scanner.select()); // enter group
+    act(() => scanner.select());
     expect(scanner.getSnapshot().path).toEqual(["row1"]);
     expect(view.getByText("A").getAttribute("data-scan-highlighted")).toBe("");
-    // The group element is marked as containing the highlight.
     expect(view.getByText("A").closest("[data-scan-group]")?.getAttribute("data-scan-within")).toBe("");
   });
 
@@ -297,7 +295,6 @@ describe("Strict Mode", () => {
     );
     await flushMicrotasks();
 
-    // Scanner is still fully operable after Strict Mode's double lifecycle.
     act(() => scanner.start());
     expect(scanner.getSnapshot().status).toBe("scanning");
     act(() => clock.advanceBy(1000));

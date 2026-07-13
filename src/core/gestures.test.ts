@@ -32,7 +32,7 @@ describe("tap versus hold", () => {
 
   it("performs tap once on release before the hold threshold", () => {
     const { clock, scanner } = build(options);
-    scanner.start(); // yes
+    scanner.start();
     scanner.input.press("primary");
     clock.advanceBy(100); // < 700, >= 80
     scanner.input.release("primary");
@@ -41,11 +41,11 @@ describe("tap versus hold", () => {
 
   it("performs hold once and suppresses the tap", () => {
     const { clock, scanner, fixture } = build(options);
-    scanner.start(); // yes
+    scanner.start();
     scanner.input.press("primary");
-    clock.advanceBy(700); // hold threshold -> select
+    clock.advanceBy(700);
     expect(fixture.activations).toEqual(["yes"]);
-    scanner.input.release("primary"); // only closes the gesture
+    scanner.input.release("primary");
     expect(fixture.activations).toEqual(["yes"]);
   });
 
@@ -68,11 +68,11 @@ describe("performOn release with hold duration", () => {
     scanner.start();
     scanner.input.press("next");
     clock.advanceBy(50);
-    scanner.input.release("next"); // too short -> nothing
+    scanner.input.release("next");
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
     scanner.input.press("next");
     clock.advanceBy(150);
-    scanner.input.release("next"); // long enough -> next
+    scanner.input.release("next");
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
   });
 });
@@ -83,14 +83,14 @@ describe("ignore repeat", () => {
       style: stepScan(),
       switches: { next: { action: "next", ignoreRepeatMs: 200 } },
     });
-    scanner.start(); // yes
-    scanner.input.press("next"); // -> no
+    scanner.start();
+    scanner.input.press("next");
     scanner.input.release("next");
-    scanner.input.press("next"); // within window -> rejected
+    scanner.input.press("next");
     scanner.input.release("next");
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
     clock.advanceBy(200);
-    scanner.input.press("next"); // window elapsed -> wrap to yes
+    scanner.input.press("next");
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "yes" });
   });
 });
@@ -109,14 +109,14 @@ describe("move repeat", () => {
       },
       abc,
     );
-    scanner.start(); // a
-    scanner.input.press("next"); // -> b immediately
+    scanner.start();
+    scanner.input.press("next");
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "b" });
-    clock.advanceBy(500); // delay -> c
+    clock.advanceBy(500);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "c" });
-    clock.advanceBy(200); // interval -> wrap to a
+    clock.advanceBy(200);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
-    scanner.input.release("next"); // stop repeating
+    scanner.input.release("next");
     clock.advanceBy(10000);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
   });
@@ -131,22 +131,22 @@ describe("multi-source phaseful scan", () => {
 
   it("opens on the first press and closes on the final release", () => {
     const { scanner, fixture } = build(options);
-    scanner.input.press("scan", "sourceA"); // start + hold
-    scanner.input.press("scan", "sourceB"); // no extra edge
-    scanner.input.release("scan", "sourceA"); // still held by B
+    scanner.input.press("scan", "sourceA");
+    scanner.input.press("scan", "sourceB");
+    scanner.input.release("scan", "sourceA");
     expect(fixture.activations).toEqual([]);
-    scanner.input.release("scan", "sourceB"); // final release -> select
+    scanner.input.release("scan", "sourceB");
     expect(fixture.activations).toEqual(["yes"]);
   });
 
   it("cancels advancement without selecting when the final source disconnects", () => {
     const { clock, scanner, fixture } = build(options);
     scanner.input.press("scan", "sourceA");
-    clock.advanceBy(900); // -> no
+    clock.advanceBy(900);
     scanner.input.disconnect("sourceA");
     expect(fixture.activations).toEqual([]);
     expect(scanner.getSnapshot().status).toBe("scanning");
-    clock.advanceBy(5000); // no further movement
+    clock.advanceBy(5000);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
   });
 

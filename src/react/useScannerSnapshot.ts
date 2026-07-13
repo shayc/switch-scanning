@@ -69,8 +69,6 @@ export function useScannerSnapshot<T>(
     }
     cache.current = { input: snapshot, output: next };
     return next;
-    // resolved.getSnapshot is stable; selector/isEqual are read fresh each call.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved, selector, isEqual]);
 
   return useSyncExternalStore(

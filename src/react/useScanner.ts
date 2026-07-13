@@ -3,9 +3,8 @@ import { createScanner, type Scanner, type ScannerOptions } from "../core/index.
 
 /**
  * Lazily create a single scanner whose identity is stable for the component's
- * lifetime, forwarding complete option changes through `setOptions`. Style and
- * switch configuration are frozen plain data, so no memoization ritual is
- * required from the caller.
+ * lifetime, forwarding complete option changes through `setOptions`. Options
+ * are compared structurally, so callers do not need to memoize them.
  */
 export function useScanner(options: ScannerOptions): Scanner {
   const ref = useRef<Scanner | null>(null);
@@ -32,7 +31,6 @@ export function useScanner(options: ScannerOptions): Scanner {
     // current options object is safe.
     scanner.setOptions(optionsRef.current);
     // signature captures every serializable field that setOptions consumes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanner, signature]);
 
   return scanner;

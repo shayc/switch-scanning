@@ -17,8 +17,8 @@ export interface ScanGroupBinding {
 /**
  * Decorate an element the application already owns as a scan group. Inserts no
  * element and changes no layout. The nearest containing registered group is the
- * default parent; use `parentId`/`groupId` overrides for portals or
- * non-contained composition. An explicit `sequence` sets deliberate scan order.
+ * default parent; use `parentId` for portals or non-contained composition. An
+ * explicit `sequence` sets deliberate scan order.
  */
 export function useScanGroup(options: UseScanGroupOptions): ScanGroupBinding {
   const { registry } = useScannerContext("useScanGroup");

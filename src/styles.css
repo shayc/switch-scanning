@@ -7,6 +7,7 @@
  *
  * Tunable custom properties:
  *   --scan-outline-width, --scan-outline-color, --scan-outline-offset
+ *   --scan-within-width, --scan-within-color, --scan-within-offset
  */
 
 [data-scan-highlighted] {

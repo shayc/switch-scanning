@@ -1,7 +1,7 @@
 /**
- * Scan styles are frozen, tagged, serializable data — not objects with
- * behavior. The runtime switches on `kind`. Constructors validate eagerly so
- * that a misconfigured access method fails at creation, not mid-session.
+ * Style constructors return frozen, tagged, serializable data — not objects
+ * with behavior. The runtime switches on `kind`, and eager validation makes a
+ * misconfigured access method fail at creation rather than mid-session.
  */
 
 export type LoopLimit = number | "infinite";

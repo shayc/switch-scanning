@@ -93,6 +93,6 @@ export function createDomHost(
 
 function scrollIntoView(el: HTMLElement): void {
   if (typeof el.scrollIntoView !== "function") return;
-  // Instant, nearest-edge, motion-safe reveal — never smooth-scroll a tick.
+  // Reveal at the nearest edge using the page's configured scroll behavior.
   el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
 }

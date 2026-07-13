@@ -19,7 +19,6 @@ export function useScannerContext(hookName: string): ScannerContextValue {
   return value;
 }
 
-/** Resolve a scanner from an explicit argument or the surrounding provider. */
 export function useResolvedScanner(explicit: Scanner | undefined, hookName: string): Scanner {
   const context = useContext(ScannerContext);
   const scanner = explicit ?? context?.scanner;

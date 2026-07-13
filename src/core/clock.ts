@@ -1,7 +1,6 @@
 /**
- * Deterministic time. The core never reads wall-clock time or calls
- * `setTimeout` directly; it depends only on these two small ports so that
- * tests can drive time by hand and production can inject real timers.
+ * Scanner logic depends on these time ports, allowing tests to drive time by
+ * hand while production uses the real-time `systemClock` adapter.
  */
 
 export interface Clock {

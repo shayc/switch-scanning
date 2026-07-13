@@ -5,7 +5,6 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import dts from "vite-plugin-dts";
 
-/** Copy the optional stylesheet verbatim into dist/styles.css. */
 function copyStylesheet(): Plugin {
   return {
     name: "switch-scanning:copy-styles",

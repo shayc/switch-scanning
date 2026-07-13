@@ -2,9 +2,7 @@ import type { Clock, Scheduler } from "./clock.ts";
 import type { ScanStyle } from "./styles.ts";
 import type { SwitchDefinition } from "./switches.ts";
 
-// ---------------------------------------------------------------------------
 // Scan tree
-// ---------------------------------------------------------------------------
 
 export type ScanNode = ScanGroupNode | ScanTargetNode;
 
@@ -25,9 +23,7 @@ export interface ScanTargetNode {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-// ---------------------------------------------------------------------------
 // Snapshot
-// ---------------------------------------------------------------------------
 
 export type Highlight =
   | null
@@ -45,9 +41,7 @@ export interface ScannerSnapshot {
   readonly loop: number;
 }
 
-// ---------------------------------------------------------------------------
 // Events
-// ---------------------------------------------------------------------------
 
 export type ScannerDiagnosticCode =
   | "command-inapplicable"
@@ -89,9 +83,7 @@ export type ScannerEvent =
     }
   | { type: "diagnostic"; code: ScannerDiagnosticCode; message: string };
 
-// ---------------------------------------------------------------------------
 // Host
-// ---------------------------------------------------------------------------
 
 export type ActivationResult =
   | { activated: true }
@@ -105,9 +97,7 @@ export interface ScannerHost {
 export type Detach = () => void;
 export type Unsubscribe = () => void;
 
-// ---------------------------------------------------------------------------
 // Options
-// ---------------------------------------------------------------------------
 
 export type StartOn = "switch" | "mount" | "command";
 export type AfterActivation = "restart" | "continue" | "repeat" | "stop";
@@ -124,9 +114,7 @@ export interface ScannerOptions {
   scheduler?: Scheduler;
 }
 
-// ---------------------------------------------------------------------------
 // Input port
-// ---------------------------------------------------------------------------
 
 export interface ScannerInputPort {
   press(switchId: string, sourceId?: string): void;
@@ -134,9 +122,7 @@ export interface ScannerInputPort {
   disconnect(sourceId?: string): void;
 }
 
-// ---------------------------------------------------------------------------
 // Scanner
-// ---------------------------------------------------------------------------
 
 export interface Scanner {
   start(): void;
