@@ -37,7 +37,9 @@ interface GroupEntry {
   element: HTMLElement | null;
 }
 
-const ROOT_ID = "__root__";
+const ROOT_PARENT = Symbol("scan-registry-root");
+const SYNTHETIC_ROOT_ID = "__root__";
+type ParentId = string | typeof ROOT_PARENT;
 
 /**
  * Collects DOM-registered targets and groups and compiles them into a single
@@ -69,6 +71,10 @@ export class ScanRegistry {
     getOptions: () => ScanTargetOptions,
     element: HTMLElement | null,
   ): Detach {
+    if (this.groups.has(id)) {
+      this.reportDuplicate("node", id);
+      return () => {};
+    }
     const existing = this.targets.get(id);
     if (existing && existing.element && element && existing.element !== element) {
       this.reportDuplicate("target", id);
@@ -133,6 +139,10 @@ export class ScanRegistry {
     getOptions: () => ScanGroupOptions,
     element: HTMLElement | null,
   ): Detach {
+    if (this.targets.has(id)) {
+      this.reportDuplicate("node", id);
+      return () => {};
+    }
     const existing = this.groups.get(id);
     if (existing && existing.element && element && existing.element !== element) {
       this.reportDuplicate("group", id);
@@ -182,15 +192,20 @@ export class ScanRegistry {
   }
 
   private buildTree(): ScanGroupNode {
-    const childrenOf = new Map<string, string[]>();
-    const pushChild = (parent: string, id: string): void => {
+    const childrenOf = new Map<ParentId, string[]>();
+    const groupParents = new Map<string, ParentId>();
+    const pushChild = (parent: ParentId, id: string): void => {
       const list = childrenOf.get(parent);
       if (list) list.push(id);
       else childrenOf.set(parent, [id]);
     };
 
     for (const entry of this.targets.values()) pushChild(this.resolveTargetParent(entry), entry.id);
-    for (const entry of this.groups.values()) pushChild(this.resolveGroupParent(entry), entry.id);
+    for (const entry of this.groups.values()) {
+      groupParents.set(entry.id, this.resolveGroupParent(entry));
+    }
+    this.repairParentCycles(groupParents);
+    for (const [id, parentId] of groupParents) pushChild(parentId, id);
 
     const buildNode = (id: string): ScanNode | null => {
       const group = this.groups.get(id);
@@ -217,11 +232,16 @@ export class ScanRegistry {
       return null;
     };
 
-    const rootChildren = this.orderChildren(ROOT_ID, childrenOf.get(ROOT_ID) ?? [])
+    const rootChildren = this.orderChildren(ROOT_PARENT, childrenOf.get(ROOT_PARENT) ?? [])
       .map(buildNode)
       .filter((node): node is ScanNode => node !== null);
 
-    return { kind: "group", id: ROOT_ID, label: "root", children: rootChildren };
+    return {
+      kind: "group",
+      id: SYNTHETIC_ROOT_ID,
+      label: "root",
+      children: rootChildren,
+    };
   }
 
   private buildTargetNode(entry: TargetEntry): ScanTargetNode {
@@ -237,33 +257,56 @@ export class ScanRegistry {
     return node;
   }
 
-  private resolveTargetParent(entry: TargetEntry): string {
+  private resolveTargetParent(entry: TargetEntry): ParentId {
     const explicit = entry.getOptions().groupId;
-    if (explicit !== undefined) return this.groups.has(explicit) ? explicit : ROOT_ID;
+    if (explicit !== undefined) return this.groups.has(explicit) ? explicit : ROOT_PARENT;
     return this.domParent(entry.element, entry.id);
   }
 
-  private resolveGroupParent(entry: GroupEntry): string {
+  private resolveGroupParent(entry: GroupEntry): ParentId {
     const explicit = entry.getOptions().parentId;
-    if (explicit !== undefined) return this.groups.has(explicit) ? explicit : ROOT_ID;
+    if (explicit !== undefined) return this.groups.has(explicit) ? explicit : ROOT_PARENT;
     return this.domParent(entry.element, entry.id);
   }
 
-  private domParent(element: HTMLElement | null, selfId: string): string {
+  private domParent(element: HTMLElement | null, selfId: string): ParentId {
     let cursor = element?.parentElement ?? null;
     while (cursor) {
       const gid = this.groupElements.get(cursor);
       if (gid !== undefined && gid !== selfId) return gid;
       cursor = cursor.parentElement;
     }
-    return ROOT_ID;
+    return ROOT_PARENT;
   }
 
-  private orderChildren(parentId: string, ids: readonly string[]): string[] {
-    const group = parentId === ROOT_ID ? null : this.groups.get(parentId);
+  private repairParentCycles(parents: Map<string, ParentId>): void {
+    for (const startId of parents.keys()) {
+      const path: string[] = [];
+      const position = new Map<string, number>();
+      let currentId: string | undefined = startId;
+
+      while (currentId !== undefined) {
+        const cycleStart = position.get(currentId);
+        if (cycleStart !== undefined) {
+          const cycle = path.slice(cycleStart);
+          this.reportParentCycle(cycle);
+          parents.set(cycle[0]!, ROOT_PARENT);
+          break;
+        }
+
+        position.set(currentId, path.length);
+        path.push(currentId);
+        const parentId = parents.get(currentId);
+        currentId = typeof parentId === "string" ? parentId : undefined;
+      }
+    }
+  }
+
+  private orderChildren(parentId: ParentId, ids: readonly string[]): string[] {
+    const group = parentId === ROOT_PARENT ? null : this.groups.get(parentId);
     const sequence = group?.getOptions().sequence;
 
-    if (sequence && sequence.length > 0) {
+    if (parentId !== ROOT_PARENT && sequence && sequence.length > 0) {
       return this.applySequence(parentId, ids, sequence);
     }
     return this.domOrder(ids);
@@ -329,8 +372,15 @@ export class ScanRegistry {
     this.warn("duplicate-id", `${message}; keeping the first registration`);
   }
 
+  private reportParentCycle(cycle: readonly string[]): void {
+    const route = [...cycle, cycle[0]].join(" -> ");
+    const message = `cyclic scan group parentage: ${route}`;
+    if (isDevelopment()) throw new Error(`[switch-scanning] ${message}`);
+    this.warn("parent-cycle", `${message}; keeping "${cycle[0]}" at the root`);
+  }
+
   private warn(code: string, message: string): void {
-    if (isDevelopment() && typeof console !== "undefined") {
+    if (typeof console !== "undefined") {
       console.warn(`[switch-scanning] (${code}) ${message}`);
     }
   }

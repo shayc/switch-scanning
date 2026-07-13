@@ -9,7 +9,8 @@ export type Candidate =
 
 /** One level of the traversal stack. */
 export interface ScopeFrame {
-  readonly groupId: string | "root";
+  /** `null` identifies the synthetic root scope; strings are always user IDs. */
+  readonly groupId: string | null;
   candidates: readonly Candidate[];
   index: number;
   pass: number;
@@ -18,23 +19,32 @@ export interface ScopeFrame {
 export interface CompiledTree {
   readonly root: ScanGroupNode;
   readonly byId: ReadonlyMap<string, ScanNode>;
-  readonly parentOf: ReadonlyMap<string, string | "root">;
+  readonly parentOf: ReadonlyMap<string, string | null>;
 }
 
-const ROOT: "root" = "root";
+export class DuplicateScanNodeIdError extends Error {
+  readonly id: string;
+
+  constructor(id: string) {
+    super(`duplicate scan node id "${id}"`);
+    this.name = "DuplicateScanNodeIdError";
+    this.id = id;
+  }
+}
 
 export function compileTree(root: ScanGroupNode): CompiledTree {
   const byId = new Map<string, ScanNode>();
-  const parentOf = new Map<string, string | "root">();
+  const parentOf = new Map<string, string | null>();
 
-  const walk = (node: ScanNode, parentId: string | "root"): void => {
+  const walk = (node: ScanNode, parentId: string | null): void => {
+    if (byId.has(node.id)) throw new DuplicateScanNodeIdError(node.id);
     byId.set(node.id, node);
     parentOf.set(node.id, parentId);
     if (node.kind === "group") {
       for (const child of node.children) walk(child, node.id);
     }
   };
-  for (const child of root.children) walk(child, ROOT);
+  for (const child of root.children) walk(child, null);
 
   return { root, byId, parentOf };
 }

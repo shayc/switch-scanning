@@ -52,13 +52,8 @@ export interface ScannerSnapshot {
 export type ScannerDiagnosticCode =
   | "command-inapplicable"
   | "duplicate-id"
-  | "empty-group"
-  | "start-without-targets"
   | "unknown-switch-binding"
-  | "switch-cannot-operate-style"
-  | "sequence-mismatch"
   | "activation-missing-target"
-  | "disabled-disagreement"
   | "second-host-attach"
   | "use-after-dispose";
 

@@ -1,5 +1,5 @@
 import { act, cleanup, render } from "@testing-library/react";
-import { StrictMode } from "react";
+import { createRef, StrictMode, type Ref } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { createScanner, inverseScan, manualClock, type ManualClock } from "../core/index.ts";
 import { autoScan, stepScan } from "../core/index.ts";
@@ -219,6 +219,69 @@ describe("registry ownership", () => {
     registry.mountTarget("x", () => ({ id: "x", label: "Second" }), element);
     firstCleanup();
     expect(registry.getTarget("x")?.getOptions().label).toBe("Second");
+  });
+
+  it("keeps the synthetic root outside the user ID namespace", () => {
+    const registry = new ScanRegistry();
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+    const group = document.createElement("div");
+    const target = document.createElement("button");
+
+    registry.attach(scanner);
+    registry.mountGroup("__root__", () => ({ id: "__root__", label: "User root" }), group);
+    registry.mountTarget(
+      "inside",
+      () => ({ id: "inside", label: "Inside", groupId: "__root__" }),
+      target,
+    );
+    registry.flush();
+    scanner.start();
+
+    expect(scanner.getSnapshot().highlight).toEqual({ kind: "group", id: "__root__" });
+  });
+
+  it("rejects IDs shared by a target and group", () => {
+    const registry = new ScanRegistry();
+    const element = document.createElement("button");
+    registry.mountTarget("shared", () => ({ id: "shared", label: "Target" }), element);
+
+    expect(() =>
+      registry.mountGroup("shared", () => ({ id: "shared", label: "Group" }), element),
+    ).toThrow('duplicate scan node id "shared"');
+  });
+
+  it("rejects cycles in explicit group parentage", () => {
+    const registry = new ScanRegistry();
+    registry.mountGroup("a", () => ({ id: "a", label: "A", parentId: "b" }), null);
+    registry.mountGroup("b", () => ({ id: "b", label: "B", parentId: "a" }), null);
+    registry.attach(createScanner({ style: stepScan() }));
+
+    expect(() => registry.flush()).toThrow("cyclic scan group parentage: a -> b -> a");
+  });
+});
+
+describe("forwarded refs", () => {
+  it("moves target ownership when the forwarded ref changes", async () => {
+    const first = createRef<HTMLElement>();
+    const second = createRef<HTMLElement>();
+    const scanner = createScanner({ style: stepScan() });
+
+    function RefTarget({ forwardedRef }: { forwardedRef: Ref<HTMLElement> }) {
+      const target = useScanTarget({ id: "x", label: "X", ref: forwardedRef });
+      return <button {...target.props}>X</button>;
+    }
+
+    const app = (forwardedRef: Ref<HTMLElement>) => (
+      <ScannerProvider scanner={scanner}>
+        <RefTarget forwardedRef={forwardedRef} />
+      </ScannerProvider>
+    );
+    const view = render(app(first));
+    expect(first.current?.textContent).toBe("X");
+
+    view.rerender(app(second));
+    expect(first.current).toBeNull();
+    expect(second.current?.textContent).toBe("X");
   });
 });
 

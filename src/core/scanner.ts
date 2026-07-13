@@ -6,6 +6,7 @@ import { normalizeSwitches, type DiscreteAction, type NormalizedSwitch } from ".
 import {
   buildCandidates,
   compileTree,
+  DuplicateScanNodeIdError,
   exitLabelFor,
   type Candidate,
   type CompiledTree,
@@ -42,7 +43,7 @@ const EMPTY_ROOT: ScanGroupNode = { kind: "group", id: "__root__", label: "root"
 
 export function createScanner(rawOptions: ScannerOptions): Scanner {
   const clock: Clock = rawOptions.clock ?? defaultInfra();
-  const scheduler: Scheduler = rawOptions.scheduler ?? (clock as Clock & Scheduler);
+  const baseScheduler: Scheduler = rawOptions.scheduler ?? (clock as Clock & Scheduler);
 
   let options = normalizeOptions(rawOptions);
   let tree: CompiledTree = compileTree(EMPTY_ROOT);
@@ -63,6 +64,79 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   const observers = new Set<(event: ScannerEvent) => void>();
 
   let cachedSnapshot: ScannerSnapshot = { status: "idle", highlight: null, path: [], loop: 0 };
+  let commitPending = false;
+  let isDrainingTransitions = false;
+  const pendingEvents: ScannerEvent[] = [];
+  const pendingTransitions: Array<() => void> = [];
+
+  /**
+   * Scanner mutations are serialized. Calls made by subscribers, observers,
+   * hosts, or timer callbacks wait until the current transition is published.
+   */
+  function runTransition(work: () => void): void {
+    pendingTransitions.push(work);
+    if (isDrainingTransitions) return;
+
+    isDrainingTransitions = true;
+    try {
+      while (pendingTransitions.length > 0) {
+        const transition = pendingTransitions.shift()!;
+        transition();
+        publishChanges();
+      }
+    } finally {
+      isDrainingTransitions = false;
+    }
+  }
+
+  function serialized<Args extends unknown[]>(
+    work: (...args: Args) => void,
+  ): (...args: Args) => void {
+    return (...args) => runTransition(() => work(...args));
+  }
+
+  function publishChanges(): void {
+    if (commitPending) {
+      commitPending = false;
+      const next = buildSnapshot();
+      if (!snapshotEquals(next, cachedSnapshot)) cachedSnapshot = next;
+
+      for (const subscriber of [...subscribers]) {
+        try {
+          subscriber();
+        } catch (error) {
+          reportListenerError(error);
+        }
+      }
+    }
+
+    const events = pendingEvents.splice(0);
+    for (const event of events) {
+      for (const observer of [...observers]) {
+        try {
+          observer(event);
+        } catch (error) {
+          reportListenerError(error);
+        }
+      }
+    }
+  }
+
+  function reportListenerError(error: unknown): void {
+    if (typeof globalThis.reportError === "function") {
+      globalThis.reportError(error);
+      return;
+    }
+    if (typeof console !== "undefined") {
+      console.error("[switch-scanning] scanner listener failed", error);
+    }
+  }
+
+  const scheduler: Scheduler = {
+    schedule(delayMs, callback) {
+      return baseScheduler.schedule(delayMs, () => runTransition(callback));
+    },
+  };
 
   // -- gesture engine ------------------------------------------------------
 
@@ -116,7 +190,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function buildSnapshot(): ScannerSnapshot {
     const frame = currentFrame();
-    const path = frames.filter((f) => f.groupId !== "root").map((f) => f.groupId as string);
+    const path = frames.flatMap((frame) => (frame.groupId === null ? [] : [frame.groupId]));
     return {
       status,
       highlight: currentHighlight(),
@@ -133,15 +207,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function commit(): void {
-    const next = buildSnapshot();
-    if (!snapshotEquals(next, cachedSnapshot)) {
-      cachedSnapshot = next;
-    }
-    for (const sub of subscribers) sub();
+    commitPending = true;
   }
 
   function emit(event: ScannerEvent): void {
-    for (const observer of observers) observer(event);
+    pendingEvents.push(event);
   }
 
   function diagnostic(code: ScannerDiagnosticCode, message: string): void {
@@ -283,7 +353,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function leaveGroup(reason: "selected-exit" | "back" | "loops-complete" | "empty"): void {
     const frame = currentFrame();
-    if (!frame || frame.groupId === "root") return;
+    if (!frame || frame.groupId === null) return;
     const node = tree.byId.get(frame.groupId);
     const previous = currentHighlight();
     frames.pop();
@@ -370,7 +440,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function resetToRoot(): void {
     const candidates = buildCandidates(tree.root, true, options.groupExit);
-    frames = [{ groupId: "root", candidates, index: 0, pass: 1 }];
+    frames = [{ groupId: null, candidates, index: 0, pass: 1 }];
   }
 
   function startScan(): void {
@@ -383,7 +453,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       emit({ type: "scan.completed", reason: "empty" });
       return;
     }
-    frames = [{ groupId: "root", candidates, index: 0, pass: 1 }];
+    frames = [{ groupId: null, candidates, index: 0, pass: 1 }];
     status = "scanning";
     emit({ type: "scan.started" });
     land(null);
@@ -561,11 +631,12 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
     // Rebuild the root frame.
     const rootCandidates = buildCandidates(tree.root, true, options.groupExit);
-    rebuilt.push({ groupId: "root", candidates: rootCandidates, index: 0, pass: frames[0]!.pass });
+    rebuilt.push({ groupId: null, candidates: rootCandidates, index: 0, pass: frames[0]!.pass });
 
     // Walk deeper frames while each group still exists and is reachable.
     for (let i = 1; i < frames.length; i += 1) {
       const frame = frames[i]!;
+      if (frame.groupId === null) break;
       const parent = rebuilt[rebuilt.length - 1]!;
       const stillPresent = parent.candidates.some(
         (c) => c.kind === "group" && c.id === frame.groupId,
@@ -621,29 +692,29 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   // -- public port ---------------------------------------------------------
 
   const input: ScannerInputPort = {
-    press(switchId, sourceId) {
+    press: serialized((switchId: string, sourceId?: string) => {
       if (disposed) return;
       gestures.press(switchId, sourceId);
-    },
-    release(switchId, sourceId) {
+    }),
+    release: serialized((switchId: string, sourceId?: string) => {
       if (disposed) return;
       gestures.release(switchId, sourceId);
-    },
-    disconnect(sourceId) {
+    }),
+    disconnect: serialized((sourceId?: string) => {
       if (disposed) return;
       gestures.disconnect(sourceId);
-    },
+    }),
   };
 
   // -- public API ----------------------------------------------------------
 
   const scanner: Scanner = {
-    start() {
+    start: serialized(() => {
       if (disposed) return diagnostic("use-after-dispose", "start() after dispose()");
       startScan();
       commit();
-    },
-    pause() {
+    }),
+    pause: serialized(() => {
       if (disposed || status !== "scanning") {
         if (!disposed) diagnostic("command-inapplicable", `pause() ignored while "${status}"`);
         return;
@@ -652,8 +723,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       status = "paused";
       emit({ type: "scan.paused" });
       commit();
-    },
-    resume() {
+    }),
+    resume: serialized(() => {
       if (disposed) return;
       if (status !== "paused") {
         diagnostic("command-inapplicable", `resume() ignored while "${status}"`);
@@ -663,40 +734,40 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       emit({ type: "scan.resumed" });
       scheduleStyleDeadline();
       commit();
-    },
-    stop() {
+    }),
+    stop: serialized(() => {
       if (disposed) return;
       internalStop("command");
       commit();
-    },
-    restart() {
+    }),
+    restart: serialized(() => {
       if (disposed) return;
       haltTiming();
       frames = [];
       status = "idle";
       startScan();
       commit();
-    },
-    next() {
+    }),
+    next: serialized(() => {
       if (disposed || !requireScanning("next")) return;
       stepForward();
       commit();
-    },
-    previous() {
+    }),
+    previous: serialized(() => {
       if (disposed || !requireScanning("previous")) return;
       stepBackward();
       commit();
-    },
-    select() {
+    }),
+    select: serialized(() => {
       if (disposed || !requireScanning("select")) return;
       selectCurrent();
       commit();
-    },
-    back() {
+    }),
+    back: serialized(() => {
       if (disposed || !requireScanning("back")) return;
       backCommand();
       commit();
-    },
+    }),
     getSnapshot() {
       return cachedSnapshot;
     },
@@ -712,32 +783,46 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         observers.delete(listener);
       };
     },
-    setOptions(next) {
+    setOptions: serialized((next: ScannerOptions) => {
       if (disposed) return;
       applyOptions(next);
       commit();
-    },
-    setTree(root) {
+    }),
+    setTree: serialized((root: ScanGroupNode) => {
       if (disposed) return;
-      tree = compileTree(root);
+      try {
+        tree = compileTree(root);
+      } catch (error) {
+        if (error instanceof DuplicateScanNodeIdError) {
+          diagnostic("duplicate-id", `${error.message}; keeping the previous tree`);
+          return;
+        }
+        throw error;
+      }
       hasPublishedTree = true;
       if (maybeStartOnMount()) return;
       reconcile();
-    },
+    }),
     attachHost(next) {
-      if (disposed) return () => {};
-      if (host) diagnostic("second-host-attach", "a host is already attached");
-      host = next;
-      if (options.startOn === "mount") {
-        mountStartPending = true;
-        if (hasPublishedTree) maybeStartOnMount();
-      }
+      let detached = false;
+      runTransition(() => {
+        if (detached || disposed) return;
+        if (host) diagnostic("second-host-attach", "a host is already attached");
+        host = next;
+        if (options.startOn === "mount") {
+          mountStartPending = true;
+          if (hasPublishedTree) maybeStartOnMount();
+        }
+      });
       return () => {
-        if (host === next) host = null;
+        detached = true;
+        runTransition(() => {
+          if (host === next) host = null;
+        });
       };
     },
     input,
-    dispose() {
+    dispose: serialized(() => {
       if (disposed) return;
       disposed = true;
       haltTiming();
@@ -747,7 +832,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       subscribers.clear();
       observers.clear();
       host = null;
-    },
+    }),
   };
 
   function applyOptions(next: ScannerOptions): void {

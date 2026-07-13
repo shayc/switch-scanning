@@ -159,7 +159,9 @@ data-scan-exit-highlighted   data-scan-exit-label
 
 Components that want reactive scanner state opt in with
 `useScannerSnapshot(selector, isEqual?)`. Feedback (speech, tones, haptics,
-analytics) observes events with `useScannerEvents(listener)`.
+analytics) observes events with `useScannerEvents(listener)`. Commands issued
+by a listener run after the transition being observed; listener failures are
+reported without interrupting scanning.
 
 ## Testing without a browser
 
@@ -193,7 +195,7 @@ npm run build     # tsc --noEmit && vite build (ESM + .d.ts)
 
 ## Status
 
-Implements the v1 design (RFC 0001): automatic, step, single-switch step, and
+Implements the v1 design: automatic, step, single-switch step, and
 inverse styles; logical switches with stabilization, tap/hold, and phaseful
 scan; nested scopes with virtual exits; deterministic time and a serialized
 runtime; host-owned native activation; and wrapper-free React registration with

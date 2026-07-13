@@ -30,7 +30,7 @@ describe("tap versus hold", () => {
     },
   };
 
-  it("performs tap once on release before the hold threshold (L33)", () => {
+  it("performs tap once on release before the hold threshold", () => {
     const { clock, scanner } = build(options);
     scanner.start(); // yes
     scanner.input.press("primary");
@@ -39,7 +39,7 @@ describe("tap versus hold", () => {
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
   });
 
-  it("performs hold once and suppresses the tap (L34)", () => {
+  it("performs hold once and suppresses the tap", () => {
     const { clock, scanner, fixture } = build(options);
     scanner.start(); // yes
     scanner.input.press("primary");
@@ -49,7 +49,7 @@ describe("tap versus hold", () => {
     expect(fixture.activations).toEqual(["yes"]);
   });
 
-  it("rejects a press shorter than holdDurationMs (L32)", () => {
+  it("rejects a press shorter than holdDurationMs", () => {
     const { clock, scanner } = build(options);
     scanner.start();
     scanner.input.press("primary");
@@ -96,7 +96,7 @@ describe("ignore repeat", () => {
 });
 
 describe("move repeat", () => {
-  it("repeats next while the owning source stays held (L38)", () => {
+  it("repeats next while the owning source stays held", () => {
     const abc: ScanNode[] = [
       { kind: "target", id: "a", label: "A" },
       { kind: "target", id: "b", label: "B" },
@@ -129,7 +129,7 @@ describe("multi-source phaseful scan", () => {
     startOn: "switch",
   };
 
-  it("opens on the first press and closes on the final release (L36)", () => {
+  it("opens on the first press and closes on the final release", () => {
     const { scanner, fixture } = build(options);
     scanner.input.press("scan", "sourceA"); // start + hold
     scanner.input.press("scan", "sourceB"); // no extra edge
@@ -139,7 +139,7 @@ describe("multi-source phaseful scan", () => {
     expect(fixture.activations).toEqual(["yes"]);
   });
 
-  it("cancels advancement without selecting when the final source disconnects (L37)", () => {
+  it("cancels advancement without selecting when the final source disconnects", () => {
     const { clock, scanner, fixture } = build(options);
     scanner.input.press("scan", "sourceA");
     clock.advanceBy(900); // -> no
@@ -148,5 +148,20 @@ describe("multi-source phaseful scan", () => {
     expect(scanner.getSnapshot().status).toBe("scanning");
     clock.advanceBy(5000); // no further movement
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "no" });
+  });
+
+  it("preserves a held scan gesture across unrelated option changes", () => {
+    const { clock, scanner, fixture } = build(options);
+    scanner.start();
+    scanner.input.press("scan", "sourceA");
+
+    scanner.setOptions({
+      ...options,
+      style: inverseScan({ intervalMs: 1200, loops: "infinite" }),
+      clock,
+    });
+    scanner.input.release("scan", "sourceA");
+
+    expect(fixture.activations).toEqual(["yes"]);
   });
 });

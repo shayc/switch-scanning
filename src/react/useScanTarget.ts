@@ -29,14 +29,15 @@ export function useScanTarget(options: UseScanTargetOptions): ScanTargetBinding 
 
   const ref = useCallback<RefCallback<HTMLElement>>(
     (element) => {
+      const forwardedRef = options.ref;
       const unregister = registry.mountTarget(id, () => optionsRef.current, element);
-      applyRef(optionsRef.current.ref, element);
+      applyRef(forwardedRef, element);
       return () => {
         unregister();
-        applyRef(optionsRef.current.ref, null);
+        applyRef(forwardedRef, null);
       };
     },
-    [registry, id],
+    [registry, id, options.ref],
   );
 
   // Republish when a structural field changes; freshness of `activate` and
