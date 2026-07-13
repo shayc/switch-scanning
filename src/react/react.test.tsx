@@ -3,6 +3,10 @@ import { createRef, StrictMode, useEffect, type Ref } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { createScanner, manualClock, type ManualClock } from "../core/index.ts";
 import { autoScan, stepScan } from "../core/index.ts";
+import {
+  createScannerFixture,
+  recordScannerEvents,
+} from "../core/testing/index.ts";
 import { ScannerProvider } from "./ScannerProvider.tsx";
 import { useScanGroup } from "./useScanGroup.ts";
 import { useScanner } from "./useScanner.ts";
@@ -263,6 +267,56 @@ describe("forwarded refs", () => {
     view.rerender(app(second));
     expect(first.current).toBeNull();
     expect(second.current?.textContent).toBe("X");
+  });
+});
+
+describe("unmount cleanup", () => {
+  it("stops a provider-less scanner and cancels its timers on unmount", () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useScanner>;
+
+    function Headless({ onReady }: { onReady: (s: typeof scanner) => void }) {
+      const current = useScanner({
+        style: autoScan({ intervalMs: 1000, loops: 3 }),
+        startOn: "command",
+        clock,
+      });
+      onReady(current);
+      return null;
+    }
+
+    const view = render(<Headless onReady={(s) => (scanner = s)} />);
+    const fixture = createScannerFixture(scanner, [
+      { kind: "target", id: "yes", label: "Yes" },
+      { kind: "target", id: "no", label: "No" },
+    ]);
+
+    act(() => scanner.start());
+    expect(scanner.getSnapshot().status).toBe("scanning");
+    expect(clock.pending).toBeGreaterThan(0);
+
+    view.unmount();
+    expect(scanner.getSnapshot().status).toBe("idle");
+    expect(clock.pending).toBe(0);
+
+    fixture.dispose();
+  });
+
+  it("emits no scan.stopped when the scanner is already idle at unmount", () => {
+    let scanner!: ReturnType<typeof useScanner>;
+
+    function Headless({ onReady }: { onReady: (s: typeof scanner) => void }) {
+      const current = useScanner({ style: stepScan(), startOn: "command" });
+      onReady(current);
+      return null;
+    }
+
+    const view = render(<Headless onReady={(s) => (scanner = s)} />);
+    const recorded = recordScannerEvents(scanner);
+
+    view.unmount();
+    expect(recorded.ofType("scan.stopped")).toHaveLength(0);
+    recorded.stop();
   });
 });
 

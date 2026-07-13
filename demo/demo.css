@@ -1,0 +1,258 @@
+/*
+ * Layout-only styles for the demo playground. Highlight visuals (outline,
+ * within, virtual exit) come from the shipped @shayc/switch-scanning/styles.css,
+ * including its forced-colors handling — the demo deliberately adds none of its
+ * own highlight rules.
+ */
+
+:root {
+  color-scheme: light dark;
+  --demo-gap: 1rem;
+  --demo-fg: #1a1a1a;
+  --demo-muted: #5a5a5a;
+  --demo-bg: #ffffff;
+  --demo-surface: #f4f4f5;
+  --demo-border: #d4d4d8;
+  --demo-accent: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --demo-fg: #f4f4f5;
+    --demo-muted: #a1a1aa;
+    --demo-bg: #18181b;
+    --demo-surface: #27272a;
+    --demo-border: #3f3f46;
+    --demo-accent: #60a5fa;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: var(--demo-gap);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color: var(--demo-fg);
+  background: var(--demo-bg);
+  line-height: 1.5;
+}
+
+.app-header {
+  max-width: 60rem;
+  margin: 0 auto 1.5rem;
+}
+
+.app-header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.app-header p {
+  margin: 0;
+  color: var(--demo-muted);
+  max-width: 48rem;
+}
+
+.app-grid {
+  display: grid;
+  gap: var(--demo-gap);
+  grid-template-columns: minmax(16rem, 1fr) minmax(20rem, 1.4fr) minmax(
+      16rem,
+      1fr
+    );
+  align-items: start;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+@media (max-width: 60rem) {
+  .app-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--demo-surface);
+  border: 1px solid var(--demo-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.field-group {
+  border: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-group legend {
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 0.25rem;
+}
+
+.radio,
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.number-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.number-field input {
+  width: 6rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--demo-muted);
+  font-size: 0.85rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--demo-border);
+  background: var(--demo-bg);
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--demo-accent);
+}
+
+.status {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+}
+
+.status div {
+  display: flex;
+  flex-direction: column;
+}
+
+.status dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--demo-muted);
+}
+
+.status dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.status dd[data-status="scanning"] {
+  color: var(--demo-accent);
+}
+
+/* Phrase board */
+
+.message-bar {
+  display: block;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--demo-border);
+  border-radius: 0.5rem;
+  background: var(--demo-bg);
+  font-size: 1.1rem;
+}
+
+.message-placeholder {
+  color: var(--demo-muted);
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.board-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.key {
+  padding: 1rem 0.5rem;
+  font-size: 1rem;
+  min-height: 3.5rem;
+}
+
+.key:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.key--clear {
+  background: var(--demo-surface);
+}
+
+/* Event log */
+
+.log-panel {
+  max-height: 32rem;
+  overflow: auto;
+}
+
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.event-list li {
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.4rem;
+  background: var(--demo-bg);
+  border: 1px solid var(--demo-border);
+  font-size: 0.85rem;
+}
+
+.event-list code {
+  font-size: 0.7rem;
+  color: var(--demo-muted);
+}
+
+.event-list li[data-event="target.activated"] code {
+  color: var(--demo-accent);
+}

@@ -28,6 +28,16 @@ export default defineConfig({
     }),
     copyStylesheet(),
   ],
+  resolve: {
+    // Let the demo import the package by name so its source reads exactly like
+    // consumer code. Lib builds never resolve these (nothing in src imports the
+    // package name), so this is inert for `vite build`. Most-specific first.
+    alias: {
+      "@shayc/switch-scanning/styles.css": resolve(__dirname, "src/styles.css"),
+      "@shayc/switch-scanning/core": resolve(__dirname, "src/core/index.ts"),
+      "@shayc/switch-scanning": resolve(__dirname, "src/react/index.ts"),
+    },
+  },
   build: {
     lib: {
       entry: {
