@@ -5,11 +5,12 @@ import {
   type GestureContext,
   type GestureEngine,
   type GestureSink,
+  type GestureStartState,
 } from "./gestures.ts";
 import { highlightEquals, ScanSession, type SessionEffect } from "./session.ts";
 import { createScannerStore } from "./scannerStore.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
-import type { ScanStyle } from "./styles.ts";
+import { assertScanStyle, type ScanStyle } from "./styles.ts";
 import {
   normalizeSwitches,
   type DiscreteAction,
@@ -141,8 +142,16 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     clock,
     scheduler,
     sink,
-    isTransitioning: () => status === "transitioning",
+    getStartState: gestureStartState,
   });
+
+  function gestureStartState(): GestureStartState {
+    if (!options.enabled) return "disabled";
+    if (status === "scanning") return "active";
+    if (status === "transitioning") return "transitioning";
+    if (status === "paused") return "paused";
+    return options.startOn === "switch" ? "startable" : "inactive";
+  }
 
   function revealWith(targetHost: ScannerHost, highlight: Highlight): void {
     if (!targetHost.reveal) return;
@@ -413,7 +422,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function onRawPressStarted(context: GestureContext): void {
     const active = transition;
     if (
-      !context.startedDuringTransition ||
+      context.startedIn !== "transitioning" ||
       !active ||
       status !== "transitioning" ||
       !active.resetOnInput ||
@@ -505,8 +514,28 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     context: GestureContext,
   ): void {
     if (disposed || !options.enabled) return;
+    if (context.startedIn === "disabled") return;
+    if (
+      context.startedIn === "inactive" &&
+      status !== "idle" &&
+      status !== "complete"
+    ) {
+      return;
+    }
+    if (
+      context.startedIn === "startable" &&
+      status !== "idle" &&
+      status !== "complete"
+    ) {
+      return;
+    }
 
     if (action === "togglePause") {
+      if (context.startedIn === "active" && status !== "scanning") return;
+      if (context.startedIn === "transitioning" && status !== "transitioning") {
+        return;
+      }
+      if (context.startedIn === "paused" && status !== "paused") return;
       if (status === "paused") resumeInternal();
       else if (status === "scanning" || status === "transitioning")
         pauseInternal();
@@ -519,11 +548,20 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
-    if (context.startedDuringTransition || status === "transitioning") return;
-    if (status === "paused") return;
+    if (context.startedIn === "inactive") return;
+
+    if (
+      context.startedIn === "transitioning" ||
+      context.startedIn === "paused" ||
+      status === "transitioning" ||
+      status === "paused"
+    ) {
+      return;
+    }
 
     if (status === "idle" || status === "complete") {
-      if (options.startOn !== "switch") return;
+      if (context.startedIn !== "startable" || options.startOn !== "switch")
+        return;
       startScan(true);
       commit();
       return;
@@ -557,14 +595,16 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (
       disposed ||
       !options.enabled ||
-      status === "paused" ||
-      context.startedDuringTransition ||
-      status === "transitioning"
+      context.startedIn === "disabled" ||
+      context.startedIn === "inactive" ||
+      context.startedIn === "paused" ||
+      context.startedIn === "transitioning"
     ) {
       return;
     }
 
-    if (status === "idle" || status === "complete") {
+    if (context.startedIn === "startable") {
+      if (status !== "idle" && status !== "complete") return;
       if (options.startOn !== "switch") return;
       startScan(true);
       if ((status as ScannerStatus) === "scanning") {
@@ -574,12 +614,12 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
+    if (status !== "scanning") return;
     styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
     commit();
   }
 
   function onScanRelease(context: GestureContext): void {
-    if (context.startedDuringTransition) return;
     const phase = styleRuntime.scanRelease(context.sourceKey);
     if (phase === "missing") return;
     if (status === "scanning" && phase === "closed") selectCurrent();
@@ -587,7 +627,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function onScanCancel(context: GestureContext): void {
-    if (context.startedDuringTransition) return;
     const phase = styleRuntime.scanCancel(context.sourceKey);
     if (phase === "missing") return;
     commit();
@@ -641,7 +680,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   const input: ScannerInputPort = {
     press: serialized((switchId: string, sourceId?: string) => {
-      if (!disposed) gestures.press(switchId, sourceId);
+      if (!disposed && options.enabled) gestures.press(switchId, sourceId);
     }),
     release: serialized((switchId: string, sourceId?: string) => {
       if (!disposed) gestures.release(switchId, sourceId);
@@ -776,7 +815,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
           if (hasPublishedTree) maybeStartOnMount();
         }
       });
-      return () => {
+      const detach = () => {
         detached = true;
         runTransition(() => {
           if (!attached || host !== next) return;
@@ -786,6 +825,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
           commit();
         });
       };
+      return Object.assign(detach, { attached });
     },
     input,
     dispose: serialized(() => {
@@ -819,6 +859,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         status === "paused"
       ) {
         internalStop("disabled");
+      } else {
+        gestures.reset();
       }
       return;
     }
@@ -886,6 +928,7 @@ function isScheduler(clock: Clock): clock is Clock & Scheduler {
 }
 
 function normalizeOptions(raw: ScannerOptions): NormalizedOptions {
+  assertScanStyle(raw.style);
   const switches = normalizeSwitches(raw.switches);
   const groupExit = raw.groupExit ?? "after";
   if (
@@ -905,17 +948,49 @@ function normalizeOptions(raw: ScannerOptions): NormalizedOptions {
 
   const durationMs = raw.selectionDelay?.durationMs ?? 0;
   assertNonNegative(durationMs, "selectionDelay.durationMs");
+  const resetOnInput = raw.selectionDelay?.resetOnInput ?? true;
+  if (typeof resetOnInput !== "boolean") {
+    throw new TypeError(
+      `[switch-scanning] selectionDelay.resetOnInput must be a boolean (received ${String(resetOnInput)})`,
+    );
+  }
+
+  const startOn = raw.startOn ?? "switch";
+  if (startOn !== "switch" && startOn !== "mount" && startOn !== "command") {
+    throw new RangeError(
+      `[switch-scanning] startOn must be "switch", "mount", or "command" (received ${String(startOn)})`,
+    );
+  }
+
+  const afterActivation = raw.afterActivation ?? "restart";
+  if (
+    afterActivation !== "restart" &&
+    afterActivation !== "continue" &&
+    afterActivation !== "repeat" &&
+    afterActivation !== "stop"
+  ) {
+    throw new RangeError(
+      `[switch-scanning] afterActivation must be "restart", "continue", "repeat", or "stop" (received ${String(afterActivation)})`,
+    );
+  }
+
+  const enabled = raw.enabled ?? true;
+  if (typeof enabled !== "boolean") {
+    throw new TypeError(
+      `[switch-scanning] enabled must be a boolean (received ${String(enabled)})`,
+    );
+  }
 
   return {
     style: raw.style,
     switches,
-    startOn: raw.startOn ?? "switch",
-    afterActivation: raw.afterActivation ?? "restart",
+    startOn,
+    afterActivation,
     groupExit,
-    enabled: raw.enabled ?? true,
+    enabled,
     selectionDelay: {
       durationMs,
-      resetOnInput: raw.selectionDelay?.resetOnInput ?? true,
+      resetOnInput,
     },
   };
 }

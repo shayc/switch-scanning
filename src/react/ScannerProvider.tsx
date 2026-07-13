@@ -30,6 +30,7 @@ export function ScannerProvider({
       registry.exitLabelFor(groupId),
     );
     const detachHost = scanner.attachHost(host);
+    if (!detachHost.attached) return detachHost;
     const detachRegistry = registry.attach(scanner);
     // Publish the initial tree synchronously so a mount-start rule can fire.
     registry.flush();

@@ -87,6 +87,52 @@ describe("option and lifecycle edges", () => {
     ).toThrow(/selectionDelay.durationMs/);
   });
 
+  it("validates structural styles and enum-like options at runtime", () => {
+    expect(() =>
+      createScanner({ style: { kind: "auto" } } as unknown as ScannerOptions),
+    ).toThrow(/intervalMs/);
+    expect(() =>
+      createScanner({
+        style: {
+          kind: "auto",
+          intervalMs: -1,
+          loops: 1,
+          firstItemPauseMs: 0,
+          transitionTimeMs: 0,
+        },
+      } as unknown as ScannerOptions),
+    ).toThrow(/intervalMs/);
+    expect(() =>
+      createScanner({
+        style: { kind: "step" },
+      } as unknown as ScannerOptions),
+    ).toThrow(/repeat/);
+    expect(() =>
+      createScanner({
+        style: stepScan(),
+        startOn: "later",
+      } as unknown as ScannerOptions),
+    ).toThrow(/startOn/);
+    expect(() =>
+      createScanner({
+        style: stepScan(),
+        afterActivation: "advance",
+      } as unknown as ScannerOptions),
+    ).toThrow(/afterActivation/);
+    expect(() =>
+      createScanner({
+        style: stepScan(),
+        enabled: "yes",
+      } as unknown as ScannerOptions),
+    ).toThrow(/enabled/);
+    expect(() =>
+      createScanner({
+        style: stepScan(),
+        selectionDelay: { durationMs: 1, resetOnInput: "yes" },
+      } as unknown as ScannerOptions),
+    ).toThrow(/resetOnInput/);
+  });
+
   it("accepts separately paired clock and scheduler ports", () => {
     const time = manualClock();
     const scanner = createScanner({

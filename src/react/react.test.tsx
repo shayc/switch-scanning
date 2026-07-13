@@ -190,6 +190,61 @@ describe("imperative driving", () => {
   });
 });
 
+describe("snapshot selection", () => {
+  it("recomputes when a selector closure changes without a scanner update", () => {
+    const scanner = createScanner({ style: stepScan() });
+
+    function SelectedStatus({ prefix }: { prefix: string }) {
+      const selected = useScannerSnapshot(
+        scanner,
+        (snapshot) => `${prefix}:${snapshot.status}`,
+      );
+      return <output>{selected}</output>;
+    }
+
+    const view = render(<SelectedStatus prefix="first" />);
+    expect(view.getByText("first:idle")).toBeTruthy();
+    view.rerender(<SelectedStatus prefix="second" />);
+    expect(view.getByText("second:idle")).toBeTruthy();
+  });
+});
+
+describe("provider host ownership", () => {
+  it("keeps the owning provider attached when a second provider is rejected", async () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+
+    function App({ showRejected }: { showRejected: boolean }) {
+      return (
+        <>
+          <ScannerProvider key="owner" scanner={scanner}>
+            <TargetButton id="owner" label="Owner" />
+          </ScannerProvider>
+          {showRejected ? (
+            <ScannerProvider key="rejected" scanner={scanner}>
+              <TargetButton id="rejected" label="Rejected" />
+            </ScannerProvider>
+          ) : null}
+        </>
+      );
+    }
+
+    const view = render(<App showRejected />);
+    await flushMicrotasks();
+    act(() => scanner.start());
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: { kind: "target", id: "owner" },
+    });
+
+    view.rerender(<App showRejected={false} />);
+    await flushMicrotasks();
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: { kind: "target", id: "owner" },
+    });
+  });
+});
+
 describe("clearing decorations on exit", () => {
   it("removes highlight decorations when the scanner stops", async () => {
     const clock = manualClock();

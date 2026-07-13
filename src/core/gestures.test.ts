@@ -94,6 +94,57 @@ describe("performOn release with hold duration", () => {
   });
 });
 
+describe("gesture lifecycle origin", () => {
+  const switches = {
+    next: { action: "next" as const, performOn: "release" as const },
+  };
+
+  it("requires a fresh gesture after pause, disable, or command-only idle", () => {
+    const paused = build({
+      style: stepScan(),
+      startOn: "command",
+      switches,
+    }).scanner;
+    paused.start();
+    paused.pause();
+    paused.input.press("next");
+    paused.resume();
+    paused.input.release("next");
+    expect(paused.getSnapshot().highlight).toMatchObject({ id: "yes" });
+
+    const disabled = build({
+      style: stepScan(),
+      startOn: "switch",
+      switches,
+    }).scanner;
+    disabled.input.press("next");
+    disabled.setOptions({
+      style: stepScan(),
+      startOn: "switch",
+      switches,
+      enabled: false,
+    });
+    disabled.setOptions({
+      style: stepScan(),
+      startOn: "switch",
+      switches,
+      enabled: true,
+    });
+    disabled.input.release("next");
+    expect(disabled.getSnapshot().status).toBe("idle");
+
+    const inactive = build({
+      style: stepScan(),
+      startOn: "command",
+      switches,
+    }).scanner;
+    inactive.input.press("next");
+    inactive.start();
+    inactive.input.release("next");
+    expect(inactive.getSnapshot().highlight).toMatchObject({ id: "yes" });
+  });
+});
+
 describe("press stabilization", () => {
   it("accepts a press-edge discrete action only after its hold duration", () => {
     const { clock, scanner } = build({
@@ -222,6 +273,42 @@ describe("move repeat", () => {
       id: "a",
     });
   });
+
+  for (const ending of ["release", "disconnect"] as const) {
+    it(`stops tap/hold-owned repeat on ${ending}`, () => {
+      const abc: ScanNode[] = [
+        { kind: "target", id: "a", label: "A" },
+        { kind: "target", id: "b", label: "B" },
+        { kind: "target", id: "c", label: "C" },
+      ];
+      const { clock, scanner } = build(
+        {
+          style: stepScan({ repeat: { delayMs: 200, intervalMs: 100 } }),
+          switches: {
+            primary: {
+              tap: "select",
+              hold: { afterMs: 100, action: "next" },
+            },
+          },
+        },
+        abc,
+      );
+      scanner.start();
+      scanner.input.press("primary", "source");
+      clock.advanceBy(100);
+      expect(scanner.getSnapshot()).toMatchObject({
+        highlight: { id: "b" },
+        pending: { kind: "advance" },
+      });
+
+      if (ending === "release") scanner.input.release("primary", "source");
+      else scanner.input.disconnect("source");
+
+      expect(scanner.getSnapshot().pending).toBeNull();
+      clock.advanceBy(1_000);
+      expect(scanner.getSnapshot().highlight).toMatchObject({ id: "b" });
+    });
+  }
 
   it("cancels the old repeat schedule when the scan style changes", () => {
     const abc: ScanNode[] = [

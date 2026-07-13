@@ -232,6 +232,11 @@ analytics) observes events with `useScannerEvents(listener)`. Commands issued
 by a listener run after the transition being observed; listener failures are
 reported without interrupting scanning.
 
+For scoped keyboard input, `useKeyboardSwitches` treats an undefined `target`
+as the global document and `target: null` as intentionally unattached. A key
+accepted by an element target is still released if key-up occurs elsewhere in
+that element's document.
+
 Snapshots include zero-based `position` and effective `pending` timing. During
 a post-selection wait, status is `transitioning`, the logical cursor is
 retained, and the presented `highlight` is `null`. `highlight.changed` reports

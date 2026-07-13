@@ -7,7 +7,7 @@ export type KeyboardSwitchBindings = Readonly<Record<string, string>>;
 export interface KeyboardSwitchesOptions {
   /** When false, listeners are attached but ignore events. Defaults to true. */
   enabled?: boolean;
-  /** Element/document to listen on. Defaults to the global document. */
+  /** Element/document to listen on. Undefined uses global document; null disables capture. */
   target?: Document | HTMLElement | null;
   /** Explicit ownership policy for mapped keydown events. */
   shouldHandle?: (event: KeyboardEvent) => boolean;
@@ -34,9 +34,15 @@ export function useKeyboardSwitches(
   const explicitTarget = options.target;
 
   useEffect(() => {
+    if (explicitTarget === null) return;
     const target: Document | HTMLElement =
       explicitTarget ?? (typeof document !== "undefined" ? document : null!);
     if (!target) return;
+    const ownerDocument =
+      target.nodeType === 9
+        ? (target as Document)
+        : (target as HTMLElement).ownerDocument;
+    const ownerWindow = ownerDocument.defaultView;
 
     // Remember the binding accepted on keydown. Bindings may change before
     // keyup, but the logical switch that opened the gesture must be released.
@@ -84,30 +90,25 @@ export function useKeyboardSwitches(
     };
 
     const onVisibility = (): void => {
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "hidden"
-      ) {
+      if (ownerDocument.visibilityState === "hidden") {
         disconnectAll();
       }
     };
 
     target.addEventListener("keydown", onKeyDown as EventListener);
     target.addEventListener("keyup", onKeyUp as EventListener);
-    if (typeof window !== "undefined")
-      window.addEventListener("blur", disconnectAll);
-    if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", onVisibility);
-    }
+    if (target !== ownerDocument)
+      ownerDocument.addEventListener("keyup", onKeyUp as EventListener);
+    ownerWindow?.addEventListener("blur", disconnectAll);
+    ownerDocument.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       target.removeEventListener("keydown", onKeyDown as EventListener);
       target.removeEventListener("keyup", onKeyUp as EventListener);
-      if (typeof window !== "undefined")
-        window.removeEventListener("blur", disconnectAll);
-      if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", onVisibility);
-      }
+      if (target !== ownerDocument)
+        ownerDocument.removeEventListener("keyup", onKeyUp as EventListener);
+      ownerWindow?.removeEventListener("blur", disconnectAll);
+      ownerDocument.removeEventListener("visibilitychange", onVisibility);
       disconnectAll();
     };
   }, [scanner, explicitTarget]);

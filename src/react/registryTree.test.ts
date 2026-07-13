@@ -141,4 +141,36 @@ describe("registry tree compiler", () => {
     });
     expect(warn).toHaveBeenCalledTimes(3);
   });
+
+  it("marks controls disabled by an ancestor fieldset as ineligible", () => {
+    const fieldset = document.createElement("fieldset");
+    fieldset.disabled = true;
+    const button = document.createElement("button");
+    fieldset.append(button);
+    document.body.append(fieldset);
+    const targets = new Map<string, RegistryTargetEntry>([
+      [
+        "disabled",
+        {
+          id: "disabled",
+          element: button,
+          getOptions: () => ({ id: "disabled", label: "Disabled" }),
+        },
+      ],
+    ]);
+
+    const tree = compileRegistryTree(targets, new Map(), new Map(), {
+      reportParentCycle: vi.fn(),
+      warn: vi.fn(),
+    });
+
+    expect(tree.children).toEqual([
+      {
+        kind: "target",
+        id: "disabled",
+        label: "Disabled",
+        disabled: true,
+      },
+    ]);
+  });
 });

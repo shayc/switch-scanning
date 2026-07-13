@@ -52,22 +52,36 @@ export function useScannerSnapshot<T>(
   }
 
   // Cache the last selected value so equal selections keep a stable reference.
-  const cache = useRef<{ input: ScannerSnapshot; output: T } | null>(null);
+  const cache = useRef<{
+    input: ScannerSnapshot;
+    output: T;
+    selector: SnapshotSelector<T> | undefined;
+    isEqual: SnapshotEquality<T> | undefined;
+  } | null>(null);
 
   const getSelected = useCallback((): T => {
     const snapshot = resolved.getSnapshot();
-    const project = selector ?? ((s: ScannerSnapshot) => s as unknown as T);
-    if (cache.current && cache.current.input === snapshot) {
+    if (
+      cache.current &&
+      cache.current.input === snapshot &&
+      cache.current.selector === selector &&
+      cache.current.isEqual === isEqual
+    ) {
       return cache.current.output;
     }
-    const next = project(snapshot);
+    const next = selector ? selector(snapshot) : (snapshot as unknown as T);
     const equals = isEqual ?? Object.is;
     if (cache.current && equals(cache.current.output, next)) {
       // Keep the previous reference to avoid an unnecessary rerender.
-      cache.current = { input: snapshot, output: cache.current.output };
+      cache.current = {
+        input: snapshot,
+        output: cache.current.output,
+        selector,
+        isEqual,
+      };
       return cache.current.output;
     }
-    cache.current = { input: snapshot, output: next };
+    cache.current = { input: snapshot, output: next, selector, isEqual };
     return next;
   }, [resolved, selector, isEqual]);
 

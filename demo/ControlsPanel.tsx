@@ -280,7 +280,7 @@ interface NumberFieldProps {
 function NumberField({ label, value, min, onChange }: NumberFieldProps) {
   const handle = (e: ChangeEvent<HTMLInputElement>) => {
     const next = e.target.valueAsNumber;
-    if (Number.isFinite(next)) onChange(next);
+    if (Number.isFinite(next) && next >= min) onChange(next);
   };
   return (
     <label className="number-field">

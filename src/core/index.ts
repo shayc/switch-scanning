@@ -62,5 +62,6 @@ export type {
   AfterActivation,
   GroupExit,
   Detach,
+  HostAttachment,
   Unsubscribe,
 } from "./types.ts";

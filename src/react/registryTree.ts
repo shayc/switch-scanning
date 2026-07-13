@@ -218,6 +218,11 @@ function repairParentCycles(
 
 export function isElementDisabled(element: HTMLElement | null): boolean {
   if (!element) return false;
-  if ((element as HTMLButtonElement).disabled === true) return true;
+  if (
+    (element as HTMLButtonElement).disabled === true ||
+    element.matches(":disabled")
+  ) {
+    return true;
+  }
   return element.getAttribute("aria-disabled") === "true";
 }

@@ -244,6 +244,61 @@ describe("keyboard switches", () => {
     expect(scanner.getSnapshot().status).toBe("complete");
   });
 
+  it("attaches no global listeners when target is explicitly null", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "switch",
+      switches: { next: { action: "next" } },
+    });
+
+    function KeyApp() {
+      useKeyboardSwitches(scanner, { Space: "next" }, { target: null });
+      return null;
+    }
+
+    render(<KeyApp />);
+    const down = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      document.dispatchEvent(down);
+      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+    });
+    expect(down.defaultPrevented).toBe(false);
+    expect(scanner.getSnapshot().status).toBe("idle");
+  });
+
+  it("releases a scoped key when keyup occurs outside the target", () => {
+    const scanner = createScanner({
+      style: inverseScan({ intervalMs: 1000, loops: "infinite" }),
+      startOn: "command",
+      switches: { scan: { action: "scan" } },
+    });
+    const fixture = createScannerFixture(scanner, [
+      { kind: "target", id: "x", label: "X" },
+    ]);
+    const target = document.createElement("div");
+
+    function KeyApp() {
+      useKeyboardSwitches(scanner, { Space: "scan" }, { target });
+      return null;
+    }
+
+    render(<KeyApp />);
+    act(() => scanner.start());
+    const up = new KeyboardEvent("keyup", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      target.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+      document.dispatchEvent(up);
+    });
+    expect(up.defaultPrevented).toBe(true);
+    expect(fixture.activations).toEqual(["x"]);
+  });
+
   it("closes an accepted key even when disabled before keyup", () => {
     const scanner = createScanner({
       style: inverseScan({ intervalMs: 1000, loops: "infinite" }),

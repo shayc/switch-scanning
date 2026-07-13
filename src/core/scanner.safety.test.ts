@@ -195,6 +195,30 @@ describe("selection transition coordinator", () => {
       highlight: { kind: "target", id: "yes" },
     });
   });
+
+  it("does not let a release gesture cross a lifecycle boundary to toggle pause", () => {
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: stepScan(),
+      switches: {
+        pause: { action: "togglePause", performOn: "release" },
+      },
+      selectionDelay: { durationMs: 50 },
+      clock,
+    });
+    createScannerFixture(scanner, TARGETS);
+    scanner.start();
+    scanner.select();
+    scanner.input.press("pause");
+    clock.advanceBy(50);
+    scanner.input.release("pause");
+    expect(scanner.getSnapshot().status).toBe("scanning");
+
+    scanner.input.press("pause");
+    scanner.select();
+    scanner.input.release("pause");
+    expect(scanner.getSnapshot().status).toBe("transitioning");
+  });
 });
 
 describe("safe configuration and lifecycle", () => {
@@ -266,10 +290,12 @@ describe("safe configuration and lifecycle", () => {
       activate: () => ({ activated: true }),
       reveal: (highlight) => first.push(highlight),
     });
-    scanner.attachHost({
+    const rejected = scanner.attachHost({
       activate: () => ({ activated: true }),
       reveal: (highlight) => second.push(highlight),
     });
+    expect(detach.attached).toBe(true);
+    expect(rejected.attached).toBe(false);
     scanner.setTree({
       kind: "group",
       id: "root",

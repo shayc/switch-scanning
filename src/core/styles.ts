@@ -141,6 +141,53 @@ export function inverseScan(options: InverseScanOptions): InverseScanStyle {
   });
 }
 
+/** @internal Validate structurally supplied style data at the scanner boundary. */
+export function assertScanStyle(style: unknown): asserts style is ScanStyle {
+  if (typeof style !== "object" || style === null) {
+    fail("style must be created with a scan style constructor");
+  }
+
+  const candidate = style as Record<string, unknown>;
+  switch (candidate.kind) {
+    case "auto":
+      assertPositive(candidate.intervalMs as number, "intervalMs");
+      assertLoops(candidate.loops as LoopLimit);
+      assertNonNegative(
+        candidate.firstItemPauseMs as number,
+        "firstItemPauseMs",
+      );
+      assertNonNegative(
+        candidate.transitionTimeMs as number,
+        "transitionTimeMs",
+      );
+      return;
+    case "step": {
+      const repeat = candidate.repeat;
+      if (repeat === false) return;
+      if (typeof repeat !== "object" || repeat === null) {
+        fail("step style repeat must be false or an object");
+      }
+      const repeatOptions = repeat as Record<string, unknown>;
+      assertNonNegative(repeatOptions.delayMs as number, "repeat.delayMs");
+      assertPositive(repeatOptions.intervalMs as number, "repeat.intervalMs");
+      return;
+    }
+    case "singleStep":
+      assertPositive(candidate.dwellTimeMs as number, "dwellTimeMs");
+      return;
+    case "inverse":
+      assertPositive(candidate.intervalMs as number, "intervalMs");
+      assertLoops(candidate.loops as LoopLimit);
+      assertNonNegative(
+        candidate.firstItemPauseMs as number,
+        "firstItemPauseMs",
+      );
+      return;
+    default:
+      fail(`unknown scan style kind "${String(candidate.kind)}"`);
+  }
+}
+
 /** True when a style advances the highlight on a timer of its own. */
 export function isTimedStyle(
   style: ScanStyle,

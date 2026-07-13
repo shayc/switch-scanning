@@ -33,6 +33,10 @@ The bindable `togglePause` switch action pauses from `scanning` or
 `transitioning` and resumes from `paused`. Pausing forgets held gestures, so a
 fresh gesture is required after resume.
 
+`scanner.attachHost(host)` returns a callable detach handle whose `attached`
+property reports whether the exclusive host slot was acquired. A second live
+host is diagnosed and receives a handle with `attached: false`.
+
 ## Snapshot
 
 - `status`: `idle`, `scanning`, `transitioning`, `paused`, or `complete`.
@@ -56,6 +60,9 @@ transition-ended event.
 target events report hierarchy and activation attempts/results. Diagnostics
 report recoverable integration errors.
 
+`scanner.input.disconnect(sourceId)` cancels a physical source without treating
+it as a normal release. Omit `sourceId` to disconnect every active source.
+
 ## React bindings
 
 - `ScannerProvider` attaches the DOM host and registry.
@@ -63,7 +70,9 @@ report recoverable integration errors.
   wrappers. Use explicit `groupId`/`parentId` for portals and `sequence` when
   DOM order is not scan order.
 - `useKeyboardSwitches` captures a dedicated switch keyboard by default. Use
-  `target` or `shouldHandle` for mixed-input applications.
+  `target` or `shouldHandle` for mixed-input applications. An undefined target
+  defaults to the global document; `target: null` attaches no listeners, which
+  is useful while a target ref is unavailable.
 - `usePointerSwitch` turns one dedicated element into a coalesced pointer
   source. Apply `touch-action: none`; direct touch on that surface is
   intentionally unavailable.

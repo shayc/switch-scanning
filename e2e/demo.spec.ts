@@ -29,6 +29,22 @@ test("mixed keyboard controls pass mapped Space through", async ({ page }) => {
   expect(prevented).toBe(true);
 });
 
+test("timing controls reject values below their configured minimum", async ({
+  page,
+}) => {
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  await page.goto("/");
+  const selectionDelay = page.getByRole("spinbutton", {
+    name: "Selection delay (ms)",
+  });
+  await selectionDelay.fill("-1");
+  await expect(selectionDelay).toHaveValue("0");
+  await page.getByRole("button", { name: "Start" }).click();
+  await expect(page.locator(".status")).toContainText("scanning");
+  expect(pageErrors).toEqual([]);
+});
+
 test("direct and scanner activation share the native button path", async ({
   page,
 }) => {

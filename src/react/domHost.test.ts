@@ -62,6 +62,16 @@ describe("DOM host", () => {
       () => ({ id: "disabled", label: "Disabled" }),
       disabled,
     );
+    const disabledFieldset = document.createElement("fieldset");
+    disabledFieldset.disabled = true;
+    const inheritedDisabled = document.createElement("button");
+    disabledFieldset.append(inheritedDisabled);
+    document.body.append(disabledFieldset);
+    registry.mountTarget(
+      "inherited-disabled",
+      () => ({ id: "inherited-disabled", label: "Inherited disabled" }),
+      inheritedDisabled,
+    );
     registry.mountTarget(
       "headless",
       () => ({ id: "headless", label: "Headless" }),
@@ -74,6 +84,10 @@ describe("DOM host", () => {
     expect(host.activate("native")).toEqual({ activated: true });
     expect(click).toHaveBeenCalledOnce();
     expect(host.activate("disabled")).toEqual({
+      activated: false,
+      reason: "target disabled",
+    });
+    expect(host.activate("inherited-disabled")).toEqual({
       activated: false,
       reason: "target disabled",
     });

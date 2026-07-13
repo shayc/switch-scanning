@@ -123,6 +123,12 @@ export interface ScannerHost {
 export type Detach = () => void;
 export type Unsubscribe = () => void;
 
+export interface HostAttachment {
+  (): void;
+  /** Whether this host acquired the scanner's exclusive host slot. */
+  readonly attached: boolean;
+}
+
 // Options
 
 export type StartOn = "switch" | "mount" | "command";
@@ -162,6 +168,7 @@ export type ScannerOptions = ScannerBehaviorOptions &
 export interface ScannerInputPort {
   press(switchId: string, sourceId?: string): void;
   release(switchId: string, sourceId?: string): void;
+  /** Disconnect one physical source, or every active source when omitted. */
   disconnect(sourceId?: string): void;
 }
 
@@ -185,7 +192,7 @@ export interface Scanner {
 
   setOptions(options: ScannerOptions): void;
   setTree(root: ScanGroupNode): void;
-  attachHost(host: ScannerHost): Detach;
+  attachHost(host: ScannerHost): HostAttachment;
 
   /** End-user physical-input path for declared logical switches. */
   readonly input: ScannerInputPort;

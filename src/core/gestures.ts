@@ -31,9 +31,12 @@ export interface GestureSink {
 export interface GestureContext {
   readonly switchId: string;
   readonly sourceKey: string;
-  /** Captured once at raw press; never inferred from later scanner state. */
-  readonly startedDuringTransition: boolean;
+  /** Scanner lifecycle eligibility captured once at raw press. */
+  readonly startedIn: GestureStartState;
 }
+
+export type GestureStartState =
+  "active" | "startable" | "transitioning" | "paused" | "disabled" | "inactive";
 
 interface SourceState {
   switchId: string;
@@ -45,7 +48,7 @@ interface SourceState {
   holdFired: boolean;
   scanAccepted: boolean;
   heldDiscrete: boolean;
-  startedDuringTransition: boolean;
+  startedIn: GestureStartState;
 }
 
 export interface GestureEngine {
@@ -63,7 +66,7 @@ export function createGestureEngine(deps: {
   clock: Clock;
   scheduler: Scheduler;
   sink: GestureSink;
-  isTransitioning: () => boolean;
+  getStartState: () => GestureStartState;
 }): GestureEngine {
   let switches = deps.switches;
   const { clock, scheduler, sink } = deps;
@@ -111,7 +114,7 @@ export function createGestureEngine(deps: {
       holdFired: false,
       scanAccepted: false,
       heldDiscrete: false,
-      startedDuringTransition: deps.isTransitioning(),
+      startedIn: deps.getStartState(),
     };
     sources.set(sourceKey, state);
     sink.pressStarted(contextOf(state));
@@ -149,6 +152,7 @@ export function createGestureEngine(deps: {
           if (def.type !== "tapHold") return;
           if (tryAccept(state.switchId, def)) {
             state.holdFired = true;
+            state.heldDiscrete = true;
             sink.discreteAction(def.holdAction, {
               ...contextOf(state),
               heldPress: true,
@@ -215,7 +219,10 @@ export function createGestureEngine(deps: {
         return;
       }
       case "tapHold": {
-        if (state.holdFired) return; // hold already consumed the gesture
+        if (state.holdFired) {
+          if (state.heldDiscrete) sink.pressReleased(contextOf(state));
+          return; // hold already consumed the gesture
+        }
         if (heldFor >= def.holdDurationMs && tryAccept(state.switchId, def)) {
           sink.discreteAction(def.tap, {
             ...contextOf(state),
@@ -280,7 +287,7 @@ function contextOf(state: SourceState): GestureContext {
   return {
     switchId: state.switchId,
     sourceKey: state.sourceKey,
-    startedDuringTransition: state.startedDuringTransition,
+    startedIn: state.startedIn,
   };
 }
 
