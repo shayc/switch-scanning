@@ -42,8 +42,7 @@ interface NormalizedOptions {
 const EMPTY_ROOT: ScanGroupNode = { kind: "group", id: "__root__", label: "root", children: [] };
 
 export function createScanner(rawOptions: ScannerOptions): Scanner {
-  const clock: Clock = rawOptions.clock ?? defaultInfra();
-  const baseScheduler: Scheduler = rawOptions.scheduler ?? (clock as Clock & Scheduler);
+  const { clock, scheduler: baseScheduler } = resolveInfrastructure(rawOptions);
 
   let options = normalizeOptions(rawOptions);
   let tree: CompiledTree = compileTree(EMPTY_ROOT);
@@ -123,12 +122,16 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function reportListenerError(error: unknown): void {
+    reportBoundaryError(error, "listener");
+  }
+
+  function reportBoundaryError(error: unknown, boundary: string): void {
     if (typeof globalThis.reportError === "function") {
       globalThis.reportError(error);
       return;
     }
     if (typeof console !== "undefined") {
-      console.error("[switch-scanning] scanner listener failed", error);
+      console.error(`[switch-scanning] scanner ${boundary} failed`, error);
     }
   }
 
@@ -293,7 +296,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         label: labelForCandidate(cand),
       });
     }
-    host?.reveal?.(current);
+    if (host?.reveal) {
+      try {
+        host.reveal(current);
+      } catch (error) {
+        reportBoundaryError(error, "host reveal");
+      }
+    }
     scheduleStyleDeadline();
   }
 
@@ -838,6 +847,12 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function applyOptions(next: ScannerOptions): void {
     const prev = options;
     options = normalizeOptions(next);
+    if (
+      prev.style.kind === "step" &&
+      (options.style.kind !== "step" || !stepRepeatEquals(prev.style.repeat, options.style.repeat))
+    ) {
+      stopRepeat();
+    }
     gestures.setSwitches(options.switches);
 
     if (!options.enabled) {
@@ -883,6 +898,26 @@ function defaultInfra(): Clock & Scheduler {
   return sharedInfra;
 }
 
+function resolveInfrastructure(options: ScannerOptions): { clock: Clock; scheduler: Scheduler } {
+  const { clock, scheduler } = options;
+  if (clock === undefined && scheduler === undefined) {
+    const infrastructure = defaultInfra();
+    return { clock: infrastructure, scheduler: infrastructure };
+  }
+  if (clock === undefined) {
+    throw new TypeError("[switch-scanning] a custom scheduler requires a paired clock");
+  }
+  if (scheduler !== undefined) return { clock, scheduler };
+  if (isScheduler(clock)) return { clock, scheduler: clock };
+  throw new TypeError(
+    "[switch-scanning] a custom clock must implement Scheduler or provide scheduler",
+  );
+}
+
+function isScheduler(clock: Clock): clock is Clock & Scheduler {
+  return "schedule" in clock && typeof clock.schedule === "function";
+}
+
 function normalizeOptions(raw: ScannerOptions): NormalizedOptions {
   return {
     style: raw.style,
@@ -910,4 +945,12 @@ function highlightEquals(a: Highlight, b: Highlight): boolean {
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+function stepRepeatEquals(
+  a: false | StepScanRepeat,
+  b: false | StepScanRepeat,
+): boolean {
+  if (a === false || b === false) return a === b;
+  return a.delayMs === b.delayMs && a.intervalMs === b.intervalMs;
 }

@@ -77,6 +77,11 @@ Selecting a DOM target invokes its **existing native activation** (its own
 `onClick`). Pointer, touch, keyboard, screen reader, and the scanner therefore
 share one application action path.
 
+Pass the same `disabled` value to `useScanTarget` and the underlying control.
+Changing the hook option republishes scan-tree eligibility. Native `disabled`
+and `aria-disabled` are also read whenever the tree rebuilds and checked again
+at activation time, but DOM-only changes do not themselves schedule a rebuild.
+
 ## Scan styles
 
 ```ts

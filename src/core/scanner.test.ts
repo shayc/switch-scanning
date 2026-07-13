@@ -372,4 +372,45 @@ describe("serialized transitions", () => {
       "scan.stopped",
     ]);
   });
+
+  it("reports a host reveal failure without interrupting publication", () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+    scanner.setTree({
+      kind: "group",
+      id: "root",
+      label: "root",
+      children: YES_NO,
+    });
+    scanner.attachHost({
+      activate: () => ({ activated: true }),
+      reveal: () => {
+        throw new Error("reveal failed");
+      },
+    });
+    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() => scanner.start()).not.toThrow();
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: { kind: "target", id: "yes" },
+    });
+    expect(reported).toHaveBeenCalledWith(
+      "[switch-scanning] scanner host reveal failed",
+      expect.objectContaining({ message: "reveal failed" }),
+    );
+    reported.mockRestore();
+  });
+});
+
+describe("time infrastructure", () => {
+  it("rejects an unpaired clock with a descriptive error", () => {
+    const options = {
+      style: autoScan({ intervalMs: 100, loops: 1 }),
+      clock: { now: () => 0 },
+    } as unknown as ScannerOptions;
+
+    expect(() => createScanner(options)).toThrow(
+      "[switch-scanning] a custom clock must implement Scheduler or provide scheduler",
+    );
+  });
 });

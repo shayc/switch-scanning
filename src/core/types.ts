@@ -103,16 +103,25 @@ export type StartOn = "switch" | "mount" | "command";
 export type AfterActivation = "restart" | "continue" | "repeat" | "stop";
 export type GroupExit = "after" | "before" | "none";
 
-export interface ScannerOptions {
+interface ScannerBehaviorOptions {
   style: ScanStyle;
   switches?: Readonly<Record<string, SwitchDefinition>>;
   startOn?: StartOn;
   afterActivation?: AfterActivation;
   groupExit?: GroupExit;
   enabled?: boolean;
-  clock?: Clock;
-  scheduler?: Scheduler;
 }
+
+type ScannerInfrastructureOptions =
+  | { clock?: undefined; scheduler?: undefined }
+  | { clock: Clock & Scheduler; scheduler?: undefined }
+  | { clock: Clock; scheduler: Scheduler };
+
+/**
+ * A custom time source must either implement both ports itself or be paired
+ * with a scheduler that uses the same time base.
+ */
+export type ScannerOptions = ScannerBehaviorOptions & ScannerInfrastructureOptions;
 
 // Input port
 

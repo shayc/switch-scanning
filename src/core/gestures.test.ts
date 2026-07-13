@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { manualClock } from "./clock.ts";
 import { createScanner } from "./scanner.ts";
-import { inverseScan, stepScan } from "./styles.ts";
+import { autoScan, inverseScan, stepScan } from "./styles.ts";
 import { createScannerFixture } from "./testing/index.ts";
 import type { ScannerOptions, ScanNode } from "./types.ts";
 
@@ -119,6 +119,36 @@ describe("move repeat", () => {
     scanner.input.release("next");
     clock.advanceBy(10000);
     expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+  });
+
+  it("cancels the old repeat schedule when the scan style changes", () => {
+    const abc: ScanNode[] = [
+      { kind: "target", id: "a", label: "A" },
+      { kind: "target", id: "b", label: "B" },
+      { kind: "target", id: "c", label: "C" },
+    ];
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: stepScan({ repeat: { delayMs: 500, intervalMs: 200 } }),
+      switches: { next: { action: "next" } },
+      startOn: "command",
+      clock,
+    });
+    createScannerFixture(scanner, abc);
+    scanner.start();
+    scanner.input.press("next");
+
+    scanner.setOptions({
+      style: autoScan({ intervalMs: 1000, loops: "infinite" }),
+      switches: { next: { action: "next" } },
+      startOn: "command",
+      clock,
+    });
+    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+
+    clock.advanceBy(500);
+    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "a" });
+    expect(clock.pending).toBe(1);
   });
 });
 

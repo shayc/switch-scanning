@@ -134,6 +134,30 @@ describe("imperative driving", () => {
     expect(view.getByText("scanning")).toBeTruthy();
   });
 
+  it("reconciles when the target disabled option changes", async () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+
+    function DisabledTarget({ disabled }: { disabled: boolean }) {
+      const target = useScanTarget({ id: "x", label: "X", disabled });
+      return <button {...target.props} disabled={disabled}>X</button>;
+    }
+
+    const app = (disabled: boolean) => (
+      <ScannerProvider scanner={scanner}>
+        <DisabledTarget disabled={disabled} />
+        <TargetButton id="y" label="Y" />
+      </ScannerProvider>
+    );
+
+    const view = render(app(false));
+    await flushMicrotasks();
+    act(() => scanner.start());
+    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "x" });
+
+    view.rerender(app(true));
+    await flushMicrotasks();
+    expect(scanner.getSnapshot().highlight).toEqual({ kind: "target", id: "y" });
+  });
 });
 
 describe("keyboard switches", () => {

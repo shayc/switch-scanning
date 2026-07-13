@@ -50,7 +50,10 @@ export interface ManualClock extends Clock, Scheduler {
   advanceBy(ms: number): void;
   /** Advance virtual time to an absolute value, firing due callbacks. */
   advanceTo(time: number): void;
-  /** Fire every pending callback regardless of its deadline. */
+  /**
+   * Advance through the latest deadline pending when called. Callbacks that
+   * schedule work beyond that horizon remain pending.
+   */
   flush(): void;
   /** Number of callbacks still scheduled. */
   readonly pending: number;
