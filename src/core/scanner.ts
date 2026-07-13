@@ -29,6 +29,7 @@ import type {
   PendingTiming,
   ScanGroupNode,
   Scanner,
+  ScannerBehaviorOptions,
   ScannerDiagnosticCode,
   ScannerHost,
   ScannerInputPort,
@@ -694,6 +695,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     start: serialized(() => {
       if (disposed)
         return diagnostic("use-after-dispose", "start() after dispose()");
+      if (status !== "idle" && status !== "complete") {
+        diagnostic(
+          "command-inapplicable",
+          `start() ignored while status is "${status}"; use restart() to begin a fresh session`,
+        );
+        return;
+      }
       startScan(false);
       commit();
     }),
@@ -769,7 +777,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     observe(listener) {
       return store.observe(listener);
     },
-    setOptions: serialized((next: ScannerOptions) => {
+    setOptions: serialized((next: ScannerBehaviorOptions) => {
       if (disposed) return;
       applyOptions(next);
       commit();
@@ -796,35 +804,41 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       reconcile();
     }),
     attachHost(next) {
-      let attached = false;
       let detached = false;
+
+      // Host acquisition is a synchronous public contract. Reserve the slot
+      // before queuing setup so a call made by an observer cannot return
+      // `attached: false` and then attach moments later when the queue drains.
+      const attached = !disposed && host === null;
+      if (attached) host = next;
+
+      const detach = () => {
+        if (detached) return;
+        detached = true;
+        runTransition(() => {
+          if (!attached || host !== next) return;
+          setPresentation(null);
+          host = null;
+          commit();
+        });
+      };
+
       runTransition(() => {
-        if (detached || disposed) return;
-        if (host) {
+        if (!attached) {
+          if (disposed) return;
           diagnostic(
             "second-host-attach",
             "a host is already attached; the second host was rejected",
           );
           return;
         }
-        host = next;
-        attached = true;
+        if (detached || disposed || host !== next) return;
         if (presentation) revealWith(next, presentation.highlight);
         if (options.startOn === "mount") {
           mountStartPending = true;
           if (hasPublishedTree) maybeStartOnMount();
         }
       });
-      const detach = () => {
-        detached = true;
-        runTransition(() => {
-          if (!attached || host !== next) return;
-          setPresentation(null);
-          host = null;
-          attached = false;
-          commit();
-        });
-      };
       return Object.assign(detach, { attached });
     },
     input,
@@ -843,8 +857,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }),
   };
 
-  function applyOptions(next: ScannerOptions): void {
+  function applyOptions(next: ScannerBehaviorOptions): void {
     // Normalize and validate everything before mutating active runtime state.
+    if ("clock" in next || "scheduler" in next) {
+      throw new TypeError(
+        "[switch-scanning] clock and scheduler are creation-only and cannot be changed with setOptions()",
+      );
+    }
     const normalized = normalizeOptions(next);
     const previous = options;
     options = normalized;
@@ -927,7 +946,7 @@ function isScheduler(clock: Clock): clock is Clock & Scheduler {
   return "schedule" in clock && typeof clock.schedule === "function";
 }
 
-function normalizeOptions(raw: ScannerOptions): NormalizedOptions {
+function normalizeOptions(raw: ScannerBehaviorOptions): NormalizedOptions {
   assertScanStyle(raw.style);
   const switches = normalizeSwitches(raw.switches);
   const groupExit = raw.groupExit ?? "after";

@@ -4,7 +4,10 @@ import {
   type Scanner,
   type ScannerOptions,
 } from "../core/index.ts";
-import { scannerBehaviorSignature } from "../core/behaviorOptions.ts";
+import {
+  scannerBehaviorSignature,
+  toScannerBehaviorOptions,
+} from "../core/behaviorOptions.ts";
 
 /**
  * Lazily create a single scanner whose identity is stable for the component's
@@ -38,9 +41,7 @@ export function useScanner(options: ScannerOptions): Scanner {
     }
     if (lastSignature.current === signature) return;
     lastSignature.current = signature;
-    // setOptions ignores clock/scheduler (fixed at creation); forwarding the
-    // current options object is safe.
-    scanner.setOptions(optionsRef.current);
+    scanner.setOptions(toScannerBehaviorOptions(optionsRef.current));
     // signature captures every serializable field that setOptions consumes.
   }, [scanner, signature]);
 

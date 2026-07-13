@@ -299,14 +299,17 @@ describe("keyboard switches", () => {
     expect(fixture.activations).toEqual(["x"]);
   });
 
-  it("closes an accepted key even when disabled before keyup", () => {
+  it("disconnects an accepted key when disabled before keyup", () => {
+    const clock = manualClock();
     const scanner = createScanner({
       style: inverseScan({ intervalMs: 1000, loops: "infinite" }),
       startOn: "command",
       switches: { scan: { action: "scan" } },
+      clock,
     });
     const fixture = createScannerFixture(scanner, [
       { kind: "target", id: "x", label: "X" },
+      { kind: "target", id: "y", label: "Y" },
     ]);
 
     function KeyApp({ enabled }: { enabled: boolean }) {
@@ -318,8 +321,15 @@ describe("keyboard switches", () => {
     act(() => scanner.start());
     act(() => {
       document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+      clock.advanceBy(1000);
     });
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "y" });
+
     view.rerender(<KeyApp enabled={false} />);
+    expect(clock.pending).toBe(0);
+    act(() => clock.advanceBy(5000));
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "y" });
+
     const up = new KeyboardEvent("keyup", {
       code: "Space",
       cancelable: true,
@@ -327,8 +337,8 @@ describe("keyboard switches", () => {
     act(() => {
       document.dispatchEvent(up);
     });
-    expect(up.defaultPrevented).toBe(true);
-    expect(fixture.activations).toEqual(["x"]);
+    expect(up.defaultPrevented).toBe(false);
+    expect(fixture.activations).toEqual([]);
   });
 
   it("disconnects a held phaseful switch on window blur", () => {

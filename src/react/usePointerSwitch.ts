@@ -49,6 +49,8 @@ export function usePointerSwitch(
 
   const register = useCallback(
     (element: HTMLElement) => {
+      const ownerDocument = element.ownerDocument;
+      const ownerWindow = ownerDocument.defaultView;
       const accepts = (event: PointerEvent): boolean => {
         const pointerType = event.pointerType || "mouse";
         return pointerType !== "mouse" || event.button === 0;
@@ -108,7 +110,7 @@ export function usePointerSwitch(
         event.stopImmediatePropagation();
       };
       const onVisibility = (): void => {
-        if (document.visibilityState === "hidden") disconnectAll();
+        if (ownerDocument.visibilityState === "hidden") disconnectAll();
       };
 
       element.addEventListener("pointerdown", onPointerDown);
@@ -116,8 +118,8 @@ export function usePointerSwitch(
       element.addEventListener("pointercancel", onPointerCancel);
       element.addEventListener("lostpointercapture", onLostCapture);
       element.addEventListener("click", onClick, true);
-      window.addEventListener("blur", disconnectAll);
-      document.addEventListener("visibilitychange", onVisibility);
+      ownerWindow?.addEventListener("blur", disconnectAll);
+      ownerDocument.addEventListener("visibilitychange", onVisibility);
 
       return () => {
         element.removeEventListener("pointerdown", onPointerDown);
@@ -125,8 +127,8 @@ export function usePointerSwitch(
         element.removeEventListener("pointercancel", onPointerCancel);
         element.removeEventListener("lostpointercapture", onLostCapture);
         element.removeEventListener("click", onClick, true);
-        window.removeEventListener("blur", disconnectAll);
-        document.removeEventListener("visibilitychange", onVisibility);
+        ownerWindow?.removeEventListener("blur", disconnectAll);
+        ownerDocument.removeEventListener("visibilitychange", onVisibility);
         disconnectAll();
       };
     },

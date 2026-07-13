@@ -3,7 +3,12 @@ import { manualClock } from "./clock.ts";
 import { createScanner } from "./scanner.ts";
 import { autoScan, stepScan } from "./styles.ts";
 import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
-import type { Highlight, ScanNode, ScannerOptions } from "./types.ts";
+import type {
+  Highlight,
+  HostAttachment,
+  ScanNode,
+  ScannerOptions,
+} from "./types.ts";
 
 const YES_NO: ScanNode[] = [
   { kind: "target", id: "yes", label: "Yes" },
@@ -86,6 +91,27 @@ describe("start rules", () => {
     scanner.input.press("next");
     expect(scanner.getSnapshot().status).toBe("paused");
   });
+
+  it("keeps start from resetting an existing session and reserves that for restart", () => {
+    const { scanner, events } = build({ style: stepScan() }, YES_NO);
+    scanner.start();
+    scanner.next();
+    const before = scanner.getSnapshot();
+    events.clear();
+
+    scanner.start();
+
+    expect(scanner.getSnapshot()).toBe(before);
+    const diagnostic = events.ofType("diagnostic").at(-1);
+    expect(diagnostic?.code).toBe("command-inapplicable");
+    expect(diagnostic?.message).toContain("use restart()");
+
+    scanner.restart();
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
+  });
 });
 
 describe("serialized transitions", () => {
@@ -132,6 +158,34 @@ describe("serialized transitions", () => {
       "highlight.changed",
       "scan.stopped",
     ]);
+  });
+
+  it("reports re-entrant host acquisition truthfully before queued setup", () => {
+    const scanner = createScanner({ style: stepScan() });
+    const activations: string[] = [];
+    let attachment: HostAttachment | undefined;
+    scanner.setTree({
+      kind: "group",
+      id: "root",
+      label: "root",
+      children: [{ kind: "target", id: "yes", label: "Yes" }],
+    });
+    scanner.observe((event) => {
+      if (event.type !== "scan.started") return;
+      attachment = scanner.attachHost({
+        activate: (id) => {
+          activations.push(id);
+          return { activated: true };
+        },
+      });
+      expect(attachment.attached).toBe(true);
+    });
+
+    scanner.start();
+    scanner.select();
+
+    expect(attachment?.attached).toBe(true);
+    expect(activations).toEqual(["yes"]);
   });
 
   it("reports a host reveal failure without interrupting publication", () => {

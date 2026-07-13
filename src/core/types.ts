@@ -190,7 +190,8 @@ export interface Scanner {
   subscribe(onChange: () => void): Unsubscribe;
   observe(listener: (event: ScannerEvent) => void): Unsubscribe;
 
-  setOptions(options: ScannerOptions): void;
+  /** Replace runtime behavior. Clock and scheduler are fixed at creation. */
+  setOptions(options: ScannerBehaviorOptions): void;
   setTree(root: ScanGroupNode): void;
   attachHost(host: ScannerHost): HostAttachment;
 

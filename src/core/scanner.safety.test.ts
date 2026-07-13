@@ -256,7 +256,6 @@ describe("safe configuration and lifecycle", () => {
       scanner.setOptions({
         style: stepScan(),
         groupExit: "back-only",
-        clock,
       }),
     ).toThrow();
     expect(scanner.getSnapshot()).toBe(before);

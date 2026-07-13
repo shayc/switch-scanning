@@ -180,4 +180,45 @@ describe("pointer switch surface", () => {
     });
     expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
   });
+
+  it("uses the surface owner document for lifecycle cleanup", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "command",
+      switches: { select: { action: "select", performOn: "release" } },
+    });
+    const fixture = createScannerFixture(scanner, [
+      { kind: "target", id: "yes", label: "Yes" },
+    ]);
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+    const ownerDocument = iframe.contentDocument!;
+    const ownerWindow = iframe.contentWindow!;
+
+    function Surface() {
+      const binding = usePointerSwitch(scanner, { switchId: "select" });
+      return <button {...binding.props}>Switch</button>;
+    }
+
+    const view = render(<Surface />, { container: ownerDocument.body });
+    const surface = view.getByText("Switch");
+    act(() => scanner.start());
+
+    act(() => {
+      surface.dispatchEvent(pointerEvent("pointerdown", 1));
+      window.dispatchEvent(new Event("blur"));
+      surface.dispatchEvent(pointerEvent("pointerup", 1));
+    });
+    expect(fixture.activations).toEqual(["yes"]);
+
+    act(() => {
+      surface.dispatchEvent(pointerEvent("pointerdown", 2));
+      ownerWindow.dispatchEvent(new Event("blur"));
+      surface.dispatchEvent(pointerEvent("pointerup", 2));
+    });
+    expect(fixture.activations).toEqual(["yes"]);
+
+    view.unmount();
+    iframe.remove();
+  });
 });

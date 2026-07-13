@@ -18,6 +18,9 @@
   an intentional access-method decision.
 - `clock`/`scheduler`: creation-only deterministic timing infrastructure.
 
+`scanner.setOptions(...)` replaces behavior options only; the clock and
+scheduler remain fixed for the scanner's lifetime.
+
 `autoScan` additionally accepts `transitionTimeMs`, a fixed wait before
 automatic movement resumes after selection. The scanner waits for the later
 of transition time and selection-delay quiet time.
@@ -28,6 +31,10 @@ of transition time and selection-delay quiet time.
 and `back` are semantic host/caregiver/testing commands. They do not represent
 a physical source and bypass gesture stabilization. `scanner.input` is the
 end-user path; safety guarantees involving declared switches apply there.
+
+`start()` begins a session only from `idle` or `complete`; while an active or
+paused session exists it is diagnosed and ignored. `restart()` explicitly
+discards any current session and begins again from the root.
 
 The bindable `togglePause` switch action pauses from `scanning` or
 `transitioning` and resumes from `paused`. Pausing forgets held gestures, so a

@@ -30,6 +30,7 @@ export function useKeyboardSwitches(
   enabledRef.current = options.enabled ?? true;
   const shouldHandleRef = useRef(options.shouldHandle);
   shouldHandleRef.current = options.shouldHandle;
+  const disconnectAllRef = useRef<(() => void) | null>(null);
 
   const explicitTarget = options.target;
 
@@ -88,6 +89,7 @@ export function useKeyboardSwitches(
       }
       held.clear();
     };
+    disconnectAllRef.current = disconnectAll;
 
     const onVisibility = (): void => {
       if (ownerDocument.visibilityState === "hidden") {
@@ -109,7 +111,14 @@ export function useKeyboardSwitches(
         ownerDocument.removeEventListener("keyup", onKeyUp as EventListener);
       ownerWindow?.removeEventListener("blur", disconnectAll);
       ownerDocument.removeEventListener("visibilitychange", onVisibility);
+      if (disconnectAllRef.current === disconnectAll) {
+        disconnectAllRef.current = null;
+      }
       disconnectAll();
     };
   }, [scanner, explicitTarget]);
+
+  useEffect(() => {
+    if (options.enabled === false) disconnectAllRef.current?.();
+  }, [options.enabled]);
 }

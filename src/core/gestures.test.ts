@@ -331,7 +331,6 @@ describe("move repeat", () => {
       style: autoScan({ intervalMs: 1000, loops: "infinite" }),
       switches: { next: { action: "next" } },
       startOn: "command",
-      clock,
     });
     expect(scanner.getSnapshot().highlight).toEqual({
       kind: "target",
@@ -379,14 +378,13 @@ describe("multi-source phaseful scan", () => {
   });
 
   it("preserves a held scan gesture across unrelated option changes", () => {
-    const { clock, scanner, fixture } = build(options);
+    const { scanner, fixture } = build(options);
     scanner.start();
     scanner.input.press("scan", "sourceA");
 
     scanner.setOptions({
       ...options,
       style: inverseScan({ intervalMs: 1200, loops: "infinite" }),
-      clock,
     });
     scanner.input.release("scan", "sourceA");
 
@@ -401,7 +399,6 @@ describe("multi-source phaseful scan", () => {
       style: inverseScan({ intervalMs: 900, loops: "infinite" }),
       switches: { scan: { action: "next" } },
       startOn: "switch",
-      clock,
     });
     scanner.input.release("scan", "sourceA");
     expect(fixture.activations).toEqual([]);
@@ -430,7 +427,6 @@ describe("definition replacement", () => {
     scanner.setOptions({
       style: stepScan({ repeat: { delayMs: 100, intervalMs: 50 } }),
       switches: { next: { action: "previous" } },
-      clock,
     });
     clock.advanceBy(500);
     expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
@@ -450,7 +446,6 @@ describe("definition replacement", () => {
     scanner.setOptions({
       style: stepScan(),
       switches: { primary: { ...definition, hold: { ...definition.hold } } },
-      clock,
     });
     clock.advanceBy(100);
     expect(fixture.activations).toEqual(["yes"]);

@@ -8,7 +8,7 @@ import {
   stepScan,
 } from "./styles.ts";
 import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
-import type { ScannerOptions } from "./types.ts";
+import type { ScannerBehaviorOptions, ScannerOptions } from "./types.ts";
 
 const TARGET = { kind: "target" as const, id: "x", label: "X" };
 
@@ -145,6 +145,18 @@ describe("option and lifecycle edges", () => {
     expect(scanner.getSnapshot().status).toBe("idle");
   });
 
+  it("rejects creation-only timing infrastructure in behavior updates", () => {
+    const clock = manualClock();
+    const scanner = createScanner({ style: stepScan(), clock });
+    expect(() =>
+      scanner.setOptions({
+        style: autoScan({ intervalMs: 10, loops: 1 }),
+        clock,
+      } as unknown as ScannerBehaviorOptions),
+    ).toThrow(/creation-only/);
+    expect(scanner.getSnapshot().status).toBe("idle");
+  });
+
   it("disables active scanning but leaves idle disable silent", () => {
     const clock = manualClock();
     const scanner = createScanner({
@@ -157,14 +169,13 @@ describe("option and lifecycle edges", () => {
     scanner.setOptions({
       style: autoScan({ intervalMs: 10, loops: 2 }),
       enabled: false,
-      clock,
     });
     expect(scanner.getSnapshot().status).toBe("idle");
     expect(clock.pending).toBe(0);
     expect(events.ofType("scan.stopped").at(-1)?.reason).toBe("disabled");
 
     events.clear();
-    scanner.setOptions({ style: stepScan(), enabled: false, clock });
+    scanner.setOptions({ style: stepScan(), enabled: false });
     expect(events.events).toEqual([]);
   });
 
@@ -177,7 +188,7 @@ describe("option and lifecycle edges", () => {
     });
     createScannerFixture(scanner, [TARGET]);
     scanner.start();
-    scanner.setOptions({ style: stepScan(), clock });
+    scanner.setOptions({ style: stepScan() });
     expect(scanner.getSnapshot()).toMatchObject({
       status: "scanning",
       position: { index: 0, count: 1 },
@@ -187,7 +198,6 @@ describe("option and lifecycle edges", () => {
     scanner.pause();
     scanner.setOptions({
       style: singleSwitchStepScan({ dwellTimeMs: 20 }),
-      clock,
     });
     expect(scanner.getSnapshot().status).toBe("paused");
     scanner.resume();
@@ -196,13 +206,11 @@ describe("option and lifecycle edges", () => {
     scanner.setOptions({
       style: stepScan(),
       selectionDelay: { durationMs: 50 },
-      clock,
     });
     scanner.select();
     expect(scanner.getSnapshot().status).toBe("transitioning");
     scanner.setOptions({
       style: inverseScan({ intervalMs: 20, loops: 2 }),
-      clock,
     });
     expect(scanner.getSnapshot().status).toBe("scanning");
   });
