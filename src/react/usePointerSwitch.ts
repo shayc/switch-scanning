@@ -57,11 +57,7 @@ export function usePointerSwitch(
       };
 
       const onPointerDown = (event: PointerEvent): void => {
-        if (
-          !optionsRef.current.enabled &&
-          optionsRef.current.enabled !== undefined
-        )
-          return;
+        if (optionsRef.current.enabled === false) return;
         if (!accepts(event) || activePointers.current.has(event.pointerId))
           return;
         event.preventDefault();
