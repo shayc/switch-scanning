@@ -15,7 +15,7 @@ import { resolveInfrastructure } from "./scannerInfrastructure.ts";
 import { highlightEquals, ScanSession, type SessionEffect } from "./session.ts";
 import { createScannerStore } from "./scannerStore.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
-import { type DiscreteAction } from "./switches.ts";
+import type { DiscreteAction } from "./switches.ts";
 import {
   compileTree,
   DuplicateScanNodeIdError,
@@ -56,6 +56,11 @@ const EMPTY_ROOT: ScanGroupNode = {
   label: "root",
   children: [],
 };
+
+/** Landing policies passed to `applySessionEffects`. */
+const PRESENT = { present: true, armDwell: false };
+const SILENT = { present: false, armDwell: false };
+const PRESENT_ARMED = { present: true, armDwell: true };
 
 /** Create the runtime coordinator for traversal, timing, input, and host effects. */
 export function createScanner(rawOptions: ScannerOptions): Scanner {
@@ -192,10 +197,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function applySessionEffects(
     effects: readonly SessionEffect[],
-    policy: { present: boolean; armDwell: boolean } = {
-      present: true,
-      armDwell: false,
-    },
+    policy: { present: boolean; armDwell: boolean } = PRESENT,
   ): void {
     for (const effect of effects) {
       switch (effect.type) {
@@ -244,10 +246,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function onAdvanceTick(): void {
     if (status !== "scanning") return;
-    applySessionEffects(session.stepForward(resolveLoopLimit()), {
-      present: true,
-      armDwell: false,
-    });
+    applySessionEffects(session.stepForward(resolveLoopLimit()), PRESENT);
   }
 
   function onDwellExpire(): void {
@@ -263,10 +262,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (selection.kind === "target") {
       activateTarget(selection.id);
     } else {
-      applySessionEffects(selection.effects, {
-        present: false,
-        armDwell: false,
-      });
+      applySessionEffects(selection.effects, SILENT);
     }
 
     if (status === "scanning") beginSelectionTransition();
@@ -317,16 +313,10 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function applyAfterActivation(): void {
     switch (options.afterActivation) {
       case "restart":
-        applySessionEffects(session.resetToRoot(), {
-          present: false,
-          armDwell: false,
-        });
+        applySessionEffects(session.resetToRoot(), SILENT);
         break;
       case "continue":
-        applySessionEffects(session.stepForward(resolveLoopLimit()), {
-          present: false,
-          armDwell: false,
-        });
+        applySessionEffects(session.stepForward(resolveLoopLimit()), SILENT);
         break;
       case "repeat":
         break;
@@ -337,11 +327,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function stopAfterActivation(): void {
-    dropTransition();
-    styleRuntime.halt();
-    gestures.reset();
-    session.clear();
-    setPresentation(null);
+    teardown();
     status = "idle";
     emit({ type: "scan.stopped", reason: "after-activation" });
   }
@@ -411,6 +397,15 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     transition = null;
   }
 
+  /** Tear down all live scanning machinery; callers set the resulting status. */
+  function teardown(): void {
+    dropTransition();
+    styleRuntime.halt();
+    gestures.reset();
+    session.clear();
+    setPresentation(null);
+  }
+
   function onRawPressStarted(context: GestureContext): void {
     const active = transition;
     if (
@@ -456,21 +451,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function completeScan(reason: "loops" | "empty"): void {
-    dropTransition();
-    styleRuntime.halt();
-    gestures.reset();
-    session.clear();
-    setPresentation(null);
+    teardown();
     status = "complete";
     emit({ type: "scan.completed", reason });
   }
 
-  function internalStop(reason: "command" | "disabled"): void {
-    dropTransition();
-    styleRuntime.halt();
-    gestures.reset();
-    session.clear();
-    setPresentation(null);
+  function stopInternal(reason: "command" | "disabled"): void {
+    teardown();
     status = "idle";
     emit({ type: "scan.stopped", reason });
   }
@@ -530,17 +517,14 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
     switch (action) {
       case "next":
-        applySessionEffects(session.stepForward(resolveLoopLimit()), {
-          present: true,
-          armDwell: true,
-        });
+        applySessionEffects(
+          session.stepForward(resolveLoopLimit()),
+          PRESENT_ARMED,
+        );
         styleRuntime.maybeStartRepeat(heldPress, context.sourceKey);
         break;
       case "previous":
-        applySessionEffects(session.stepBackward(), {
-          present: true,
-          armDwell: true,
-        });
+        applySessionEffects(session.stepBackward(), PRESENT_ARMED);
         break;
       case "select":
         selectCurrent();
@@ -577,8 +561,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function onScanCancel(context: GestureContext): void {
-    const phase = styleRuntime.scanCancel(context.sourceKey);
-    if (phase === "missing") return;
+    // Cancelling only unwinds the style runtime's press bookkeeping; the
+    // logical cursor stays put, so there is no scanner-side follow-up.
+    styleRuntime.scanCancel(context.sourceKey);
   }
 
   function requireScanning(command: string): boolean {
@@ -597,7 +582,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
     styleRuntime.cancelDeadline();
-    applySessionEffects(effects, { present: true, armDwell: false });
+    applySessionEffects(effects, PRESENT);
   }
 
   function reconcile(): void {
@@ -672,31 +657,24 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }),
     stop: serialized(() => {
       if (disposed || status === "idle") return;
-      internalStop("command");
+      stopInternal("command");
     }),
     restart: serialized(() => {
       if (disposed) return;
-      dropTransition();
-      styleRuntime.halt();
-      gestures.reset();
-      session.clear();
-      setPresentation(null);
+      teardown();
       status = "idle";
       startScan(false);
     }),
     next: serialized(() => {
       if (disposed || !requireScanning("next")) return;
-      applySessionEffects(session.stepForward(resolveLoopLimit()), {
-        present: true,
-        armDwell: true,
-      });
+      applySessionEffects(
+        session.stepForward(resolveLoopLimit()),
+        PRESENT_ARMED,
+      );
     }),
     previous: serialized(() => {
       if (disposed || !requireScanning("previous")) return;
-      applySessionEffects(session.stepBackward(), {
-        present: true,
-        armDwell: true,
-      });
+      applySessionEffects(session.stepBackward(), PRESENT_ARMED);
     }),
     select: serialized(() => {
       if (disposed || !requireScanning("select")) return;
@@ -793,11 +771,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     input,
     dispose: serialized(() => {
       if (disposed) return;
-      dropTransition();
-      styleRuntime.halt();
-      gestures.reset();
-      session.clear();
-      setPresentation(null);
+      teardown();
       status = "idle";
       disposed = true;
       store.clearListeners();
@@ -829,7 +803,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         status === "transitioning" ||
         status === "paused"
       ) {
-        internalStop("disabled");
+        stopInternal("disabled");
       } else {
         gestures.reset();
       }
