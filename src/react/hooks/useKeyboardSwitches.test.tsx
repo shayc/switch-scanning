@@ -5,9 +5,9 @@ import {
   inverseScan,
   manualClock,
   stepScan,
-} from "../core/index.ts";
-import { createScannerFixture } from "../core/testing/index.ts";
-import { ScannerProvider } from "./ScannerProvider.tsx";
+} from "../../core/index.ts";
+import { createScannerFixture } from "../../core/testing/index.ts";
+import { ScannerProvider } from "../ScannerProvider.tsx";
 import { useKeyboardSwitches } from "./useKeyboardSwitches.ts";
 import { useScanner } from "./useScanner.ts";
 import { useScanTarget } from "./useScanTarget.ts";

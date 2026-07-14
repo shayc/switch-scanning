@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { GestureStartState } from "./gestures.ts";
 import { decideDiscreteInput, decideScanPress } from "./inputDecisions.ts";
-import type { ScannerStatus, StartOn } from "./types.ts";
+import type { ScannerStatus, StartOn } from "../types.ts";
 
 const START_STATES: GestureStartState[] = [
   "active",

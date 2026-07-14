@@ -1,5 +1,5 @@
 import { useCallback, useRef, type Ref, type RefCallback } from "react";
-import type { Detach } from "../core/index.ts";
+import type { Detach } from "../../core/index.ts";
 
 export function applyRef<T>(ref: Ref<T> | undefined, value: T | null): void {
   if (!ref) return;

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Scanner } from "../core/index.ts";
+import type { Scanner } from "../../core/index.ts";
 
 /** Map from `KeyboardEvent.code` to a declared logical switch ID. */
 export type KeyboardSwitchBindings = Readonly<Record<string, string>>;

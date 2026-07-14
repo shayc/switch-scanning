@@ -8,10 +8,10 @@ import {
   recordScannerEvents,
 } from "../core/testing/index.ts";
 import { ScannerProvider } from "./ScannerProvider.tsx";
-import { useScanGroup } from "./useScanGroup.ts";
-import { useScanner } from "./useScanner.ts";
-import { useScannerSnapshot } from "./useScannerSnapshot.ts";
-import { useScanTarget } from "./useScanTarget.ts";
+import { useScanGroup } from "./hooks/useScanGroup.ts";
+import { useScanner } from "./hooks/useScanner.ts";
+import { useScannerSnapshot } from "./hooks/useScannerSnapshot.ts";
+import { useScanTarget } from "./hooks/useScanTarget.ts";
 
 afterEach(cleanup);
 

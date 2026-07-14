@@ -5,8 +5,11 @@ import {
   type GestureEngine,
   type GestureSink,
   type GestureStartState,
-} from "./gestures.ts";
-import { decideDiscreteInput, decideScanPress } from "./inputDecisions.ts";
+} from "./input/gestures.ts";
+import {
+  decideDiscreteInput,
+  decideScanPress,
+} from "./input/inputDecisions.ts";
 import {
   normalizeOptions,
   type NormalizedOptions,
@@ -15,7 +18,7 @@ import { resolveInfrastructure } from "./scannerInfrastructure.ts";
 import { highlightEquals, ScanSession, type SessionEffect } from "./session.ts";
 import { createScannerStore } from "./scannerStore.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
-import type { DiscreteAction } from "./switches.ts";
+import type { DiscreteAction } from "./input/switches.ts";
 import {
   compileTree,
   DuplicateScanNodeIdError,

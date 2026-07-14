@@ -1,7 +1,7 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { createScanner, stepScan } from "../core/index.ts";
-import { createScannerFixture } from "../core/testing/index.ts";
+import { createScanner, stepScan } from "../../core/index.ts";
+import { createScannerFixture } from "../../core/testing/index.ts";
 import { usePointerSwitch } from "./usePointerSwitch.ts";
 
 afterEach(cleanup);

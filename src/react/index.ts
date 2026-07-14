@@ -6,35 +6,35 @@ export {
   ScannerProvider,
   type ScannerProviderProps,
 } from "./ScannerProvider.tsx";
-export { useScanner } from "./useScanner.ts";
+export { useScanner } from "./hooks/useScanner.ts";
 export {
   useScanTarget,
   type UseScanTargetOptions,
   type ScanTargetBinding,
-} from "./useScanTarget.ts";
+} from "./hooks/useScanTarget.ts";
 export {
   useScanGroup,
   type UseScanGroupOptions,
   type ScanGroupBinding,
-} from "./useScanGroup.ts";
+} from "./hooks/useScanGroup.ts";
 export {
   useKeyboardSwitches,
   type KeyboardSwitchBindings,
   type KeyboardSwitchesOptions,
-} from "./useKeyboardSwitches.ts";
+} from "./hooks/useKeyboardSwitches.ts";
 export {
   usePointerSwitch,
   type UsePointerSwitchOptions,
   type PointerSwitchBinding,
-} from "./usePointerSwitch.ts";
+} from "./hooks/usePointerSwitch.ts";
 export {
   useScannerSnapshot,
   type SnapshotSelector,
   type SnapshotEquality,
-} from "./useScannerSnapshot.ts";
+} from "./hooks/useScannerSnapshot.ts";
 export {
   useScannerEvents,
   type ScannerEventListener,
-} from "./useScannerEvents.ts";
+} from "./hooks/useScannerEvents.ts";
 export type { ScanTargetOptions, ScanGroupOptions } from "./registry.ts";
 export { ScanRegistry } from "./registry.ts";

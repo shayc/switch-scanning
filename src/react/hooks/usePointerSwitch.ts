@@ -6,7 +6,7 @@ import {
   type Ref,
   type RefCallback,
 } from "react";
-import type { Scanner } from "../core/index.ts";
+import type { Scanner } from "../../core/index.ts";
 import { useRegistrationRef } from "./refs.ts";
 
 export interface UsePointerSwitchOptions {

@@ -1,6 +1,6 @@
 import { useCallback, useContext, useRef, useSyncExternalStore } from "react";
-import type { Scanner, ScannerSnapshot } from "../core/index.ts";
-import { ScannerContext } from "./context.ts";
+import type { Scanner, ScannerSnapshot } from "../../core/index.ts";
+import { ScannerContext } from "../context.ts";
 
 export type SnapshotSelector<T> = (snapshot: ScannerSnapshot) => T;
 export type SnapshotEquality<T> = (a: T, b: T) => boolean;

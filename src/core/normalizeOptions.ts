@@ -1,5 +1,8 @@
 import { assertScanStyle, type ScanStyle } from "./styles.ts";
-import { normalizeSwitches, type NormalizedSwitch } from "./switches.ts";
+import {
+  normalizeSwitches,
+  type NormalizedSwitch,
+} from "./input/switches.ts";
 import type {
   AfterActivation,
   GroupExit,

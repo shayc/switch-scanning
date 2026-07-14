@@ -1,4 +1,4 @@
-import type { CancelScheduled, Clock, Scheduler } from "./clock.ts";
+import type { CancelScheduled, Clock, Scheduler } from "../clock.ts";
 import type { DiscreteAction, NormalizedSwitch } from "./switches.ts";
 
 /**

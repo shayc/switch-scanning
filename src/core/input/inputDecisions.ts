@@ -1,6 +1,6 @@
 import type { GestureStartState } from "./gestures.ts";
 import type { DiscreteAction } from "./switches.ts";
-import type { ScannerStatus, StartOn } from "./types.ts";
+import type { ScannerStatus, StartOn } from "../types.ts";
 
 export type DiscreteInputDecision =
   "ignore" | "start" | "perform" | "toggle-pause" | "diagnose-toggle-pause";

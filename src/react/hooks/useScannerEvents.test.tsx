@@ -1,6 +1,10 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createScanner, stepScan, type ScannerEvent } from "../core/index.ts";
+import {
+  createScanner,
+  stepScan,
+  type ScannerEvent,
+} from "../../core/index.ts";
 import { useScannerEvents } from "./useScannerEvents.ts";
 
 afterEach(cleanup);

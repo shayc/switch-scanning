@@ -280,8 +280,8 @@ This is one implementation path, not a permanent feature fork.
 
 **Touch points:**
 
-- `src/react/useScanTarget.ts`
-- `src/react/useScanGroup.ts`
+- `src/react/hooks/useScanTarget.ts`
+- `src/react/hooks/useScanGroup.ts`
 - A small shared registration-ref helper if it removes real duplication.
 - `src/react/registry.test.tsx`
 - CI React-version matrix.
@@ -382,8 +382,8 @@ Fix the demo by excluding/scoping away from its settings panel.
 
 **Touch points:**
 
-- `src/react/useKeyboardSwitches.ts`
-- `src/react/useKeyboardSwitches.test.tsx`
+- `src/react/hooks/useKeyboardSwitches.ts`
+- `src/react/hooks/useKeyboardSwitches.test.tsx`
 - `demo/App.tsx` / relevant board container
 - README keyboard-ownership section
 
@@ -521,7 +521,7 @@ Every future scanner option task must include this helper in its touch points.
 - `src/core/session.ts`
 - `src/core/styleRuntime.ts`
 - `src/core/types.ts`
-- `src/react/useScanner.ts`
+- `src/react/hooks/useScanner.ts`
 - Snapshot/event consumers in demo and tests
 
 ### Phase 2 acceptance

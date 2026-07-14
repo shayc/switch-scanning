@@ -1,6 +1,6 @@
 import type { Clock, Scheduler } from "./clock.ts";
 import type { ScanStyle } from "./styles.ts";
-import type { SwitchDefinition } from "./switches.ts";
+import type { SwitchDefinition } from "./input/switches.ts";
 
 // Scan tree
 

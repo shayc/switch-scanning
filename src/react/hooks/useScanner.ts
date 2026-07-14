@@ -3,11 +3,11 @@ import {
   createScanner,
   type Scanner,
   type ScannerOptions,
-} from "../core/index.ts";
+} from "../../core/index.ts";
 import {
   scannerBehaviorSignature,
   toScannerBehaviorOptions,
-} from "../core/behaviorOptions.ts";
+} from "../../core/behaviorOptions.ts";
 
 /**
  * Lazily create a single scanner whose identity is stable for the component's

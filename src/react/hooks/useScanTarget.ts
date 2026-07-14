@@ -5,9 +5,9 @@ import {
   type Ref,
   type RefCallback,
 } from "react";
-import { useScannerContext } from "./context.ts";
+import { useScannerContext } from "../context.ts";
 import { useRegistrationRef } from "./refs.ts";
-import type { ScanTargetOptions } from "./registry.ts";
+import type { ScanTargetOptions } from "../registry.ts";
 
 export interface UseScanTargetOptions extends ScanTargetOptions {
   ref?: Ref<HTMLElement>;

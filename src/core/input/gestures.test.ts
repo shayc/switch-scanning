@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { manualClock } from "./clock.ts";
-import { createScanner } from "./scanner.ts";
-import { autoScan, inverseScan, stepScan } from "./styles.ts";
-import { createScannerFixture } from "./testing/index.ts";
-import type { ScannerOptions, ScanNode } from "./types.ts";
+import { manualClock } from "../clock.ts";
+import { createScanner } from "../scanner.ts";
+import { autoScan, inverseScan, stepScan } from "../styles.ts";
+import { createScannerFixture } from "../testing/index.ts";
+import type { ScannerOptions, ScanNode } from "../types.ts";
 
 const YES_NO: ScanNode[] = [
   { kind: "target", id: "yes", label: "Yes" },

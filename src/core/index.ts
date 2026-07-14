@@ -29,7 +29,7 @@ export type {
   DiscreteAction,
   ScanAction,
   SwitchAction,
-} from "./switches.ts";
+} from "./input/switches.ts";
 
 export type {
   Clock,
