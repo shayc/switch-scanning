@@ -81,11 +81,13 @@ it as a normal release. Omit `sourceId` to disconnect every active source.
 - `useScanTarget` and `useScanGroup` decorate existing elements without
   wrappers. Use explicit `groupId`/`parentId` for portals and `sequence` when
   DOM order is not scan order. Unknown explicit parents stay at the root and
-  produce a development diagnostic.
-- `useKeyboardSwitches` captures a dedicated switch keyboard by default. Use
-  `target` or `shouldHandle` for mixed-input applications. An undefined target
-  defaults to the global document; `target: null` attaches no listeners, which
-  is useful while a target ref is unavailable.
+  produce a development diagnostic. `__root__` is reserved for the registry's
+  synthetic root and cannot be used as a target or group ID.
+- `useKeyboardSwitches` captures a dedicated switch keyboard by default.
+  Accepted mapped keys are prevented and stopped during capture. Use `target`
+  or `shouldHandle` for mixed-input applications. An undefined target defaults
+  to the global document; `target: null` attaches no listeners, which is useful
+  while a target ref is unavailable.
 - `usePointerSwitch` turns one dedicated element into a coalesced pointer
   source. Apply `touch-action: none`; direct touch on that surface is
   intentionally unavailable.

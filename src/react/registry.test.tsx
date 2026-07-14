@@ -92,6 +92,24 @@ describe("registry ownership", () => {
     });
   });
 
+  it("rejects the synthetic registry root ID for user nodes", () => {
+    const registry = new ScanRegistry();
+    expect(() =>
+      registry.mountTarget(
+        "__root__",
+        () => ({ id: "__root__", label: "Target" }),
+        document.createElement("button"),
+      ),
+    ).toThrow('scan node id "__root__" is reserved for the registry root');
+    expect(() =>
+      registry.mountGroup(
+        "__root__",
+        () => ({ id: "__root__", label: "Group" }),
+        document.createElement("div"),
+      ),
+    ).toThrow('scan node id "__root__" is reserved for the registry root');
+  });
+
   it("rejects IDs shared by a target and group", () => {
     const registry = new ScanRegistry();
     const element = document.createElement("div");

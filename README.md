@@ -121,9 +121,10 @@ useKeyboardSwitches(scanner, { Space: "next", Enter: "select" });
 ```
 
 Many commercial USB/Bluetooth switch interfaces appear to the browser as a
-keyboard. Dedicated switch keyboards should use the default document capture,
-which prevents Space/Enter from also activating a focused control. Mixed-input
-applications should scope ownership explicitly:
+keyboard. Dedicated switch keyboards should use the default document capture.
+Accepted mapped keys are prevented and stopped during capture so they cannot
+also reach a focused control. Mixed-input applications should scope ownership
+explicitly:
 
 ```tsx
 useKeyboardSwitches(
@@ -137,6 +138,9 @@ useKeyboardSwitches(
 
 The decision is remembered from keydown through keyup, so option changes
 cannot strand an accepted gesture.
+
+The React registry reserves `__root__` for its synthetic root; target and group
+IDs must use another value.
 
 ### One switch: tap to advance, hold to select
 

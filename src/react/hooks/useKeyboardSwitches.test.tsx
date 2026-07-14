@@ -156,6 +156,49 @@ describe("keyboard switches", () => {
     expect(scanner.getSnapshot().status).toBe("idle");
   });
 
+  it("owns accepted keys before descendant keyboard handlers", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "switch",
+      switches: { next: { action: "next" } },
+    });
+    const descendantEvents: string[] = [];
+
+    function KeyApp() {
+      useKeyboardSwitches(scanner, { Space: "next" });
+      return (
+        <button
+          onKeyDown={() => descendantEvents.push("down")}
+          onKeyUp={() => descendantEvents.push("up")}
+        >
+          Direct control
+        </button>
+      );
+    }
+
+    const view = render(<KeyApp />);
+    const button = view.getByRole("button", { name: "Direct control" });
+    const down = new KeyboardEvent("keydown", {
+      code: "Space",
+      bubbles: true,
+      cancelable: true,
+    });
+    const up = new KeyboardEvent("keyup", {
+      code: "Space",
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      button.dispatchEvent(down);
+      button.dispatchEvent(up);
+    });
+
+    expect(down.defaultPrevented).toBe(true);
+    expect(up.defaultPrevented).toBe(true);
+    expect(descendantEvents).toEqual([]);
+    expect(scanner.getSnapshot().status).toBe("complete");
+  });
+
   it("honors an explicit target across rejected, disabled, and repeated keys", () => {
     const scanner = createScanner({
       style: stepScan(),

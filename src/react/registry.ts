@@ -7,6 +7,7 @@ import {
 import {
   compileRegistryTree,
   isElementDisabled,
+  SYNTHETIC_ROOT_ID,
   type RegistryGroupEntry,
   type RegistryTargetEntry,
 } from "./registryTree.ts";
@@ -15,6 +16,7 @@ const noop = (): void => undefined;
 
 /** Registration options for a scan target. */
 export interface ScanTargetOptions {
+  /** Unique node ID. `__root__` is reserved by the React registry. */
   id: string;
   label: string;
   groupId?: string;
@@ -25,6 +27,7 @@ export interface ScanTargetOptions {
 
 /** Registration options for a scan group. */
 export interface ScanGroupOptions {
+  /** Unique node ID. `__root__` is reserved by the React registry. */
   id: string;
   label: string;
   parentId?: string;
@@ -86,6 +89,10 @@ export class ScanRegistry {
     getOptions: () => ScanTargetOptions,
     element: HTMLElement | null,
   ): Detach {
+    if (id === SYNTHETIC_ROOT_ID) {
+      this.reportReservedId(id);
+      return noop;
+    }
     if (this.groups.has(id)) {
       this.reportDuplicate("node", id);
       return noop;
@@ -156,6 +163,10 @@ export class ScanRegistry {
     getOptions: () => ScanGroupOptions,
     element: HTMLElement | null,
   ): Detach {
+    if (id === SYNTHETIC_ROOT_ID) {
+      this.reportReservedId(id);
+      return noop;
+    }
     if (this.targets.has(id)) {
       this.reportDuplicate("node", id);
       return noop;
@@ -221,6 +232,13 @@ export class ScanRegistry {
     if (isDevelopment())
       throw new Error(formatDiagnostic("duplicate-id", message));
     this.warn("duplicate-id", `${message}; keeping the first registration`);
+  }
+
+  private reportReservedId(id: string): void {
+    const message = `scan node id "${id}" is reserved for the registry root`;
+    if (isDevelopment())
+      throw new Error(formatDiagnostic("reserved-id", message));
+    this.warn("reserved-id", `${message}; registration ignored`);
   }
 
   private reportParentCycle(cycle: readonly string[]): void {

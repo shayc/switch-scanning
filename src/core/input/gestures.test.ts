@@ -240,6 +240,29 @@ describe("ignore repeat", () => {
     scanner.input.release("primary");
     expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
   });
+
+  it("preserves suppression when a pause cancels the accepted contact", () => {
+    const { clock, scanner } = build({
+      style: stepScan(),
+      startOn: "command",
+      switches: {
+        pause: { action: "togglePause", ignoreRepeatMs: 200 },
+      },
+    });
+    scanner.start();
+
+    scanner.input.press("pause", "key");
+    expect(scanner.getSnapshot().status).toBe("paused");
+    scanner.input.release("pause", "key");
+
+    scanner.input.press("pause", "key");
+    scanner.input.release("pause", "key");
+    expect(scanner.getSnapshot().status).toBe("paused");
+
+    clock.advanceBy(200);
+    scanner.input.press("pause", "key");
+    expect(scanner.getSnapshot().status).toBe("scanning");
+  });
 });
 
 describe("move repeat", () => {

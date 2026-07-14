@@ -485,7 +485,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (status === "transitioning") clearTransitionSchedule();
     else styleRuntime.cancelDeadline();
     status = "paused";
-    gestures.reset();
+    // Forget held contacts so resume requires a fresh gesture, but retain each
+    // accepted switch's fixed ignore-repeat window across the lifecycle edge.
+    gestures.cancelActive();
     emit({ type: "scan.paused" });
   }
 

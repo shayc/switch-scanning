@@ -16,9 +16,10 @@ export interface KeyboardSwitchesOptions {
 
 /**
  * Operate declared logical switches from the keyboard. Uses `KeyboardEvent.code`,
- * ignores browser auto-repeat, and lets the deterministic scheduler implement
- * move repeat. Blur, visibility loss, and unmount disconnect their stable source
- * IDs so a lost key-up cannot leave a switch stuck down.
+ * owns accepted events during capture, ignores browser auto-repeat, and lets the
+ * deterministic scheduler implement move repeat. Blur, visibility loss, and
+ * unmount disconnect their stable source IDs so a lost key-up cannot leave a
+ * switch stuck down.
  */
 export function useKeyboardSwitches(
   scanner: Scanner,
@@ -59,7 +60,7 @@ export function useKeyboardSwitches(
       if (switchId === undefined) return;
       const existing = held.get(event.code);
       if (existing) {
-        if (existing.accepted) event.preventDefault();
+        if (existing.accepted) own(event);
         return;
       }
       if (!enabledRef.current || event.repeat) return;
@@ -70,7 +71,7 @@ export function useKeyboardSwitches(
         return;
       }
 
-      event.preventDefault();
+      own(event);
       held.set(event.code, { accepted: true, switchId });
       scanner.input.press(switchId, sourceId(event.code));
     };
@@ -80,7 +81,7 @@ export function useKeyboardSwitches(
       if (!decision) return;
       held.delete(event.code);
       if (!decision.accepted) return;
-      event.preventDefault();
+      own(event);
       scanner.input.release(decision.switchId, sourceId(event.code));
     };
 
@@ -98,18 +99,22 @@ export function useKeyboardSwitches(
       }
     };
 
-    target.addEventListener("keydown", onKeyDown as EventListener);
-    target.addEventListener("keyup", onKeyUp as EventListener);
+    target.addEventListener("keydown", onKeyDown as EventListener, true);
+    target.addEventListener("keyup", onKeyUp as EventListener, true);
     if (target !== ownerDocument)
-      ownerDocument.addEventListener("keyup", onKeyUp as EventListener);
+      ownerDocument.addEventListener("keyup", onKeyUp as EventListener, true);
     ownerWindow?.addEventListener("blur", disconnectAll);
     ownerDocument.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      target.removeEventListener("keydown", onKeyDown as EventListener);
-      target.removeEventListener("keyup", onKeyUp as EventListener);
+      target.removeEventListener("keydown", onKeyDown as EventListener, true);
+      target.removeEventListener("keyup", onKeyUp as EventListener, true);
       if (target !== ownerDocument)
-        ownerDocument.removeEventListener("keyup", onKeyUp as EventListener);
+        ownerDocument.removeEventListener(
+          "keyup",
+          onKeyUp as EventListener,
+          true,
+        );
       ownerWindow?.removeEventListener("blur", disconnectAll);
       ownerDocument.removeEventListener("visibilitychange", onVisibility);
       if (disconnectAllRef.current === disconnectAll) {
@@ -122,4 +127,9 @@ export function useKeyboardSwitches(
   useEffect(() => {
     if (options.enabled === false) disconnectAllRef.current?.();
   }, [options.enabled]);
+}
+
+function own(event: KeyboardEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
 }

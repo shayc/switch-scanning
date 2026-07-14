@@ -20,7 +20,7 @@ interface RegistryTreeDiagnostics {
 }
 
 const ROOT_PARENT = Symbol("scan-registry-root");
-const SYNTHETIC_ROOT_ID = "__root__";
+export const SYNTHETIC_ROOT_ID = "__root__";
 type ParentId = string | typeof ROOT_PARENT;
 
 /** Compile live DOM registrations into the framework-agnostic scan tree. */

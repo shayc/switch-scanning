@@ -57,6 +57,8 @@ export interface GestureEngine {
   disconnect(sourceId: string | undefined): void;
   /** Replace the switch map; cancels gestures whose definition changed. */
   setSwitches(switches: Map<string, NormalizedSwitch>): void;
+  /** Cancel held sources while preserving fixed repeat-suppression windows. */
+  cancelActive(): void;
   /** Cancel all pending gestures and forget all sources. */
   reset(): void;
 }
@@ -267,7 +269,7 @@ export function createGestureEngine(deps: {
     switches = next;
   }
 
-  function reset(): void {
+  function cancelActive(): void {
     for (const state of sources.values()) {
       clearDeadline(state);
       if (state.scanAccepted) {
@@ -277,10 +279,14 @@ export function createGestureEngine(deps: {
       }
     }
     sources.clear();
+  }
+
+  function reset(): void {
+    cancelActive();
     blockedUntil.clear();
   }
 
-  return { press, release, disconnect, setSwitches, reset };
+  return { press, release, disconnect, setSwitches, cancelActive, reset };
 }
 
 function contextOf(state: SourceState): GestureContext {
