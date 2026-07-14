@@ -16,8 +16,7 @@ import {
   type Scanner,
   type ScannerEvent,
 } from "@shayc/switch-scanning/react";
-import { useEffect, useRef, useState } from "react";
-import type { ScanStyleKind } from "./App.tsx";
+import { useRef, useState } from "react";
 import classes from "./EventLog.module.css";
 
 interface LoggedEvent {
@@ -29,70 +28,14 @@ interface LoggedEvent {
 const MAX_EVENTS = 50;
 
 /**
- * The documented "events → feedback" pattern: a single listener drives both the
- * on-screen log and (optionally) speech. Feedback observes; it never commands.
+ * The documented "events → feedback" pattern: one listener observes scanner
+ * events and renders an on-screen log. Feedback observes; it never commands.
  */
-export function EventLog({
-  scanner,
-  speech,
-  styleKind,
-}: {
-  scanner: Scanner;
-  speech: boolean;
-  styleKind: ScanStyleKind;
-}) {
+export function EventLog({ scanner }: { scanner: Scanner }) {
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const [view, setView] = useState<"events" | "state">("events");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const nextId = useRef(0);
-  const generation = useRef(0);
-  const promptPaused = useRef(false);
-  const messageActive = useRef(false);
-  const queuedPrompt = useRef<string | null>(null);
-
-  const finishPrompt = (token: number): void => {
-    if (generation.current !== token || !promptPaused.current) return;
-    promptPaused.current = false;
-    if (scanner.getSnapshot().status === "paused") scanner.resume();
-  };
-
-  const speakPrompt = (label: string): void => {
-    const synth = window.speechSynthesis;
-    const token = ++generation.current;
-    synth.cancel();
-    // Dwell tokens survive a prompt pause. Inverse scanning is excluded because
-    // its selection still depends on the eventual release of a held gesture.
-    if (
-      styleKind !== "inverse" &&
-      scanner.getSnapshot().status === "scanning"
-    ) {
-      scanner.pause();
-      promptPaused.current = true;
-    }
-    const cue = new SpeechSynthesisUtterance(label);
-    cue.voice = synth.getVoices()[0] ?? null;
-    cue.onend = () => finishPrompt(token);
-    cue.onerror = () => finishPrompt(token);
-    synth.speak(cue);
-  };
-
-  const speakMessage = (label: string): void => {
-    const synth = window.speechSynthesis;
-    generation.current++;
-    synth.cancel();
-    messageActive.current = true;
-    const cue = new SpeechSynthesisUtterance(label);
-    cue.voice = synth.getVoices().at(-1) ?? null;
-    const settle = () => {
-      messageActive.current = false;
-      const prompt = queuedPrompt.current;
-      queuedPrompt.current = null;
-      if (prompt) speakPrompt(prompt);
-    };
-    cue.onend = settle;
-    cue.onerror = settle;
-    synth.speak(cue);
-  };
 
   useScannerEvents((event) => {
     const entry: LoggedEvent = {
@@ -102,51 +45,7 @@ export function EventLog({
     };
     // Newest-first, capped so the log cannot grow without bound.
     setEvents((prev) => [entry, ...prev].slice(0, MAX_EVENTS));
-    if (!speech || typeof SpeechSynthesisUtterance === "undefined") return;
-    if (event.type === "target.activated") {
-      speakMessage(event.label);
-    } else if (event.type === "highlight.changed") {
-      if (event.current === null) {
-        queuedPrompt.current = null;
-        if (promptPaused.current) {
-          generation.current++;
-          window.speechSynthesis.cancel();
-          promptPaused.current = false;
-        }
-      } else if (messageActive.current) {
-        if (
-          styleKind !== "inverse" &&
-          scanner.getSnapshot().status === "scanning"
-        ) {
-          scanner.pause();
-          promptPaused.current = true;
-        }
-        queuedPrompt.current = event.label;
-      } else {
-        speakPrompt(event.label);
-      }
-    }
   });
-
-  useEffect(() => {
-    if (speech) return;
-    generation.current++;
-    queuedPrompt.current = null;
-    messageActive.current = false;
-    window.speechSynthesis?.cancel();
-    if (promptPaused.current) {
-      promptPaused.current = false;
-      if (scanner.getSnapshot().status === "paused") scanner.resume();
-    }
-  }, [scanner, speech]);
-
-  useEffect(
-    () => () => {
-      generation.current++;
-      window.speechSynthesis?.cancel();
-    },
-    [],
-  );
 
   return (
     <Paper

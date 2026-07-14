@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { Button, Group, Paper, SimpleGrid, Stack } from "@mantine/core";
 import { useScanGroup, useScanTarget } from "@shayc/switch-scanning/react";
-import { Button, Paper, SimpleGrid, Stack, Text } from "@mantine/core";
+import { useState } from "react";
 import classes from "./PhraseBoard.module.css";
 
 interface Phrase {
@@ -44,18 +44,21 @@ const ROWS: Row[] = [
   },
 ];
 
-/** The one phrase whose eligibility the demo lets you toggle at runtime. */
-const TOGGLEABLE_ID = "thank-you";
-
 /**
  * A grid of phrase keys. Each row is a scan group (row–column scanning) and each
  * phrase is a scan target whose native `onClick` writes to the message bar.
  */
-export function PhraseBoard({ thanksDisabled }: { thanksDisabled: boolean }) {
+export function PhraseBoard() {
   const [message, setMessage] = useState<string[]>([]);
 
   const append = (text: string) => setMessage((prev) => [...prev, text]);
   const clear = () => setMessage([]);
+  const backspace = () => setMessage((prev) => prev.slice(0, -1));
+
+  // With nothing selected, Clear and Backspace have nothing to do. Disabling
+  // them keeps both channels aligned — the control can't be clicked and the
+  // scanner skips them — which also demonstrates a live-updating disabled target.
+  const empty = message.length === 0;
 
   return (
     <Paper
@@ -64,47 +67,35 @@ export function PhraseBoard({ thanksDisabled }: { thanksDisabled: boolean }) {
       p={{ base: "sm", sm: "lg" }}
       aria-label="Phrase board content"
     >
-      <Paper
-        component="output"
-        className={classes.messageBar}
-        withBorder
-        p="md"
-        aria-label="Selected phrases"
-      >
-        {message.length === 0 ? (
-          <Text component="span" c="dimmed">
-            Selected phrases appear here…
-          </Text>
-        ) : (
-          message.join(" ")
-        )}
-      </Paper>
+      <Group gap="sm" align="stretch" wrap="nowrap">
+        <Paper
+          component="output"
+          className={classes.messageBar}
+          withBorder
+          p="md"
+          aria-label="Selected phrases"
+        >
+          {message.join(" ")}
+        </Paper>
+
+        <ClearKey onClear={clear} disabled={empty} />
+        <BackspaceKey onBackspace={backspace} disabled={empty} />
+      </Group>
 
       <Stack gap="sm" mt="md">
         {ROWS.map((row) => (
-          <RowGroup
-            key={row.id}
-            row={row}
-            disabledIds={thanksDisabled ? THANKS_DISABLED : NONE_DISABLED}
-            onSelect={append}
-          />
+          <RowGroup key={row.id} row={row} onSelect={append} />
         ))}
-        <ClearKey onClear={clear} />
       </Stack>
     </Paper>
   );
 }
 
-const NONE_DISABLED: ReadonlySet<string> = new Set();
-const THANKS_DISABLED: ReadonlySet<string> = new Set([TOGGLEABLE_ID]);
-
 function RowGroup({
   row,
-  disabledIds,
   onSelect,
 }: {
   row: Row;
-  disabledIds: ReadonlySet<string>;
   onSelect: (text: string) => void;
 }) {
   const group = useScanGroup({
@@ -112,15 +103,11 @@ function RowGroup({
     label: row.label,
     exitLabel: "Back to rows",
   });
+
   return (
     <SimpleGrid {...group.props} cols={3} spacing="sm">
       {row.phrases.map((phrase) => (
-        <PhraseKey
-          key={phrase.id}
-          phrase={phrase}
-          disabled={disabledIds.has(phrase.id)}
-          onSelect={onSelect}
-        />
+        <PhraseKey key={phrase.id} phrase={phrase} onSelect={onSelect} />
       ))}
     </SimpleGrid>
   );
@@ -128,16 +115,12 @@ function RowGroup({
 
 function PhraseKey({
   phrase,
-  disabled,
   onSelect,
 }: {
   phrase: Phrase;
-  disabled: boolean;
   onSelect: (text: string) => void;
 }) {
-  // The same `disabled` value flows to the hook (scan-tree eligibility) and to
-  // the control (native activation), keeping the two channels aligned.
-  const target = useScanTarget({ id: phrase.id, label: phrase.text, disabled });
+  const target = useScanTarget({ id: phrase.id, label: phrase.text });
   return (
     <Button
       {...target.props}
@@ -145,7 +128,6 @@ function PhraseKey({
       classNames={{ label: classes.keyLabel }}
       variant="default"
       fullWidth
-      disabled={disabled}
       onClick={() => onSelect(phrase.text)}
     >
       {phrase.text}
@@ -153,18 +135,46 @@ function PhraseKey({
   );
 }
 
-function ClearKey({ onClear }: { onClear: () => void }) {
-  const target = useScanTarget({ id: "clear", label: "Clear" });
+function ClearKey({
+  onClear,
+  disabled,
+}: {
+  onClear: () => void;
+  disabled: boolean;
+}) {
+  // The same `disabled` flows to the hook (scan-tree eligibility) and to the
+  // control (native activation), so the scanner skips exactly what can't be used.
+  const target = useScanTarget({ id: "clear", label: "Clear", disabled });
   return (
     <Button
       {...target.props}
-      className={`${classes.key} ${classes.keyClear}`}
-      classNames={{ label: classes.keyLabel }}
+      className={classes.keyClear}
       variant="default"
-      fullWidth
+      disabled={disabled}
       onClick={onClear}
     >
       Clear
+    </Button>
+  );
+}
+
+function BackspaceKey({
+  onBackspace,
+  disabled,
+}: {
+  onBackspace: () => void;
+  disabled: boolean;
+}) {
+  const target = useScanTarget({ id: "backspace", label: "Backspace", disabled });
+  return (
+    <Button
+      {...target.props}
+      className={classes.keyClear}
+      variant="default"
+      disabled={disabled}
+      onClick={onBackspace}
+    >
+      Backspace
     </Button>
   );
 }

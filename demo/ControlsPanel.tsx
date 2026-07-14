@@ -21,14 +21,10 @@ interface ControlsPanelProps {
   onStyleKind: (kind: ScanStyleKind) => void;
   timing: Timing;
   onTiming: (patch: Partial<Timing>) => void;
-  speech: boolean;
-  onSpeech: (on: boolean) => void;
   keyboardOwnership: "mixed" | "dedicated";
   onKeyboardOwnership: (value: "mixed" | "dedicated") => void;
   pointerSwitch: boolean;
   onPointerSwitch: (on: boolean) => void;
-  thanksDisabled: boolean;
-  onThanksDisabled: (on: boolean) => void;
 }
 
 /**
@@ -41,14 +37,10 @@ export function ControlsPanel({
   onStyleKind,
   timing,
   onTiming,
-  speech,
-  onSpeech,
   keyboardOwnership,
   onKeyboardOwnership,
   pointerSwitch,
   onPointerSwitch,
-  thanksDisabled,
-  onThanksDisabled,
 }: ControlsPanelProps) {
   return (
     <Paper
@@ -184,34 +176,6 @@ export function ControlsPanel({
                     onPointerSwitch(event.currentTarget.checked)
                   }
                 />
-              </Fieldset>
-
-              <Divider />
-
-              <Fieldset variant="unstyled" legend="Feedback and test scenarios">
-                <Stack gap="sm">
-                  <Switch
-                    className={classes.fullWidthSwitch}
-                    size="sm"
-                    labelPosition="left"
-                    label="Speak highlighted items"
-                    description="Uses the browser’s current speech voice."
-                    checked={speech}
-                    onChange={(event) => onSpeech(event.currentTarget.checked)}
-                    aria-label="Speak highlighted and selected items"
-                  />
-                  <Switch
-                    className={classes.fullWidthSwitch}
-                    size="sm"
-                    labelPosition="left"
-                    label="Test a disabled target"
-                    description="Disables “Thank you” so the scanner skips it."
-                    checked={thanksDisabled}
-                    onChange={(event) =>
-                      onThanksDisabled(event.currentTarget.checked)
-                    }
-                  />
-                </Stack>
               </Fieldset>
 
               <Divider />

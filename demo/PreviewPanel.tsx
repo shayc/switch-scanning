@@ -27,14 +27,12 @@ interface PreviewPanelProps {
   scanner: Scanner;
   styleKind: ScanStyleKind;
   pointerSwitch: boolean;
-  thanksDisabled: boolean;
 }
 
 export function PreviewPanel({
   scanner,
   styleKind,
   pointerSwitch,
-  thanksDisabled,
 }: PreviewPanelProps) {
   const meta = STYLE_META[styleKind];
 
@@ -79,7 +77,7 @@ export function PreviewPanel({
       </Group>
 
       <Box className={classes.previewCanvas}>
-        <PhraseBoard thanksDisabled={thanksDisabled} />
+        <PhraseBoard />
       </Box>
 
       {pointerSwitch && (

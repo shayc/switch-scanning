@@ -5,7 +5,9 @@
 
 .messageBar {
   min-height: 3.65rem;
-  display: block;
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .key {
@@ -17,7 +19,8 @@
 }
 
 .keyClear {
-  min-height: 3rem;
+  height: auto;
+  align-self: stretch;
 }
 
 @media (max-width: 40rem) {
@@ -25,9 +28,5 @@
     min-height: 3.7rem;
     padding-inline: 0.25rem;
     font-size: var(--mantine-font-size-xs);
-  }
-
-  .keyClear {
-    min-height: 2.7rem;
   }
 }

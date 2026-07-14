@@ -125,12 +125,10 @@ function isInteractiveApplicationTarget(target: EventTarget | null): boolean {
 export function App() {
   const [styleKind, setStyleKind] = useState<ScanStyleKind>("auto");
   const [timing, setTiming] = useState<Timing>(DEFAULT_TIMING);
-  const [speech, setSpeech] = useState(false);
   const [keyboardOwnership, setKeyboardOwnership] = useState<
     "mixed" | "dedicated"
   >("mixed");
   const [pointerSwitch, setPointerSwitch] = useState(false);
-  const [thanksDisabled, setThanksDisabled] = useState(false);
 
   // Style constructors throw on invalid values; while a field is mid-edit the
   // parsed number may be out of range, so fall back to the defaults for that
@@ -193,23 +191,18 @@ export function App() {
             scanner={scanner}
             styleKind={styleKind}
             pointerSwitch={pointerSwitch}
-            thanksDisabled={thanksDisabled}
           />
-          <EventLog scanner={scanner} speech={speech} styleKind={styleKind} />
+          <EventLog scanner={scanner} />
         </div>
         <ControlsPanel
           styleKind={styleKind}
           onStyleKind={setStyleKind}
           timing={timing}
           onTiming={(patch) => setTiming((prev) => ({ ...prev, ...patch }))}
-          speech={speech}
-          onSpeech={setSpeech}
           keyboardOwnership={keyboardOwnership}
           onKeyboardOwnership={setKeyboardOwnership}
           pointerSwitch={pointerSwitch}
           onPointerSwitch={setPointerSwitch}
-          thanksDisabled={thanksDisabled}
-          onThanksDisabled={setThanksDisabled}
         />
       </main>
     </ScannerProvider>
