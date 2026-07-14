@@ -128,38 +128,63 @@ describe("registry ownership", () => {
     );
   });
 
-  it("owns group replacement, labels, and explicit unmount operations", () => {
+  it("exposes exit labels and falls back to Back for unknown groups", () => {
     const registry = new ScanRegistry();
-    const first = document.createElement("div");
-    const second = document.createElement("div");
     registry.mountGroup(
       "group",
       () => ({ id: "group", label: "Group", exitLabel: "Leave" }),
-      first,
+      document.createElement("div"),
     );
     expect(registry.exitLabelFor("group")).toBe("Leave");
     expect(registry.exitLabelFor("missing")).toBe("Back");
+  });
+
+  it("replaces a group in place and drops its element when remounted without one", () => {
+    const registry = new ScanRegistry();
+    registry.mountGroup(
+      "group",
+      () => ({ id: "group", label: "Group" }),
+      document.createElement("div"),
+    );
     registry.mountGroup(
       "group",
       () => ({ id: "group", label: "Replacement" }),
       null,
     );
     expect(registry.getGroupElement("group")).toBeNull();
-    registry.unmountGroup("group");
-    registry.unmountTarget("missing");
-    registry.touchGroup();
-    registry.touchTarget();
+  });
 
+  it("removes a group on unmount and frees its id for reuse", () => {
+    const registry = new ScanRegistry();
+    registry.mountGroup(
+      "group",
+      () => ({ id: "group", label: "Group" }),
+      document.createElement("div"),
+    );
+    registry.unmountGroup("group");
+    expect(registry.getGroupElement("group")).toBeNull();
+    // The id is free, so remounting must not throw a duplicate diagnostic.
+    expect(() =>
+      registry.mountGroup(
+        "group",
+        () => ({ id: "group", label: "Reused" }),
+        document.createElement("div"),
+      ),
+    ).not.toThrow();
+  });
+
+  it("rejects a duplicate id across groups and targets", () => {
+    const registry = new ScanRegistry();
     registry.mountGroup(
       "duplicate",
       () => ({ id: "duplicate", label: "First" }),
-      first,
+      document.createElement("div"),
     );
     expect(() =>
       registry.mountGroup(
         "duplicate",
         () => ({ id: "duplicate", label: "Second" }),
-        second,
+        document.createElement("div"),
       ),
     ).toThrow('duplicate scan group id "duplicate"');
     expect(() =>

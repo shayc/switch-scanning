@@ -22,6 +22,8 @@ const START_RULES: StartOn[] = ["switch", "mount", "command"];
 
 describe("input lifecycle decisions", () => {
   it("performs ordinary actions only for a stable active scan", () => {
+    let performed = 0;
+    let started = 0;
     for (const startedIn of START_STATES) {
       for (const status of STATUSES) {
         for (const startOn of START_RULES) {
@@ -32,12 +34,14 @@ describe("input lifecycle decisions", () => {
             startOn,
           );
           if (decision === "perform") {
+            performed++;
             expect({ startedIn, status }).toEqual({
               startedIn: "active",
               status: "scanning",
             });
           }
           if (decision === "start") {
+            started++;
             expect(startedIn).toBe("startable");
             expect(["idle", "complete"]).toContain(status);
             expect(startOn).toBe("switch");
@@ -45,20 +49,27 @@ describe("input lifecycle decisions", () => {
         }
       }
     }
+    // Guard against a regression that never reaches the positive branches.
+    expect(performed).toBeGreaterThan(0);
+    expect(started).toBeGreaterThan(0);
   });
 
   it("starts a phaseful scan only from the declared start boundary", () => {
+    let performed = 0;
+    let started = 0;
     for (const startedIn of START_STATES) {
       for (const status of STATUSES) {
         for (const startOn of START_RULES) {
           const decision = decideScanPress(startedIn, status, startOn);
           if (decision === "perform") {
+            performed++;
             expect({ startedIn, status }).toEqual({
               startedIn: "active",
               status: "scanning",
             });
           }
           if (decision === "start") {
+            started++;
             expect(startedIn).toBe("startable");
             expect(["idle", "complete"]).toContain(status);
             expect(startOn).toBe("switch");
@@ -66,6 +77,8 @@ describe("input lifecycle decisions", () => {
         }
       }
     }
+    expect(performed).toBeGreaterThan(0);
+    expect(started).toBeGreaterThan(0);
   });
 
   it("keeps pause gestures on the lifecycle boundary where they began", () => {

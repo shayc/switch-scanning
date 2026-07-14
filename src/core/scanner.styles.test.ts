@@ -27,7 +27,8 @@ function build(
 }
 
 describe("automatic scanning", () => {
-  it("advances on the interval and activates the highlighted target (guide example)", () => {
+  // Mirrors the automatic-scanning example from the guide.
+  it("advances on the interval and activates the highlighted target", () => {
     const { clock, scanner, fixture } = build(
       { style: autoScan({ intervalMs: 1000, loops: 3 }) },
       YES_NO,

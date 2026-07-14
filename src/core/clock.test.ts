@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { manualClock, systemClock } from "./clock.ts";
 
-describe("manual clock validation and ordering", () => {
+describe("clock ports", () => {
   it("falls back to Date when performance timing is unavailable", () => {
     vi.stubGlobal("performance", undefined);
     vi.spyOn(Date, "now").mockReturnValue(1234);

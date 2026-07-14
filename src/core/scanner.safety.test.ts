@@ -84,7 +84,7 @@ describe("causal dwell selection", () => {
 });
 
 describe("selection transition coordinator", () => {
-  it("publishes hidden transition state and resetting quiet timing", () => {
+  it("publishes hidden transition state and resets the quiet-timing window on input", () => {
     const clock = manualClock();
     const scanner = createScanner({
       style: autoScan({

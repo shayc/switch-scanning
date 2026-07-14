@@ -17,7 +17,7 @@ const root = {
 
 afterEach(() => vi.unstubAllEnvs());
 
-describe("0.2 stabilization contracts", () => {
+describe("tree, repeat, and diagnostic stabilization", () => {
   it("rejects a child colliding with the supplied root and keeps the previous tree", () => {
     const scanner = createScanner({ style: stepScan(), startOn: "command" });
     const events: ScannerEvent[] = [];
