@@ -1,4 +1,3 @@
-import { useId } from "react";
 import {
   Accordion,
   Alert,
@@ -16,8 +15,9 @@ import {
   Title,
 } from "@mantine/core";
 import { useScannerSnapshot, type Scanner } from "@shayc/switch-scanning";
+import { useId } from "react";
 import type { ScanStyleKind, Timing } from "./App.tsx";
-import classes from "./Demo.module.css";
+import classes from "./ControlsPanel.module.css";
 
 export interface StyleMeta {
   label: string;

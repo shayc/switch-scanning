@@ -1,0 +1,109 @@
+.previewPanel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.previewToolbar,
+.bindingStrip {
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.runtimeState {
+  min-width: 10.5rem;
+  text-align: right;
+}
+
+.bindingStrip,
+.previewCanvas {
+  background: var(--mantine-color-default);
+}
+
+.previewCanvas {
+  min-height: 28rem;
+  display: grid;
+  align-items: center;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.pointerControls {
+  padding: var(--mantine-spacing-md);
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.pointerSwitch {
+  min-height: 5.75rem;
+  touch-action: none;
+}
+
+@media (max-width: 64rem) {
+  .runtimeControls {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+  }
+}
+
+@media (min-width: 90rem) {
+  .previewPanel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 52rem) {
+  .runtimeControls {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .previewCanvas {
+    min-height: 24rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .previewToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--mantine-spacing-sm);
+  }
+
+  .runtimeControls {
+    width: 100%;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .runtimeState {
+    min-width: 0;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .previewCanvas {
+    min-height: 0;
+    padding: 1rem;
+  }
+
+  .pointerControls {
+    position: sticky;
+    z-index: 2;
+    bottom: 0;
+    padding: var(--mantine-spacing-sm);
+    background: var(--mantine-color-body);
+  }
+
+  .pointerHeading {
+    display: none;
+  }
+
+  .pointerSwitch {
+    min-height: 4.8rem;
+  }
+
+  .pointerControls ~ *,
+  :global([data-scan-target]),
+  :global([data-scan-group]) {
+    scroll-margin-block: 7rem;
+  }
+}

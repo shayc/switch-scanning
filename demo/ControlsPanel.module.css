@@ -1,0 +1,42 @@
+.controlsPanel {
+  position: sticky;
+  grid-column: 1;
+  grid-row: 1;
+  top: 1rem;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.fieldGroup {
+  min-width: 0;
+  margin: 0;
+  padding: 1rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.presetOption {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-sm);
+}
+
+.fullWidthSwitch {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.durationInput {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (max-width: 52rem) {
+  .controlsPanel {
+    position: static;
+    grid-column: 1;
+    grid-row: 2;
+    max-height: none;
+  }
+}

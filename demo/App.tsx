@@ -15,7 +15,7 @@ import { useMemo, useState } from "react";
 import { ControlsPanel } from "./ControlsPanel.tsx";
 import { EventLog } from "./EventLog.tsx";
 import { PreviewPanel } from "./PreviewPanel.tsx";
-import classes from "./Demo.module.css";
+import classes from "./App.module.css";
 
 /** The four access methods the demo can switch between at runtime. */
 export type ScanStyleKind = "auto" | "step" | "singleStep" | "inverse";

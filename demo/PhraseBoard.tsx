@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useScanGroup, useScanTarget } from "@shayc/switch-scanning";
 import { Button, Paper, SimpleGrid, Stack, Text } from "@mantine/core";
-import classes from "./Demo.module.css";
+import classes from "./PhraseBoard.module.css";
 
 interface Phrase {
   id: string;

@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import {
   Badge,
   Box,
@@ -18,8 +17,9 @@ import {
   type Scanner,
   type ScannerEvent,
 } from "@shayc/switch-scanning";
+import { useEffect, useRef, useState } from "react";
 import type { ScanStyleKind } from "./App.tsx";
-import classes from "./Demo.module.css";
+import classes from "./EventLog.module.css";
 
 interface LoggedEvent {
   id: number;

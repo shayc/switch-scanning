@@ -18,7 +18,7 @@ import {
 } from "@shayc/switch-scanning";
 import type { ScanStyleKind } from "./App.tsx";
 import { STYLE_META } from "./ControlsPanel.tsx";
-import classes from "./Demo.module.css";
+import classes from "./PreviewPanel.module.css";
 import { PhraseBoard } from "./PhraseBoard.tsx";
 
 interface PreviewPanelProps {
