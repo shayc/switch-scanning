@@ -3,6 +3,7 @@
  * hand while production uses the real-time `systemClock` adapter.
  */
 
+/** A monotonic time source. */
 export interface Clock {
   /** Monotonic milliseconds. Only differences are meaningful. */
   now(): number;
@@ -11,6 +12,7 @@ export interface Clock {
 /** Cancels a previously scheduled callback. Safe to call more than once. */
 export type CancelScheduled = () => void;
 
+/** Schedules callbacks against a {@link Clock}'s time base. */
 export interface Scheduler {
   /**
    * Invoke `callback` after `delayMs` measured on the same time base as the
@@ -48,6 +50,7 @@ interface ScheduledEntry {
   callback: (() => void) | null;
 }
 
+/** A {@link Clock} and {@link Scheduler} whose virtual time is advanced by hand. */
 export interface ManualClock extends Clock, Scheduler {
   /** Advance virtual time by `ms`, firing every callback that comes due. */
   advanceBy(ms: number): void;

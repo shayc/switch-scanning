@@ -53,7 +53,7 @@ export function decideDiscreteInput(
 
 export type ScanPressDecision = "ignore" | "start" | "perform";
 
-/** Pure lifecycle gate for the press phase of an inverse-scan switch. */
+/** Pure lifecycle gate for the press phase of a phaseful `scan` switch. */
 export function decideScanPress(
   startedIn: GestureStartState,
   status: ScannerStatus,

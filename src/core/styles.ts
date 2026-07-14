@@ -4,8 +4,10 @@
  * misconfigured access method fail at creation rather than mid-session.
  */
 
+/** How many passes a timed scope makes before completing. */
 export type LoopLimit = number | "infinite";
 
+/** Timed style: the highlight advances automatically on an interval. */
 export interface AutoScanStyle {
   readonly kind: "auto";
   readonly intervalMs: number;
@@ -15,21 +17,25 @@ export interface AutoScanStyle {
   readonly transitionTimeMs: number;
 }
 
+/** Auto-repeat timing for a held step switch. */
 export interface StepScanRepeat {
   readonly delayMs: number;
   readonly intervalMs: number;
 }
 
+/** Manual style: each switch action advances one step. */
 export interface StepScanStyle {
   readonly kind: "step";
   readonly repeat: false | StepScanRepeat;
 }
 
+/** Single-switch style: press advances; dwelling on an item selects it. */
 export interface SingleSwitchStepScanStyle {
   readonly kind: "singleStep";
   readonly dwellTimeMs: number;
 }
 
+/** Hold-to-scan style: the highlight advances while a switch is held and selects on release. */
 export interface InverseScanStyle {
   readonly kind: "inverse";
   readonly intervalMs: number;
@@ -37,9 +43,11 @@ export interface InverseScanStyle {
   readonly firstItemPauseMs: number;
 }
 
+/** Any scan style produced by a style constructor. */
 export type ScanStyle =
   AutoScanStyle | StepScanStyle | SingleSwitchStepScanStyle | InverseScanStyle;
 
+/** Options for {@link autoScan}. */
 export interface AutoScanOptions {
   intervalMs: number;
   loops: LoopLimit;
@@ -47,14 +55,17 @@ export interface AutoScanOptions {
   transitionTimeMs?: number;
 }
 
+/** Options for {@link stepScan}. */
 export interface StepScanOptions {
   repeat?: false | StepScanRepeat;
 }
 
+/** Options for {@link singleSwitchStepScan}. */
 export interface SingleSwitchStepScanOptions {
   dwellTimeMs: number;
 }
 
+/** Options for {@link inverseScan}. */
 export interface InverseScanOptions {
   intervalMs: number;
   loops: LoopLimit;
@@ -86,6 +97,7 @@ function assertLoops(loops: LoopLimit): void {
   }
 }
 
+/** Create an auto-scan style: the highlight advances automatically on a timer. */
 export function autoScan(options: AutoScanOptions): AutoScanStyle {
   assertPositive(options.intervalMs, "intervalMs");
   assertLoops(options.loops);
@@ -102,6 +114,7 @@ export function autoScan(options: AutoScanOptions): AutoScanStyle {
   });
 }
 
+/** Create a step-scan style: each switch action advances one step. */
 export function stepScan(options: StepScanOptions = {}): StepScanStyle {
   const repeat = options.repeat ?? false;
   if (repeat !== false) {
@@ -118,6 +131,7 @@ export function stepScan(options: StepScanOptions = {}): StepScanStyle {
   return Object.freeze({ kind: "step", repeat: false as const });
 }
 
+/** Create a single-switch step-scan style: press advances; dwelling on an item selects it. */
 export function singleSwitchStepScan(
   options: SingleSwitchStepScanOptions,
 ): SingleSwitchStepScanStyle {
@@ -128,6 +142,7 @@ export function singleSwitchStepScan(
   });
 }
 
+/** Create an inverse-scan style: the highlight advances while a switch is held and selects on release. */
 export function inverseScan(options: InverseScanOptions): InverseScanStyle {
   assertPositive(options.intervalMs, "intervalMs");
   assertLoops(options.loops);

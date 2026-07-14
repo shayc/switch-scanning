@@ -4,6 +4,7 @@ import type { Scanner } from "../../core/index.ts";
 /** Map from `KeyboardEvent.code` to a declared logical switch ID. */
 export type KeyboardSwitchBindings = Readonly<Record<string, string>>;
 
+/** Options for {@link useKeyboardSwitches}. */
 export interface KeyboardSwitchesOptions {
   /** When false, listeners are attached but ignore events. Defaults to true. */
   enabled?: boolean;

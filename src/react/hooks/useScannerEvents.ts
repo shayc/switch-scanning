@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef } from "react";
 import type { Scanner, ScannerEvent } from "../../core/index.ts";
 import { ScannerContext } from "../context.ts";
 
+/** Receives each {@link ScannerEvent}. */
 export type ScannerEventListener = (event: ScannerEvent) => void;
 
 /**

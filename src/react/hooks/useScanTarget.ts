@@ -12,10 +12,12 @@ import {
   type ScanTargetOptions,
 } from "../registry.ts";
 
+/** Options for {@link useScanTarget}. */
 export interface UseScanTargetOptions extends ScanTargetOptions {
   ref?: Ref<HTMLElement>;
 }
 
+/** Props to spread onto the target element. */
 export interface ScanTargetBinding {
   props: {
     ref: RefCallback<HTMLElement>;

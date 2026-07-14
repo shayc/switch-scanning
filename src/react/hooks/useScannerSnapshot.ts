@@ -2,7 +2,10 @@ import { useCallback, useContext, useRef, useSyncExternalStore } from "react";
 import type { Scanner, ScannerSnapshot } from "../../core/index.ts";
 import { ScannerContext } from "../context.ts";
 
+/** Derives a value from a {@link ScannerSnapshot}. */
 export type SnapshotSelector<T> = (snapshot: ScannerSnapshot) => T;
+
+/** Compares two selected values to suppress unchanged rerenders. */
 export type SnapshotEquality<T> = (a: T, b: T) => boolean;
 
 /**

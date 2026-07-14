@@ -15,6 +15,7 @@ export type { ManualClock } from "../clock.ts";
 
 const FIXTURE_ROOT_ID = "__fixture_root__";
 
+/** A scanner paired with an in-memory host for driving tests. */
 export interface ScannerFixture {
   readonly scanner: Scanner;
   /** IDs of every target the host successfully activated, in order. */
@@ -80,6 +81,7 @@ export function createScannerFixture(
   };
 }
 
+/** A rolling record of the events a scanner has emitted. */
 export interface RecordedEvents {
   readonly events: readonly ScannerEvent[];
   /** Events whose `type` matches. */

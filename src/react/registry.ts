@@ -13,6 +13,7 @@ import {
 
 const noop = (): void => undefined;
 
+/** Registration options for a scan target. */
 export interface ScanTargetOptions {
   id: string;
   label: string;
@@ -22,6 +23,7 @@ export interface ScanTargetOptions {
   activate?: () => void;
 }
 
+/** Registration options for a scan group. */
 export interface ScanGroupOptions {
   id: string;
   label: string;

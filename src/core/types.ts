@@ -2,8 +2,10 @@ import type { Clock, Scheduler } from "./clock.ts";
 import type { ScanStyle } from "./styles.ts";
 import type { SwitchDefinition } from "./input/switches.ts";
 
+/** A node in the scan tree: a group or a target. */
 export type ScanNode = ScanGroupNode | ScanTargetNode;
 
+/** A group of scannable children, entered on selection. */
 export interface ScanGroupNode {
   readonly kind: "group";
   readonly id: string;
@@ -13,6 +15,7 @@ export interface ScanGroupNode {
   readonly children: readonly ScanNode[];
 }
 
+/** A leaf the user can activate. */
 export interface ScanTargetNode {
   readonly kind: "target";
   readonly id: string;
@@ -20,20 +23,24 @@ export interface ScanTargetNode {
   readonly disabled?: boolean;
 }
 
+/** What the highlight currently occupies, or `null` when nothing is highlighted. */
 export type Highlight =
   | null
   | { readonly kind: "group" | "target"; readonly id: string }
   | { readonly kind: "exit"; readonly groupId: string };
 
+/** Lifecycle state of the scanner. */
 export type ScannerStatus =
   "idle" | "scanning" | "transitioning" | "paused" | "complete";
 
+/** Where the highlight sits within its scope. */
 export interface ScanPosition {
   /** Zero-based index within the active scope. */
   readonly index: number;
   readonly count: number;
 }
 
+/** The timer the scanner is currently waiting on. */
 export interface PendingTiming {
   readonly kind: "advance" | "dwell" | "transition";
   /** Time at which the currently effective deadline was established. */
@@ -41,17 +48,19 @@ export interface PendingTiming {
   readonly dueAt: number;
 }
 
+/** Immutable view of scanner state for rendering. */
 export interface ScannerSnapshot {
   readonly status: ScannerStatus;
   readonly highlight: Highlight;
   /** Group IDs from root to the active scope (root itself is omitted). */
   readonly path: readonly string[];
-  /** The active scope's pass number, 1-based. */
+  /** One-based pass number within the active scope. */
   readonly pass: number;
   readonly position: ScanPosition | null;
   readonly pending: PendingTiming | null;
 }
 
+/** Stable code identifying a diagnostic condition. */
 export type ScannerDiagnosticCode =
   | "command-inapplicable"
   | "duplicate-id"
@@ -60,6 +69,7 @@ export type ScannerDiagnosticCode =
   | "second-host-attach"
   | "use-after-dispose";
 
+/** A notification emitted through {@link Scanner.observe}. */
 export type ScannerEvent =
   | { type: "scan.started" }
   | { type: "scan.paused" }
@@ -89,7 +99,7 @@ export type ScannerEvent =
     }
   | { type: "diagnostic"; code: ScannerDiagnosticCode; message: string };
 
-/** Subscribe once and discriminate clearing with `current === null`. */
+/** One event for both highlight moves and clears; `current === null` marks a clear (and omits `label`). */
 export type HighlightChangedEvent =
   | {
       type: "highlight.changed";
@@ -103,17 +113,22 @@ export type HighlightChangedEvent =
       current: null;
     };
 
+/** Outcome of a host activation attempt. */
 export type ActivationResult =
   { activated: true } | { activated: false; reason: string };
 
+/** Bridge that activates targets and optionally reveals the highlight. */
 export interface ScannerHost {
   activate(targetId: string): ActivationResult;
   reveal?(highlight: Highlight): void;
 }
 
+/** Reverses a registration or host attachment. */
 export type Detach = () => void;
+/** Removes a subscriber or observer. */
 export type Unsubscribe = () => void;
 
+/** Handle returned by {@link Scanner.attachHost}. */
 export interface HostAttachment {
   /** Whether this host acquired the scanner's exclusive host slot. */
   readonly attached: boolean;
@@ -121,16 +136,21 @@ export interface HostAttachment {
   detach(): void;
 }
 
+/** When scanning first begins. */
 export type StartOn = "switch" | "mount" | "command";
+/** What the scanner does after a target activates. */
 export type AfterActivation = "restart" | "continue" | "repeat" | "stop";
+/** Where a group's exit affordance sits, or whether exit is back-only. */
 export type GroupExit = "after" | "before" | "back-only";
 
+/** Quiet period enforced after a selection before scanning resumes. */
 export interface SelectionDelayOptions {
   readonly durationMs: number;
-  /** Restart the quiet period when declared switch input begins. Defaults true. */
+  /** Restart the quiet period when declared switch input begins. Defaults to true. */
   readonly resetOnInput?: boolean;
 }
 
+/** Runtime behavior for a scanner; updatable via {@link Scanner.setOptions}. */
 export interface ScannerBehaviorOptions {
   style: ScanStyle;
   switches?: Readonly<Record<string, SwitchDefinition>>;
@@ -153,6 +173,7 @@ type ScannerInfrastructureOptions =
 export type ScannerOptions = ScannerBehaviorOptions &
   ScannerInfrastructureOptions;
 
+/** Routes physical press/release for declared logical switches. */
 export interface ScannerInputPort {
   press(switchId: string, sourceId?: string): void;
   release(switchId: string, sourceId?: string): void;
@@ -160,6 +181,7 @@ export interface ScannerInputPort {
   disconnect(sourceId?: string): void;
 }
 
+/** The scanning runtime: commands, state, subscriptions, and host wiring. */
 export interface Scanner {
   /** Semantic host/caregiver/testing command; bypasses physical gesture filters. */
   start(): void;

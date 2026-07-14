@@ -9,6 +9,7 @@ import {
 import type { Scanner } from "../../core/index.ts";
 import { useRegistrationRef } from "./refs.ts";
 
+/** Options for {@link usePointerSwitch}. */
 export interface UsePointerSwitchOptions {
   /** Declared logical switch operated by this dedicated surface. */
   switchId: string;
@@ -16,6 +17,7 @@ export interface UsePointerSwitchOptions {
   ref?: Ref<HTMLElement>;
 }
 
+/** Props to spread onto the pointer-switch element. */
 export interface PointerSwitchBinding {
   props: {
     ref: RefCallback<HTMLElement>;

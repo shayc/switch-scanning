@@ -4,6 +4,7 @@ import { ScannerContext, type ScannerContextValue } from "./context.ts";
 import { createDomHost } from "./domHost.ts";
 import { ScanRegistry } from "./registry.ts";
 
+/** Props for {@link ScannerProvider}. */
 export interface ScannerProviderProps {
   scanner: Scanner;
   children?: ReactNode;

@@ -11,8 +11,10 @@ export type DiscreteAction =
 /** The phaseful action: press begins advancement, release selects. */
 export type ScanAction = "scan";
 
+/** Any action a switch can trigger. */
 export type SwitchAction = DiscreteAction | ScanAction;
 
+/** A switch that fires one discrete action per accepted press. */
 export interface DiscreteSwitchDefinition {
   action: DiscreteAction;
   performOn?: "press" | "release";
@@ -20,12 +22,14 @@ export interface DiscreteSwitchDefinition {
   ignoreRepeatMs?: number;
 }
 
+/** A switch bound to the phaseful `scan` action. */
 export interface ScanSwitchDefinition {
   action: ScanAction;
   holdDurationMs?: number;
   ignoreRepeatMs?: number;
 }
 
+/** A switch that fires one action on a tap and another when held. */
 export interface TapHoldSwitchDefinition {
   tap: DiscreteAction;
   hold: {
@@ -36,6 +40,7 @@ export interface TapHoldSwitchDefinition {
   ignoreRepeatMs?: number;
 }
 
+/** Any switch definition: discrete, phaseful `scan`, or tap/hold. */
 export type SwitchDefinition =
   DiscreteSwitchDefinition | ScanSwitchDefinition | TapHoldSwitchDefinition;
 

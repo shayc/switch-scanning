@@ -12,10 +12,12 @@ import {
   type ScanGroupOptions,
 } from "../registry.ts";
 
+/** Options for {@link useScanGroup}. */
 export interface UseScanGroupOptions extends ScanGroupOptions {
   ref?: Ref<HTMLElement>;
 }
 
+/** Props to spread onto the group element. */
 export interface ScanGroupBinding {
   props: {
     ref: RefCallback<HTMLElement>;
@@ -24,8 +26,8 @@ export interface ScanGroupBinding {
 }
 
 /**
- * Decorate an element the application already owns as a scan group. Inserts no
- * element and changes no layout. The nearest containing registered group is the
+ * Mark an element the application already owns as a scan group. Inserts no
+ * wrapper and changes no layout. The nearest containing registered group is the
  * default parent; use `parentId` for portals or non-contained composition. An
  * explicit `sequence` sets deliberate scan order.
  */
