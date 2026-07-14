@@ -1,12 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type Ref,
-  type RefCallback,
-} from "react";
+import { useCallback, useEffect, type Ref, type RefCallback } from "react";
 import { useScannerContext } from "../context.ts";
-import { useRegistrationRef } from "./refs.ts";
+import { useCommittedRef, useRegistrationRef } from "./refs.ts";
 import {
   scanTargetStructuralSignature,
   type ScanTargetOptions,
@@ -37,13 +31,12 @@ export function useScanTarget(
   const { registry } = useScannerContext("useScanTarget");
   const { id } = options;
 
-  const optionsRef = useRef<UseScanTargetOptions>(options);
-  optionsRef.current = options;
+  const optionsRef = useCommittedRef(options);
 
   const register = useCallback(
     (element: HTMLElement) =>
       registry.mountTarget(id, () => optionsRef.current, element),
-    [registry, id],
+    [registry, id, optionsRef],
   );
   const ref: RefCallback<HTMLElement> = useRegistrationRef(
     register,

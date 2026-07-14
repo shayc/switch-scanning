@@ -7,7 +7,7 @@ import {
   type RefCallback,
 } from "react";
 import type { Scanner } from "../../core/index.ts";
-import { useRegistrationRef } from "./refs.ts";
+import { useCommittedRef, useRegistrationRef } from "./refs.ts";
 
 /** Options for {@link usePointerSwitch}. */
 export interface UsePointerSwitchOptions {
@@ -34,8 +34,7 @@ export function usePointerSwitch(
   scanner: Scanner,
   options: UsePointerSwitchOptions,
 ): PointerSwitchBinding {
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  const optionsRef = useCommittedRef(options);
   const reactId = useId();
   const sourceId = `pointer:${reactId}`;
   const activePointers = useRef(new Set<number>());
@@ -130,7 +129,7 @@ export function usePointerSwitch(
         disconnectAll();
       };
     },
-    [disconnectAll, scanner, sourceId],
+    [disconnectAll, scanner, sourceId, optionsRef],
   );
 
   useEffect(() => {

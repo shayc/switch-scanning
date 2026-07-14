@@ -42,7 +42,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        react: ["18.3.1", "19.2.0"]
+        include:
+          - react: "18.3.1"
+            react-types: "18"
+          - react: "19.2.0"
+            react-types: "19"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -50,7 +54,10 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm install --no-save react@${{ matrix.react }} react-dom@${{ matrix.react }}
+      # The demo uses Mantine 9 (React 19); this job intentionally swaps only
+      # the library/test surface to React 18, so ignore that demo-only peer.
+      - run: npm install --no-save --package-lock=false --legacy-peer-deps react@${{ matrix.react }} react-dom@${{ matrix.react }} @types/react@${{ matrix.react-types }} @types/react-dom@${{ matrix.react-types }}
+      - run: npm run typecheck:react-compat
       - run: npm test -- src/react
 
   browser:

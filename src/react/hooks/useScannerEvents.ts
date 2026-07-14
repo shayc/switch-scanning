@@ -1,6 +1,7 @@
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect } from "react";
 import type { Scanner, ScannerEvent } from "../../core/index.ts";
 import { ScannerContext } from "../context.ts";
+import { useCommittedRef } from "./refs.ts";
 
 /** Receives each {@link ScannerEvent}. */
 export type ScannerEventListener = (event: ScannerEvent) => void;
@@ -33,12 +34,11 @@ export function useScannerEvents(
     );
   }
 
-  const listenerRef = useRef<ScannerEventListener | undefined>(listener);
-  listenerRef.current = listener;
+  const listenerRef = useCommittedRef(listener);
 
   useEffect(() => {
     return scanner.observe((event) => {
       listenerRef.current?.(event);
     });
-  }, [scanner]);
+  }, [scanner, listenerRef]);
 }

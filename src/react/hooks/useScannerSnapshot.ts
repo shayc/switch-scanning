@@ -15,16 +15,18 @@ export type SnapshotEquality<T> = (a: T, b: T) => boolean;
  *
  * Two calling forms are supported:
  *   useScannerSnapshot(selector?, isEqual?)          // uses provider context
- *   useScannerSnapshot(scanner, selector?, isEqual?) // explicit scanner
+ *   useScannerSnapshot(scanner)                      // complete snapshot
+ *   useScannerSnapshot(scanner, selector, isEqual?)  // selected state
  */
 export function useScannerSnapshot(): ScannerSnapshot;
 export function useScannerSnapshot<T>(
   selector: SnapshotSelector<T>,
   isEqual?: SnapshotEquality<T>,
 ): T;
+export function useScannerSnapshot(scanner: Scanner): ScannerSnapshot;
 export function useScannerSnapshot<T>(
   scanner: Scanner,
-  selector?: SnapshotSelector<T>,
+  selector: SnapshotSelector<T>,
   isEqual?: SnapshotEquality<T>,
 ): T;
 export function useScannerSnapshot<T>(

@@ -8,6 +8,7 @@ import {
   scannerBehaviorSignature,
   toScannerBehaviorOptions,
 } from "../../core/behaviorOptions.ts";
+import { useCommittedRef } from "./refs.ts";
 
 /**
  * Lazily create a single scanner whose identity is stable for the component's
@@ -27,8 +28,7 @@ export function useScanner(options: ScannerOptions): Scanner {
   }
   const scanner = ref.current;
 
-  const optionsRef = useRef<ScannerOptions>(options);
-  optionsRef.current = options;
+  const optionsRef = useCommittedRef(options);
 
   const signature = scannerBehaviorSignature(options);
   const lastSignature = useRef<string | null>(null);
@@ -43,7 +43,7 @@ export function useScanner(options: ScannerOptions): Scanner {
     lastSignature.current = signature;
     scanner.setOptions(toScannerBehaviorOptions(optionsRef.current));
     // signature captures every serializable field that setOptions consumes.
-  }, [scanner, signature]);
+  }, [scanner, signature, optionsRef]);
 
   useEffect(() => {
     return () => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Scanner } from "../../core/index.ts";
+import { useCommittedRef } from "./refs.ts";
 
 /** Map from `KeyboardEvent.code` to a declared logical switch ID. */
 export type KeyboardSwitchBindings = Readonly<Record<string, string>>;
@@ -26,12 +27,9 @@ export function useKeyboardSwitches(
   bindings: KeyboardSwitchBindings,
   options: KeyboardSwitchesOptions = {},
 ): void {
-  const bindingsRef = useRef(bindings);
-  bindingsRef.current = bindings;
-  const enabledRef = useRef(options.enabled ?? true);
-  enabledRef.current = options.enabled ?? true;
-  const shouldHandleRef = useRef(options.shouldHandle);
-  shouldHandleRef.current = options.shouldHandle;
+  const bindingsRef = useCommittedRef(bindings);
+  const enabledRef = useCommittedRef(options.enabled ?? true);
+  const shouldHandleRef = useCommittedRef(options.shouldHandle);
   const disconnectAllRef = useRef<(() => void) | null>(null);
 
   const explicitTarget = options.target;
@@ -122,7 +120,7 @@ export function useKeyboardSwitches(
       }
       disconnectAll();
     };
-  }, [scanner, explicitTarget]);
+  }, [scanner, explicitTarget, bindingsRef, enabledRef, shouldHandleRef]);
 
   useEffect(() => {
     if (options.enabled === false) disconnectAllRef.current?.();

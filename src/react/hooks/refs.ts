@@ -1,5 +1,24 @@
-import { useCallback, useRef, type Ref, type RefCallback } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type Ref,
+  type RefCallback,
+} from "react";
 import type { Detach } from "../../core/index.ts";
+
+const useCommitEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** Keep the latest committed value available to imperative callbacks. */
+export function useCommittedRef<T>(value: T): { current: T } {
+  const ref = useRef(value);
+  useCommitEffect(() => {
+    ref.current = value;
+  }, [value]);
+  return ref;
+}
 
 export function applyRef<T>(ref: Ref<T> | undefined, value: T | null): void {
   if (!ref) return;

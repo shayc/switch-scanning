@@ -1,12 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type Ref,
-  type RefCallback,
-} from "react";
+import { useCallback, useEffect, type Ref, type RefCallback } from "react";
 import { useScannerContext } from "../context.ts";
-import { useRegistrationRef } from "./refs.ts";
+import { useCommittedRef, useRegistrationRef } from "./refs.ts";
 import {
   scanGroupStructuralSignature,
   type ScanGroupOptions,
@@ -35,13 +29,12 @@ export function useScanGroup(options: UseScanGroupOptions): ScanGroupBinding {
   const { registry } = useScannerContext("useScanGroup");
   const { id } = options;
 
-  const optionsRef = useRef<UseScanGroupOptions>(options);
-  optionsRef.current = options;
+  const optionsRef = useCommittedRef(options);
 
   const register = useCallback(
     (element: HTMLElement) =>
       registry.mountGroup(id, () => optionsRef.current, element),
-    [registry, id],
+    [registry, id, optionsRef],
   );
   const ref: RefCallback<HTMLElement> = useRegistrationRef(
     register,
