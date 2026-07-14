@@ -17,7 +17,7 @@ import {
   type ScannerStatus,
 } from "@shayc/switch-scanning";
 import type { ScanStyleKind } from "./App.tsx";
-import { STYLE_META } from "./ControlsPanel.tsx";
+import { STYLE_META } from "./styleMeta.ts";
 import classes from "./PreviewPanel.module.css";
 import { PhraseBoard } from "./PhraseBoard.tsx";
 

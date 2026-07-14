@@ -1,77 +1,22 @@
 import {
   Accordion,
   Alert,
-  Box,
   Divider,
   Fieldset,
   Group,
   NumberInput,
   Paper,
   Radio,
-  Slider,
   Stack,
   Switch,
   Text,
   Title,
 } from "@mantine/core";
 import { useScannerSnapshot, type Scanner } from "@shayc/switch-scanning";
-import { useId } from "react";
 import type { ScanStyleKind, Timing } from "./App.tsx";
+import { DurationField } from "./DurationField.tsx";
+import { STYLE_META, STYLE_ORDER } from "./styleMeta.ts";
 import classes from "./ControlsPanel.module.css";
-
-export interface StyleMeta {
-  label: string;
-  shortLabel: string;
-  summary: string;
-  switchCount: string;
-  keys: readonly { action: string; key: string }[];
-}
-
-export const STYLE_META: Record<ScanStyleKind, StyleMeta> = {
-  auto: {
-    label: "Automatic",
-    shortLabel: "Automatic",
-    summary: "The highlight moves automatically. Press the switch to select.",
-    switchCount: "1 switch",
-    keys: [
-      { action: "Select", key: "Space" },
-      { action: "Pause", key: "P" },
-    ],
-  },
-  step: {
-    label: "Move and select",
-    shortLabel: "Move and select",
-    summary: "Press Move to advance and Select to choose.",
-    switchCount: "2 switches",
-    keys: [
-      { action: "Move", key: "Space" },
-      { action: "Select", key: "Enter" },
-      { action: "Pause", key: "P" },
-    ],
-  },
-  singleStep: {
-    label: "Step and wait",
-    shortLabel: "Step and wait",
-    summary: "Press to advance. Wait to select the highlighted item.",
-    switchCount: "1 switch",
-    keys: [
-      { action: "Move", key: "Space" },
-      { action: "Pause", key: "P" },
-    ],
-  },
-  inverse: {
-    label: "Hold and release",
-    shortLabel: "Hold and release",
-    summary: "Hold to advance. Release to select.",
-    switchCount: "1 switch",
-    keys: [
-      { action: "Scan", key: "Hold Space" },
-      { action: "Pause", key: "P" },
-    ],
-  },
-};
-
-const STYLE_ORDER: ScanStyleKind[] = ["auto", "step", "singleStep", "inverse"];
 
 interface ControlsPanelProps {
   scanner: Scanner;
@@ -415,101 +360,4 @@ export function ControlsPanel({
       </Accordion>
     </Paper>
   );
-}
-
-function DurationField({
-  label,
-  description,
-  valueMs,
-  minMs,
-  maxMs,
-  range,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  valueMs: number;
-  minMs: number;
-  maxMs?: number;
-  range?: boolean;
-  disabled: boolean;
-  onChange: (valueMs: number) => void;
-}) {
-  const inputId = useId();
-  const descriptionId = `${inputId}-description`;
-  const value = valueMs / 1000;
-  const min = minMs / 1000;
-  const max = maxMs == null ? undefined : maxMs / 1000;
-
-  const update = (next: number | string) => {
-    if (
-      typeof next !== "number" ||
-      !Number.isFinite(next) ||
-      next < min ||
-      (max != null && next > max)
-    ) {
-      return;
-    }
-    onChange(Math.round(roundNumber(next) * 1000));
-  };
-
-  return (
-    <Box>
-      <Group justify="space-between" align="center" gap="sm" wrap="nowrap">
-        <Box component="label" htmlFor={inputId} flex={1}>
-          <Stack gap={0}>
-            <Text component="strong" size="sm" fw={600}>
-              {label}
-            </Text>
-            <Text component="small" size="xs" c="dimmed" id={descriptionId}>
-              {description}
-            </Text>
-          </Stack>
-        </Box>
-        <NumberInput
-          id={inputId}
-          classNames={{ input: classes.durationInput }}
-          w={76}
-          size="xs"
-          value={value}
-          min={min}
-          {...(max == null ? {} : { max })}
-          step={0.1}
-          decimalScale={1}
-          hideControls
-          rightSection={<span aria-hidden="true">s</span>}
-          rightSectionPointerEvents="none"
-          clampBehavior="strict"
-          disabled={disabled}
-          role="spinbutton"
-          aria-label={`${label} (seconds)`}
-          aria-describedby={descriptionId}
-          aria-valuemin={min}
-          {...(max == null ? {} : { "aria-valuemax": max })}
-          onChange={update}
-        />
-      </Group>
-      {range && max != null && (
-        <Slider
-          mt="sm"
-          mx="xs"
-          value={value}
-          min={min}
-          max={max}
-          step={0.1}
-          size="sm"
-          disabled={disabled}
-          thumbLabel={`Adjust ${label}`}
-          thumbValueText={(seconds) => `${seconds} seconds`}
-          label={(seconds) => `${seconds} s`}
-          onChange={update}
-        />
-      )}
-    </Box>
-  );
-}
-
-function roundNumber(value: number): number {
-  return Math.round((value + Number.EPSILON) * 1000) / 1000;
 }

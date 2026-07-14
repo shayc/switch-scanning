@@ -27,11 +27,6 @@
   justify-content: space-between;
 }
 
-.durationInput {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
 @media (max-width: 52rem) {
   .controlsPanel {
     position: static;
