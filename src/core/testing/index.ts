@@ -115,11 +115,11 @@ export function recordScannerEvents(scanner: Scanner): RecordedEvents {
  * fixture in one call.
  */
 export function createTestScanner(
-  optionsFactory: (clock: ManualClock) => Scanner,
+  scannerFactory: (clock: ManualClock) => Scanner,
   nodes: readonly ScanNode[],
 ): { clock: ManualClock; scanner: Scanner; fixture: ScannerFixture } {
   const clock = manualClock();
-  const scanner = optionsFactory(clock);
+  const scanner = scannerFactory(clock);
   const fixture = createScannerFixture(scanner, nodes);
   return { clock, scanner, fixture };
 }
