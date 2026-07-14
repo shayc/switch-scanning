@@ -10,6 +10,12 @@ const YES_NO: ScanNode[] = [
   { kind: "target", id: "no", label: "No" },
 ];
 
+const ABC: ScanNode[] = [
+  { kind: "target", id: "a", label: "A" },
+  { kind: "target", id: "b", label: "B" },
+  { kind: "target", id: "c", label: "C" },
+];
+
 function build(
   options: Omit<ScannerOptions, "clock">,
   nodes: ScanNode[] = YES_NO,
@@ -238,17 +244,12 @@ describe("ignore repeat", () => {
 
 describe("move repeat", () => {
   it("repeats next while the owning source stays held", () => {
-    const abc: ScanNode[] = [
-      { kind: "target", id: "a", label: "A" },
-      { kind: "target", id: "b", label: "B" },
-      { kind: "target", id: "c", label: "C" },
-    ];
     const { clock, scanner } = build(
       {
         style: stepScan({ repeat: { delayMs: 500, intervalMs: 200 } }),
         switches: { next: { action: "next" } },
       },
-      abc,
+      ABC,
     );
     scanner.start();
     scanner.input.press("next");
@@ -276,11 +277,6 @@ describe("move repeat", () => {
 
   for (const ending of ["release", "disconnect"] as const) {
     it(`stops tap/hold-owned repeat on ${ending}`, () => {
-      const abc: ScanNode[] = [
-        { kind: "target", id: "a", label: "A" },
-        { kind: "target", id: "b", label: "B" },
-        { kind: "target", id: "c", label: "C" },
-      ];
       const { clock, scanner } = build(
         {
           style: stepScan({ repeat: { delayMs: 200, intervalMs: 100 } }),
@@ -291,7 +287,7 @@ describe("move repeat", () => {
             },
           },
         },
-        abc,
+        ABC,
       );
       scanner.start();
       scanner.input.press("primary", "source");
@@ -311,11 +307,6 @@ describe("move repeat", () => {
   }
 
   it("cancels the old repeat schedule when the scan style changes", () => {
-    const abc: ScanNode[] = [
-      { kind: "target", id: "a", label: "A" },
-      { kind: "target", id: "b", label: "B" },
-      { kind: "target", id: "c", label: "C" },
-    ];
     const clock = manualClock();
     const scanner = createScanner({
       style: stepScan({ repeat: { delayMs: 500, intervalMs: 200 } }),
@@ -323,7 +314,7 @@ describe("move repeat", () => {
       startOn: "command",
       clock,
     });
-    createScannerFixture(scanner, abc);
+    createScannerFixture(scanner, ABC);
     scanner.start();
     scanner.input.press("next");
 
