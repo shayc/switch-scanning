@@ -6,6 +6,7 @@ import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
 import type {
   Highlight,
   HostAttachment,
+  ScanGroupNode,
   ScanNode,
   ScannerBehaviorOptions,
   ScannerOptions,
@@ -15,6 +16,13 @@ const YES_NO: ScanNode[] = [
   { kind: "target", id: "yes", label: "Yes" },
   { kind: "target", id: "no", label: "No" },
 ];
+
+const rootOf = (children: ScanNode[]): ScanGroupNode => ({
+  kind: "group",
+  id: "root",
+  label: "root",
+  children,
+});
 
 function build(
   options: Omit<ScannerOptions, "clock" | "scheduler">,
@@ -190,12 +198,7 @@ describe("serialized transitions", () => {
     const scanner = createScanner({ style: stepScan() });
     const activations: string[] = [];
     let attachment: HostAttachment | undefined;
-    scanner.setTree({
-      kind: "group",
-      id: "root",
-      label: "root",
-      children: [{ kind: "target", id: "yes", label: "Yes" }],
-    });
+    scanner.setTree(rootOf([{ kind: "target", id: "yes", label: "Yes" }]));
     scanner.observe((event) => {
       if (event.type !== "scan.started") return;
       attachment = scanner.attachHost({
@@ -216,12 +219,7 @@ describe("serialized transitions", () => {
 
   it("reports a host reveal failure without interrupting publication", () => {
     const scanner = createScanner({ style: stepScan(), startOn: "command" });
-    scanner.setTree({
-      kind: "group",
-      id: "root",
-      label: "root",
-      children: YES_NO,
-    });
+    scanner.setTree(rootOf(YES_NO));
     scanner.attachHost({
       activate: () => ({ activated: true }),
       reveal: () => {
@@ -254,12 +252,7 @@ describe("clearing host decorations", () => {
       activate: () => ({ activated: true }),
       reveal: (highlight) => reveals.push(highlight),
     });
-    scanner.setTree({
-      kind: "group",
-      id: "root",
-      label: "root",
-      children: YES_NO,
-    });
+    scanner.setTree(rootOf(YES_NO));
     return { clock, scanner, reveals };
   }
 
@@ -292,12 +285,7 @@ describe("clearing host decorations", () => {
       activate: () => ({ activated: true }),
       reveal: (highlight) => firstReveals.push(highlight),
     });
-    scanner.setTree({
-      kind: "group",
-      id: "root",
-      label: "root",
-      children: YES_NO,
-    });
+    scanner.setTree(rootOf(YES_NO));
     scanner.start();
     detach();
     expect(firstReveals.at(-1)).toBeNull();
