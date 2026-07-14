@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useScanGroup, useScanTarget } from "@shayc/switch-scanning";
 import { Button, Paper, SimpleGrid, Stack, Text } from "@mantine/core";
+import classes from "./Demo.module.css";
 
 interface Phrase {
   id: string;
@@ -59,11 +60,16 @@ export function PhraseBoard({ thanksDisabled }: { thanksDisabled: boolean }) {
   return (
     <Paper
       component="section"
-      className="board-panel"
+      className={classes.boardPanel}
       p={{ base: "sm", sm: "lg" }}
       aria-label="Phrase board content"
     >
-      <Paper component="output" className="message-bar" withBorder p="md">
+      <Paper
+        component="output"
+        className={classes.messageBar}
+        withBorder
+        p="md"
+      >
         {message.length === 0 ? (
           <Text component="span" c="dimmed">
             Selected phrases appear here…
@@ -134,7 +140,8 @@ function PhraseKey({
   return (
     <Button
       {...target.props}
-      className="key"
+      className={classes.key}
+      classNames={{ label: classes.keyLabel }}
       variant="default"
       fullWidth
       disabled={disabled}
@@ -150,7 +157,8 @@ function ClearKey({ onClear }: { onClear: () => void }) {
   return (
     <Button
       {...target.props}
-      className="key key--clear"
+      className={`${classes.key} ${classes.keyClear}`}
+      classNames={{ label: classes.keyLabel }}
       variant="default"
       fullWidth
       onClick={onClear}

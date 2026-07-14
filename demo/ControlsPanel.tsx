@@ -17,6 +17,7 @@ import {
 } from "@mantine/core";
 import { useScannerSnapshot, type Scanner } from "@shayc/switch-scanning";
 import type { ScanStyleKind, Timing } from "./App.tsx";
+import classes from "./Demo.module.css";
 
 export interface StyleMeta {
   label: string;
@@ -110,7 +111,7 @@ export function ControlsPanel({
   return (
     <Paper
       component="aside"
-      className="controls-panel"
+      className={classes.controlsPanel}
       withBorder
       shadow="xs"
       radius="md"
@@ -129,7 +130,7 @@ export function ControlsPanel({
       )}
 
       <Fieldset
-        className="field-group"
+        className={classes.fieldGroup}
         variant="unstyled"
         legend="Scanning method"
         disabled={!canConfigure}
@@ -146,7 +147,7 @@ export function ControlsPanel({
                 <Radio.Card
                   key={kind}
                   value={kind}
-                  className="preset-option"
+                  className={classes.presetOption}
                   p="xs"
                   disabled={!canConfigure}
                   aria-label={option.label}
@@ -179,7 +180,7 @@ export function ControlsPanel({
       </Fieldset>
 
       <Fieldset
-        className="field-group"
+        className={classes.fieldGroup}
         variant="unstyled"
         legend={
           styleKind === "singleStep"
@@ -221,7 +222,7 @@ export function ControlsPanel({
           )}
           {styleKind === "step" && (
             <Switch
-              className="full-width-switch"
+              className={classes.fullWidthSwitch}
               size="sm"
               labelPosition="left"
               label="Repeat while held"
@@ -246,7 +247,7 @@ export function ControlsPanel({
                 disabled={!canConfigure}
               >
                 <Switch
-                  className="full-width-switch"
+                  className={classes.fullWidthSwitch}
                   size="sm"
                   labelPosition="left"
                   label="Show touch controls"
@@ -267,7 +268,7 @@ export function ControlsPanel({
               <Fieldset variant="unstyled" legend="Feedback and test scenarios">
                 <Stack gap="sm">
                   <Switch
-                    className="full-width-switch"
+                    className={classes.fullWidthSwitch}
                     size="sm"
                     labelPosition="left"
                     label="Speak highlighted items"
@@ -277,7 +278,7 @@ export function ControlsPanel({
                     aria-label="Speak highlighted and selected items"
                   />
                   <Switch
-                    className="full-width-switch"
+                    className={classes.fullWidthSwitch}
                     size="sm"
                     labelPosition="left"
                     label="Test a disabled target"
@@ -468,7 +469,7 @@ function DurationField({
         </Box>
         <NumberInput
           id={inputId}
-          className="duration-input"
+          classNames={{ input: classes.durationInput }}
           w={76}
           size="xs"
           value={value}

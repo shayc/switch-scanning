@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { ControlsPanel } from "./ControlsPanel.tsx";
 import { EventLog } from "./EventLog.tsx";
 import { PreviewPanel } from "./PreviewPanel.tsx";
+import classes from "./Demo.module.css";
 
 /** The four access methods the demo can switch between at runtime. */
 export type ScanStyleKind = "auto" | "step" | "singleStep" | "inverse";
@@ -155,7 +156,7 @@ export function App() {
     <ScannerProvider scanner={scanner}>
       <Group
         component="header"
-        className="app-header"
+        className={classes.appHeader}
         justify="space-between"
         wrap="nowrap"
       >
@@ -166,17 +167,17 @@ export function App() {
           </Title>
         </Group>
         <Anchor
-          className="source-link"
+          className={classes.sourceLink}
           c="dimmed"
           href="https://github.com/shayc/switch-scanning"
           size="xs"
         >
-          <span className="source-label">View source</span>{" "}
+          <span className={classes.sourceLabel}>View source</span>{" "}
           <span aria-hidden="true">↗</span>
         </Anchor>
       </Group>
-      <main className="workbench">
-        <div className="preview-column">
+      <main className={classes.workbench}>
+        <div className={classes.previewColumn}>
           <PreviewPanel
             scanner={scanner}
             styleKind={styleKind}

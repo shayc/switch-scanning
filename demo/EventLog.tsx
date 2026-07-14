@@ -19,6 +19,7 @@ import {
   type ScannerEvent,
 } from "@shayc/switch-scanning";
 import type { ScanStyleKind } from "./App.tsx";
+import classes from "./Demo.module.css";
 
 interface LoggedEvent {
   id: number;
@@ -153,7 +154,7 @@ export function EventLog({
   return (
     <Paper
       component="section"
-      className="diagnostics-panel"
+      className={classes.diagnosticsPanel}
       withBorder
       radius="md"
       aria-label="Event inspector"
@@ -174,14 +175,13 @@ export function EventLog({
             Inspect events
           </Text>
           {events.length > 0 && (
-            <Badge className="event-count" variant="light" color="gray">
+            <Badge variant="light" color="gray">
               {events.length} {events.length === 1 ? "event" : "events"}
             </Badge>
           )}
         </Group>
-        <Box className="console-body" p="md">
+        <Box className={classes.consoleBody} p="md">
           <Tabs
-            className="console-tabs"
             value={view}
             onChange={(value) => {
               if (value === "events" || value === "state") setView(value);
@@ -196,7 +196,6 @@ export function EventLog({
               {view === "events" && events.length > 0 && (
                 <Button
                   type="button"
-                  className="clear-events"
                   variant="subtle"
                   color="gray"
                   size="compact-xs"
@@ -220,7 +219,7 @@ export function EventLog({
                   </Stack>
                 </Center>
               ) : (
-                <ol className="event-list">
+                <ol className={classes.eventList}>
                   {events.map((event) => (
                     <li key={event.id} data-event={event.type}>
                       <code>{event.type}</code>
@@ -254,7 +253,7 @@ function StatusLine({ scanner }: { scanner: Scanner }) {
   return (
     <SimpleGrid
       component="dl"
-      className="status"
+      className={classes.status}
       cols={{ base: 2, sm: 5, xl: 1 }}
       spacing="sm"
       p="sm"

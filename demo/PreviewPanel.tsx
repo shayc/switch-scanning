@@ -18,6 +18,7 @@ import {
 } from "@shayc/switch-scanning";
 import type { ScanStyleKind } from "./App.tsx";
 import { STYLE_META } from "./ControlsPanel.tsx";
+import classes from "./Demo.module.css";
 import { PhraseBoard } from "./PhraseBoard.tsx";
 
 interface PreviewPanelProps {
@@ -38,7 +39,7 @@ export function PreviewPanel({
   return (
     <Paper
       component="section"
-      className="preview-panel"
+      className={classes.previewPanel}
       withBorder
       shadow="xs"
       radius="md"
@@ -46,7 +47,7 @@ export function PreviewPanel({
     >
       <Group
         component="header"
-        className="preview-toolbar"
+        className={classes.previewToolbar}
         justify="space-between"
         wrap="nowrap"
         p="md"
@@ -65,7 +66,7 @@ export function PreviewPanel({
       </Group>
 
       <Group
-        className="binding-strip"
+        className={classes.bindingStrip}
         gap="md"
         px="md"
         py="xs"
@@ -81,7 +82,7 @@ export function PreviewPanel({
         ))}
       </Group>
 
-      <Box className="preview-canvas">
+      <Box className={classes.previewCanvas}>
         <PhraseBoard thanksDisabled={thanksDisabled} />
       </Box>
 
@@ -130,14 +131,14 @@ function RuntimeControls({ scanner }: { scanner: Scanner }) {
 
   return (
     <Group
-      className="runtime-controls"
+      className={classes.runtimeControls}
       justify="flex-end"
       gap="md"
       wrap="nowrap"
     >
       {status !== "idle" && (
         <Group
-          className="runtime-state"
+          className={classes.runtimeState}
           justify="flex-end"
           gap="xs"
           wrap="nowrap"
@@ -211,11 +212,11 @@ function PointerControls({
 
   return (
     <section
-      className={`pointer-controls${styleKind === "step" ? " pointer-controls--pair" : ""}`}
+      className={classes.pointerControls}
       aria-label="Touch controls"
       data-scanner-controls=""
     >
-      <Group className="pointer-heading" justify="space-between" mb="xs">
+      <Group className={classes.pointerHeading} justify="space-between" mb="xs">
         <Text size="sm" fw={600}>
           Touch controls
         </Text>
@@ -253,7 +254,7 @@ function PointerSurface({
   return (
     <Button
       {...binding.props}
-      className="pointer-switch"
+      className={classes.pointerSwitch}
       type="button"
       fullWidth
       aria-label={label}
