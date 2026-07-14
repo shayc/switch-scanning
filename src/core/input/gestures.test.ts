@@ -263,6 +263,50 @@ describe("ignore repeat", () => {
     scanner.input.press("pause", "key");
     expect(scanner.getSnapshot().status).toBe("scanning");
   });
+
+  it("preserves suppression when activation stops the scanner", () => {
+    const { clock, scanner } = build({
+      style: stepScan(),
+      startOn: "switch",
+      afterActivation: "stop",
+      switches: {
+        select: { action: "select", ignoreRepeatMs: 200 },
+      },
+    });
+    scanner.start();
+
+    scanner.input.press("select", "key");
+    expect(scanner.getSnapshot().status).toBe("idle");
+    scanner.input.release("select", "key");
+    scanner.input.press("select", "key");
+    expect(scanner.getSnapshot().status).toBe("idle");
+
+    clock.advanceBy(200);
+    scanner.input.press("select", "key-2");
+    expect(scanner.getSnapshot().status).toBe("scanning");
+  });
+
+  it("preserves suppression when a loop completion tears down scanning", () => {
+    const { clock, scanner } = build(
+      {
+        style: autoScan({ intervalMs: 100, loops: 1 }),
+        startOn: "switch",
+        switches: { next: { action: "next", ignoreRepeatMs: 200 } },
+      },
+      [{ kind: "target", id: "only", label: "Only" }],
+    );
+    scanner.start();
+
+    scanner.input.press("next", "key");
+    expect(scanner.getSnapshot().status).toBe("complete");
+    scanner.input.release("next", "key");
+    scanner.input.press("next", "key");
+    expect(scanner.getSnapshot().status).toBe("complete");
+
+    clock.advanceBy(200);
+    scanner.input.press("next", "key-2");
+    expect(scanner.getSnapshot().status).toBe("scanning");
+  });
 });
 
 describe("move repeat", () => {

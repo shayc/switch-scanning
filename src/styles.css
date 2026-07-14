@@ -29,6 +29,17 @@
   outline-offset: var(--scan-outline-offset, 3px);
 }
 
+@media (forced-colors: none) {
+  [data-scan-highlighted],
+  :where([data-scan-exit-highlighted]) {
+    box-shadow: 0 0 0
+      calc(
+        var(--scan-outline-width, 4px) + var(--scan-outline-offset, 3px) + 2px
+      )
+      Canvas;
+  }
+}
+
 [data-scan-exit-highlighted]::after {
   content: attr(data-scan-exit-label);
   position: absolute;

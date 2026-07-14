@@ -94,8 +94,10 @@ it as a normal release. Omit `sourceId` to disconnect every active source.
   to the global document; `target: null` attaches no listeners, which is useful
   while a target ref is unavailable.
 - `usePointerSwitch` turns one dedicated element into a coalesced pointer
-  source. Apply `touch-action: none`; direct touch on that surface is
-  intentionally unavailable.
+  source. A focused surface also maps non-repeating Space/Enter keydown to a
+  press and keyup to release. Apply `touch-action: none`; direct touch on that
+  surface is intentionally unavailable. With `enabled: false`, pointer input
+  and generated clicks pass through normally.
 - `useScannerSnapshot` selects reactive state; `useScannerEvents` observes
   events without resubscribing when listener identity changes.
 
@@ -112,6 +114,12 @@ The optional stylesheet uses `data-scan-highlighted`, `data-scan-within`, and
 `--scan-outline-color`, `--scan-outline-offset`, `--scan-within-width`,
 `--scan-within-color`, and `--scan-within-offset`. Canvas system colors remain
 visible in forced-colors modes.
+
+Outside forced-colors mode, the primary indicator combines the
+`--scan-outline-color` foreground (default `CanvasText`) with a `Canvas` halo.
+Overriding `--scan-outline-color` changes only that foreground layer. The two
+system colors follow the element's effective `color-scheme`, so hosts that
+support both light and dark themes should declare `color-scheme` accurately.
 
 The default exit-positioning selector has deliberately low specificity so an
 application's positioning wins. If the application supplies no positioning,

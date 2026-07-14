@@ -90,6 +90,29 @@ describe("scan session", () => {
     expect(session.stepForward(1)).toEqual([{ type: "root-exhausted" }]);
   });
 
+  it("reports an empty root when reset content becomes ineligible", () => {
+    const target = {
+      kind: "target" as const,
+      id: "only",
+      label: "Only",
+      disabled: false,
+    };
+    const session = new ScanSession(
+      compileTree({
+        kind: "group",
+        id: "root",
+        label: "Root",
+        children: [target],
+      }),
+      "after",
+    );
+    session.start();
+    target.disabled = true;
+
+    expect(session.resetToRoot()).toEqual([{ type: "root-empty" }]);
+    expect(session.depth).toBe(0);
+  });
+
   it("handles commands safely without an active frame", () => {
     const session = new ScanSession(compileTree(ROOT), "after");
     expect(session.depth).toBe(0);

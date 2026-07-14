@@ -37,16 +37,22 @@ export function usePointerSwitch(
   const optionsRef = useCommittedRef(options);
   const reactId = useId();
   const sourceId = `pointer:${reactId}`;
+  const keyboardSourceId = `keyboard:${reactId}`;
   const activePointers = useRef(new Set<number>());
   const pressedSwitch = useRef<string | null>(null);
+  const pressedKey = useRef<{ code: string; switchId: string } | null>(null);
 
   const disconnectAll = useCallback((): void => {
     if (activePointers.current.size > 0 || pressedSwitch.current !== null) {
       scanner.input.disconnect(sourceId);
     }
+    if (pressedKey.current !== null) {
+      scanner.input.disconnect(keyboardSourceId);
+    }
     activePointers.current.clear();
     pressedSwitch.current = null;
-  }, [scanner, sourceId]);
+    pressedKey.current = null;
+  }, [keyboardSourceId, scanner, sourceId]);
 
   const register = useCallback(
     (element: HTMLElement) => {
@@ -100,11 +106,29 @@ export function usePointerSwitch(
           finishPointer(event, true);
       };
       const onClick = (event: MouseEvent): void => {
+        if (optionsRef.current.enabled === false) return;
         // Real/generated pointer clicks have detail > 0. Keyboard and
         // programmatic `element.click()` activations have detail === 0.
         if (event.detail <= 0) return;
         event.preventDefault();
         event.stopImmediatePropagation();
+      };
+      const isSwitchKey = (event: KeyboardEvent): boolean =>
+        event.code === "Space" || event.code === "Enter";
+      const onKeyDown = (event: KeyboardEvent): void => {
+        if (optionsRef.current.enabled === false || !isSwitchKey(event)) return;
+        event.preventDefault();
+        if (event.repeat || pressedKey.current !== null) return;
+        const switchId = optionsRef.current.switchId;
+        pressedKey.current = { code: event.code, switchId };
+        scanner.input.press(switchId, keyboardSourceId);
+      };
+      const onKeyUp = (event: KeyboardEvent): void => {
+        const pressed = pressedKey.current;
+        if (!pressed || event.code !== pressed.code) return;
+        event.preventDefault();
+        pressedKey.current = null;
+        scanner.input.release(pressed.switchId, keyboardSourceId);
       };
       const onVisibility = (): void => {
         if (ownerDocument.visibilityState === "hidden") disconnectAll();
@@ -115,6 +139,8 @@ export function usePointerSwitch(
       element.addEventListener("pointercancel", onPointerCancel);
       element.addEventListener("lostpointercapture", onLostCapture);
       element.addEventListener("click", onClick, true);
+      element.addEventListener("keydown", onKeyDown);
+      element.addEventListener("keyup", onKeyUp);
       ownerWindow?.addEventListener("blur", disconnectAll);
       ownerDocument.addEventListener("visibilitychange", onVisibility);
 
@@ -124,12 +150,14 @@ export function usePointerSwitch(
         element.removeEventListener("pointercancel", onPointerCancel);
         element.removeEventListener("lostpointercapture", onLostCapture);
         element.removeEventListener("click", onClick, true);
+        element.removeEventListener("keydown", onKeyDown);
+        element.removeEventListener("keyup", onKeyUp);
         ownerWindow?.removeEventListener("blur", disconnectAll);
         ownerDocument.removeEventListener("visibilitychange", onVisibility);
         disconnectAll();
       };
     },
-    [disconnectAll, scanner, sourceId, optionsRef],
+    [disconnectAll, keyboardSourceId, scanner, sourceId, optionsRef],
   );
 
   useEffect(() => {

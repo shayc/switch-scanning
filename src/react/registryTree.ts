@@ -12,6 +12,8 @@ export interface RegistryGroupEntry {
   readonly id: string;
   getOptions: () => ScanGroupOptions;
   element: HTMLElement | null;
+  /** A production-safe cycle repair; null places this group at the root. */
+  parentIdOverride?: string | null;
 }
 
 interface RegistryTreeDiagnostics {
@@ -65,7 +67,8 @@ export function compileRegistryTree(
   };
 
   const resolveGroupParent = (entry: RegistryGroupEntry): ParentId => {
-    const explicit = entry.getOptions().parentId;
+    if (entry.parentIdOverride === null) return ROOT_PARENT;
+    const explicit = entry.parentIdOverride ?? entry.getOptions().parentId;
     if (explicit !== undefined) {
       if (groups.has(explicit)) return explicit;
       if (isDevelopment()) {

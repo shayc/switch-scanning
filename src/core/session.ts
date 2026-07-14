@@ -130,6 +130,10 @@ export class ScanSession {
 
   resetToRoot(): readonly SessionEffect[] {
     const candidates = buildCandidates(this.tree.root, true, this.groupExit);
+    if (candidates.length === 0) {
+      this.frames = [];
+      return [{ type: "root-empty" }];
+    }
     this.frames = [{ groupId: null, candidates, index: 0, pass: 1 }];
     return this.land(null);
   }

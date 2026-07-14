@@ -29,6 +29,21 @@ test("mixed keyboard controls pass mapped Space through", async ({ page }) => {
   expect(prevented).toBe(true);
 });
 
+test("standard keyboard mode leaves phrase-button Space activation native", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const phrase = page.getByRole("button", { name: "Yes", exact: true });
+  await phrase.focus();
+  await page.keyboard.press("Space");
+
+  await expect(page.getByLabel("Selected phrases")).toContainText("Yes");
+  await expect(
+    page.getByRole("button", { name: "Start scanning" }),
+  ).toBeVisible();
+  await expect(page.locator("[data-scan-highlighted]")).toHaveCount(0);
+});
+
 test("timing controls reject values below their configured minimum", async ({
   page,
 }) => {
@@ -189,6 +204,7 @@ test("direct and scanner activation share the native button path", async ({
   await expect(page.getByLabel("Selected phrases")).toContainText("Yes");
 
   await page.getByRole("button", { name: "Clear" }).click();
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
   await page.keyboard.press("Space"); // start on first row group
   await page.keyboard.press("Space"); // enter row
   await page.keyboard.press("Space"); // activate first phrase
@@ -499,11 +515,36 @@ test("default highlight remains visible in forced colors", async ({
   ).not.toBe("none");
 });
 
+test("default highlight contrasts with a dark host background", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start scanning" }).click();
+  const highlighted = page.locator("[data-scan-highlighted]");
+  await expect(highlighted).toBeVisible();
+  const colors = await highlighted.evaluate((element) => {
+    const html = element as HTMLElement;
+    html.style.backgroundColor = "rgb(24, 24, 24)";
+    html.style.colorScheme = "dark";
+    const style = getComputedStyle(html);
+    return {
+      background: style.backgroundColor,
+      outline: style.outlineColor,
+    };
+  });
+  expect(colors.outline).not.toBe(colors.background);
+});
+
 test("reference demo has no automatically detectable accessibility violations", async ({
   page,
 }) => {
   await page.goto("/");
   await page.getByText("More options", { exact: true }).click();
+  await page.getByRole("switch", { name: "Show touch controls" }).check();
+  await page.getByRole("button", { name: "Start scanning" }).click();
+  await expect(
+    page.getByRole("region", { name: "Touch controls" }),
+  ).toBeVisible();
 
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });

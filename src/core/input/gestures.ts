@@ -59,8 +59,8 @@ export interface GestureEngine {
   setSwitches(switches: Map<string, NormalizedSwitch>): void;
   /** Cancel held sources while preserving fixed repeat-suppression windows. */
   cancelActive(): void;
-  /** Cancel all pending gestures and forget all sources. */
-  reset(): void;
+  /** Forget every fixed repeat-suppression window. */
+  clearRepeatWindows(): void;
 }
 
 export function createGestureEngine(deps: {
@@ -281,12 +281,18 @@ export function createGestureEngine(deps: {
     sources.clear();
   }
 
-  function reset(): void {
-    cancelActive();
+  function clearRepeatWindows(): void {
     blockedUntil.clear();
   }
 
-  return { press, release, disconnect, setSwitches, cancelActive, reset };
+  return {
+    press,
+    release,
+    disconnect,
+    setSwitches,
+    cancelActive,
+    clearRepeatWindows,
+  };
 }
 
 function contextOf(state: SourceState): GestureContext {

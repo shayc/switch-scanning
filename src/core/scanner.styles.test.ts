@@ -147,6 +147,45 @@ describe("post-activation policy", () => {
     ]);
   });
 
+  it("completes when restart finds that activation disabled the root", () => {
+    const target = {
+      kind: "target" as const,
+      id: "only",
+      label: "Only",
+      disabled: false,
+    };
+    const scanner = createScanner({
+      style: stepScan(),
+      afterActivation: "restart",
+      startOn: "command",
+    });
+    const events = recordScannerEvents(scanner);
+    scanner.attachHost({
+      activate: () => {
+        target.disabled = true;
+        return { activated: true };
+      },
+    });
+    scanner.setTree({
+      kind: "group",
+      id: "root",
+      label: "Root",
+      children: [target],
+    });
+
+    scanner.start();
+    scanner.select();
+
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "complete",
+      highlight: null,
+      position: null,
+    });
+    expect(events.ofType("scan.completed")).toEqual([
+      { type: "scan.completed", reason: "empty" },
+    ]);
+  });
+
   it("keeps highlight and restarts timing when activation fails", () => {
     const { clock, scanner, fixture, events } = build(
       options("restart"),
@@ -225,6 +264,28 @@ describe("step scanning", () => {
     scanner.input.release("next");
     expect(scanner.getSnapshot().pending).toBeNull();
     expect(clock.pending).toBe(0);
+  });
+
+  it("halts held movement when a zero-delay selection lands", () => {
+    const { clock, scanner } = build(
+      {
+        style: stepScan({ repeat: { delayMs: 100, intervalMs: 50 } }),
+        switches: {
+          next: { action: "next" },
+          select: { action: "select" },
+        },
+        selectionDelay: { durationMs: 0 },
+      },
+      YES_NO,
+    );
+    scanner.start();
+    scanner.input.press("next", "move");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "no" });
+
+    scanner.input.press("select", "choose");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "yes" });
+    clock.advanceBy(1_000);
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "yes" });
   });
 });
 

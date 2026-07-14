@@ -62,6 +62,20 @@ const EMPTY_ROOT: ScanGroupNode = {
   children: [],
 };
 
+const diagnosticChannels = new WeakMap<
+  Scanner,
+  (code: ScannerDiagnosticCode, message: string) => void
+>();
+
+/** @internal Route an integration diagnostic through a scanner's event bus. */
+export function reportScannerDiagnostic(
+  scanner: Scanner,
+  code: ScannerDiagnosticCode,
+  message: string,
+): void {
+  diagnosticChannels.get(scanner)?.(code, message);
+}
+
 /** Landing policies passed to `applySessionEffects`. */
 const PRESENT = { present: true, armDwell: false };
 const SILENT = { present: false, armDwell: false };
@@ -353,6 +367,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function beginSelectionTransition(): void {
     if (status !== "scanning") return;
+    // Selection always ends held movement, even when no visible transition is
+    // configured and presentation resumes synchronously.
+    styleRuntime.halt();
     const now = clock.now();
     const quietDurationMs = options.selectionDelay.durationMs;
     const fixedDurationMs =
@@ -364,7 +381,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
-    styleRuntime.halt();
     transition = {
       fixedDueAt: now + fixedDurationMs,
       quietDueAt: now + quietDurationMs,
@@ -421,7 +437,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     dropTransition();
     suspendedDwellRemaining = null;
     styleRuntime.halt();
-    gestures.reset();
+    gestures.cancelActive();
     session.clear();
     setPresentation(null);
   }
@@ -852,7 +868,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       ) {
         stopInternal("disabled");
       } else {
-        gestures.reset();
+        gestures.cancelActive();
+        gestures.clearRepeatWindows();
       }
       return;
     }
@@ -885,6 +902,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (status === "scanning") presentLogical(false);
   }
 
+  diagnosticChannels.set(scanner, (code, message) => {
+    runTransition(() => diagnostic(code, message));
+  });
   return scanner;
 }
 

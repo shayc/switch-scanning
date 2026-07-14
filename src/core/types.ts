@@ -64,6 +64,8 @@ export interface ScannerSnapshot {
 export type ScannerDiagnosticCode =
   | "command-inapplicable"
   | "duplicate-id"
+  | "reserved-id"
+  | "parent-cycle"
   | "unknown-switch-binding"
   | "activation-missing-target"
   | "second-host-attach"

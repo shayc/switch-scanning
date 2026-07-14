@@ -1,4 +1,8 @@
-# Migrating from 0.1 to 0.2
+# Migrating from the preview to 0.2.0
+
+Here, **the preview** means the unreleased repository/package snapshot that was
+temporarily labeled `0.1.0`. Version `0.2.0` is the first changeset-managed
+release line.
 
 - The package root is now the framework-agnostic core. React applications must
   import hooks and `ScannerProvider` from `@shayc/switch-scanning/react`.
@@ -27,5 +31,5 @@
 - Remove `metadata` from scan targets. The engine never interpreted or exposed
   it; keep application data in a host-owned map keyed by target ID.
 
-The preview adds `selectionDelay`, automatic `transitionTimeMs`, the
+Version 0.2.0 adds `selectionDelay`, automatic `transitionTimeMs`, the
 `togglePause` switch action, and `usePointerSwitch`.

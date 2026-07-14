@@ -58,6 +58,7 @@ function PhraseBoard({ phrases }: { phrases: Phrase[] }) {
     switches: { select: { action: "select" } },
   });
 
+  // The default binding captures mapped keys across the whole document.
   useKeyboardSwitches(scanner, { Space: "select" });
 
   return (
@@ -222,8 +223,9 @@ return (
 Apply `touch-action: none` to this dedicated surface. It captures pointers,
 coalesces multiple contacts, disconnects on lost capture/blur, and suppresses
 generated pointer clicks on the surface while permitting programmatic
-`.click()`. It intentionally prevents direct touch interaction, so do not
-place it over a mixed-input board.
+`.click()`. When the surface is focused, non-repeating Space or Enter keydown
+and keyup events operate the same logical switch. It intentionally prevents
+direct touch interaction, so do not place it over a mixed-input board.
 
 ## Two DOM channels
 
@@ -256,7 +258,7 @@ landing-only `label`.
 See the [full API reference](docs/API.md),
 [auditory scanning recipe](docs/auditory-scanning.md),
 [OBF adapter example](examples/obf/README.md), and
-[0.1 → 0.2 migration guide](docs/MIGRATION.md).
+[preview → 0.2.0 migration guide](docs/MIGRATION.md).
 
 ## Testing without a browser
 

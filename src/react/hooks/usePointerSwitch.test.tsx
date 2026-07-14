@@ -52,18 +52,22 @@ describe("pointer switch surface", () => {
     expect(fixture.activations).toEqual(["yes"]);
   });
 
-  it("suppresses generated pointer clicks but permits programmatic clicks", () => {
+  it("suppresses generated pointer clicks only while enabled", () => {
     const scanner = createScanner({ style: stepScan() });
     let clicks = 0;
-    function Surface() {
-      const binding = usePointerSwitch(scanner, { switchId: "unused" });
+    function Surface({ enabled = true }: { enabled?: boolean }) {
+      const binding = usePointerSwitch(scanner, {
+        switchId: "unused",
+        enabled,
+      });
       return (
         <button {...binding.props} onClick={() => clicks++}>
           Switch
         </button>
       );
     }
-    const surface = render(<Surface />).getByText("Switch");
+    const view = render(<Surface />);
+    const surface = view.getByText("Switch");
     const generated = new MouseEvent("click", {
       bubbles: true,
       cancelable: true,
@@ -77,6 +81,87 @@ describe("pointer switch surface", () => {
 
     act(() => surface.click());
     expect(clicks).toBe(1);
+
+    view.rerender(<Surface enabled={false} />);
+    const passThrough = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      detail: 1,
+    });
+    act(() => {
+      surface.dispatchEvent(passThrough);
+    });
+    expect(passThrough.defaultPrevented).toBe(false);
+    expect(clicks).toBe(2);
+  });
+
+  it("maps non-repeating Space and Enter key contacts to press and release", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "command",
+      switches: { select: { action: "select", performOn: "release" } },
+    });
+    const fixture = createScannerFixture(scanner, [
+      { kind: "target", id: "yes", label: "Yes" },
+    ]);
+    function Surface() {
+      const binding = usePointerSwitch(scanner, { switchId: "select" });
+      return <button {...binding.props}>Switch</button>;
+    }
+    const surface = render(<Surface />).getByText("Switch");
+    act(() => scanner.start());
+
+    const down = new KeyboardEvent("keydown", {
+      code: "Space",
+      key: " ",
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      surface.dispatchEvent(down);
+      surface.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          code: "Space",
+          key: " ",
+          repeat: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(down.defaultPrevented).toBe(true);
+    expect(fixture.activations).toEqual([]);
+    act(() => {
+      surface.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          code: "Space",
+          key: " ",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(fixture.activations).toEqual(["yes"]);
+
+    act(() => {
+      surface.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          code: "Enter",
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      surface.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          code: "Enter",
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(fixture.activations).toEqual(["yes", "yes"]);
   });
 
   it("ignores disabled/right-button input and disconnects cancelled contacts", () => {

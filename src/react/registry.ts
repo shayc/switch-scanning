@@ -1,4 +1,5 @@
-import type { Detach, Scanner } from "../core/index.ts";
+import type { Detach, Scanner, ScannerDiagnosticCode } from "../core/index.ts";
+import { reportScannerDiagnostic } from "../core/scanner.ts";
 import { isDevelopment } from "./env.ts";
 import {
   createDiagnosticWarner,
@@ -77,10 +78,17 @@ export class ScanRegistry {
   private dirty = false;
   private flushScheduled = false;
   private readonly warnOnce = createDiagnosticWarner();
+  private readonly pendingDiagnostics: Array<{
+    code: ScannerDiagnosticCode;
+    message: string;
+  }> = [];
 
   attach(scanner: Scanner): Detach {
     this.scanner = scanner;
     this.publishedScanner = null;
+    for (const diagnostic of this.pendingDiagnostics.splice(0)) {
+      reportScannerDiagnostic(scanner, diagnostic.code, diagnostic.message);
+    }
     this.markDirty();
     return () => {
       if (this.scanner === scanner) {
@@ -191,7 +199,10 @@ export class ScanRegistry {
       this.groupElements.delete(existing.element);
     }
     const entry: RegistryGroupEntry = { id, getOptions, element };
+    const cycle = findParentCycle(this.groups, entry, false);
+    if (cycle && isDevelopment()) this.reportParentCycle(cycle);
     this.groups.set(id, entry);
+    if (!isDevelopment()) this.repairParentCycles();
     if (element) this.groupElements.set(element, id);
     this.markDirty();
     return () => {
@@ -204,10 +215,14 @@ export class ScanRegistry {
     const existing = this.groups.get(id);
     if (existing?.element) this.groupElements.delete(existing.element);
     this.groups.delete(id);
+    if (!isDevelopment()) this.repairParentCycles();
     this.markDirty();
   }
 
   touchGroup(): void {
+    const cycle = findParentCycle(this.groups, undefined, false);
+    if (cycle && isDevelopment()) this.reportParentCycle(cycle);
+    if (!isDevelopment()) this.repairParentCycles();
     this.markDirty();
   }
 
@@ -232,7 +247,7 @@ export class ScanRegistry {
       this.groupElements,
       {
         reportParentCycle: (cycle) => this.reportParentCycle(cycle),
-        warn: (code, message) => this.warn(code, message),
+        warn: (code, message) => this.warnOnce(code, message),
       },
     );
     const signature = JSON.stringify(tree);
@@ -251,14 +266,17 @@ export class ScanRegistry {
     const message = `duplicate scan ${kind} id "${id}"`;
     if (isDevelopment())
       throw new Error(formatDiagnostic("duplicate-id", message));
-    this.warn("duplicate-id", `${message}; keeping the first registration`);
+    this.reportDiagnostic(
+      "duplicate-id",
+      `${message}; keeping the first registration`,
+    );
   }
 
   private reportReservedId(id: string): void {
     const message = `scan node id "${id}" is reserved for the registry root`;
     if (isDevelopment())
       throw new Error(formatDiagnostic("reserved-id", message));
-    this.warn("reserved-id", `${message}; registration ignored`);
+    this.reportDiagnostic("reserved-id", `${message}; registration ignored`);
   }
 
   private reportParentCycle(cycle: readonly string[]): void {
@@ -266,10 +284,56 @@ export class ScanRegistry {
     const message = `cyclic scan group parentage: ${route}`;
     if (isDevelopment())
       throw new Error(formatDiagnostic("parent-cycle", message));
-    this.warn("parent-cycle", `${message}; keeping "${cycle[0]}" at the root`);
+    this.reportDiagnostic(
+      "parent-cycle",
+      `${message}; keeping "${cycle[0]}" at the root`,
+    );
   }
 
-  private warn(code: string, message: string): void {
-    this.warnOnce(code, message);
+  private reportDiagnostic(code: ScannerDiagnosticCode, message: string): void {
+    if (this.scanner) reportScannerDiagnostic(this.scanner, code, message);
+    else this.pendingDiagnostics.push({ code, message });
   }
+
+  private repairParentCycles(): void {
+    for (const entry of this.groups.values()) {
+      delete entry.parentIdOverride;
+    }
+    let cycle = findParentCycle(this.groups);
+    while (cycle) {
+      this.reportParentCycle(cycle);
+      this.groups.get(cycle[0]!)!.parentIdOverride = null;
+      cycle = findParentCycle(this.groups);
+    }
+  }
+}
+
+function findParentCycle(
+  groups: ReadonlyMap<string, RegistryGroupEntry>,
+  candidate?: RegistryGroupEntry,
+  respectOverrides = true,
+): readonly string[] | null {
+  const entries = new Map(groups);
+  if (candidate) entries.set(candidate.id, candidate);
+
+  for (const startId of entries.keys()) {
+    const path: string[] = [];
+    const positions = new Map<string, number>();
+    let currentId: string | undefined = startId;
+
+    while (currentId !== undefined && entries.has(currentId)) {
+      const cycleStart = positions.get(currentId);
+      if (cycleStart !== undefined) return path.slice(cycleStart);
+      positions.set(currentId, path.length);
+      path.push(currentId);
+      const entry: RegistryGroupEntry = entries.get(currentId)!;
+      const parentId: string | undefined =
+        respectOverrides && entry.parentIdOverride === null
+          ? undefined
+          : ((respectOverrides ? entry.parentIdOverride : undefined) ??
+            entry.getOptions().parentId);
+      currentId = parentId;
+    }
+  }
+  return null;
 }

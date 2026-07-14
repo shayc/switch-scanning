@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createScanner, stepScan } from "../core/index.ts";
+import type { ScannerEvent } from "../core/index.ts";
 import {
   ScanRegistry,
   scanGroupStructuralSignature,
   scanTargetStructuralSignature,
 } from "./registry.ts";
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("registry ownership", () => {
   it("signs every tree-affecting registration field and excludes callbacks", () => {
@@ -134,16 +137,56 @@ describe("registry ownership", () => {
       () => ({ id: "a", label: "A", parentId: "b" }),
       null,
     );
+    expect(() =>
+      registry.mountGroup(
+        "b",
+        () => ({ id: "b", label: "B", parentId: "a" }),
+        null,
+      ),
+    ).toThrow("cyclic scan group parentage: a -> b -> a");
+  });
+
+  it("emits typed production diagnostics for duplicate, reserved, and cyclic IDs", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const scanner = createScanner({ style: stepScan() });
+    const diagnostics: Extract<ScannerEvent, { type: "diagnostic" }>[] = [];
+    scanner.observe((event) => {
+      if (event.type === "diagnostic") diagnostics.push(event);
+    });
+    const registry = new ScanRegistry();
+
+    registry.mountTarget(
+      "__root__",
+      () => ({ id: "__root__", label: "Reserved" }),
+      document.createElement("button"),
+    );
+    registry.attach(scanner);
+    registry.mountTarget(
+      "duplicate",
+      () => ({ id: "duplicate", label: "First" }),
+      document.createElement("button"),
+    );
+    registry.mountTarget(
+      "duplicate",
+      () => ({ id: "duplicate", label: "Second" }),
+      document.createElement("button"),
+    );
+    registry.mountGroup(
+      "a",
+      () => ({ id: "a", label: "A", parentId: "b" }),
+      null,
+    );
     registry.mountGroup(
       "b",
       () => ({ id: "b", label: "B", parentId: "a" }),
       null,
     );
-    registry.attach(createScanner({ style: stepScan() }));
 
-    expect(() => registry.flush()).toThrow(
-      "cyclic scan group parentage: a -> b -> a",
-    );
+    expect(diagnostics.map((event) => event.code)).toEqual([
+      "reserved-id",
+      "duplicate-id",
+      "parent-cycle",
+    ]);
   });
 
   it("exposes exit labels and falls back to Back for unknown groups", () => {

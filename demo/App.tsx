@@ -111,6 +111,17 @@ function buildStyle(kind: ScanStyleKind, t: Timing): ScanStyle {
   }
 }
 
+function isInteractiveApplicationTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest("[data-scan-pointer-switch]")) return false;
+  const interactive = target.closest(
+    "button, a, input, select, textarea, [tabindex]",
+  );
+  if (!interactive) return false;
+  if (interactive.matches("button, a, input, select, textarea")) return true;
+  return interactive instanceof HTMLElement && interactive.tabIndex >= 0;
+}
+
 export function App() {
   const [styleKind, setStyleKind] = useState<ScanStyleKind>("auto");
   const [timing, setTiming] = useState<Timing>(DEFAULT_TIMING);
@@ -148,7 +159,7 @@ export function App() {
             !(
               event.target instanceof Element &&
               event.target.closest("[data-scanner-controls]")
-            ),
+            ) && !isInteractiveApplicationTarget(event.target),
         },
   );
 
