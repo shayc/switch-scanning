@@ -100,6 +100,5 @@ export function createDomHost(
 
 function scrollIntoView(el: HTMLElement): void {
   if (typeof el.scrollIntoView !== "function") return;
-  // Reveal at the nearest edge using the page's configured scroll behavior.
   el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
 }

@@ -2,8 +2,6 @@ import type { Clock, Scheduler } from "./clock.ts";
 import type { ScanStyle } from "./styles.ts";
 import type { SwitchDefinition } from "./input/switches.ts";
 
-// Scan tree
-
 export type ScanNode = ScanGroupNode | ScanTargetNode;
 
 export interface ScanGroupNode {
@@ -21,8 +19,6 @@ export interface ScanTargetNode {
   readonly label: string;
   readonly disabled?: boolean;
 }
-
-// Snapshot
 
 export type Highlight =
   | null
@@ -55,8 +51,6 @@ export interface ScannerSnapshot {
   readonly position: ScanPosition | null;
   readonly pending: PendingTiming | null;
 }
-
-// Events
 
 export type ScannerDiagnosticCode =
   | "command-inapplicable"
@@ -109,8 +103,6 @@ export type HighlightChangedEvent =
       current: null;
     };
 
-// Host
-
 export type ActivationResult =
   { activated: true } | { activated: false; reason: string };
 
@@ -127,8 +119,6 @@ export interface HostAttachment {
   /** Whether this host acquired the scanner's exclusive host slot. */
   readonly attached: boolean;
 }
-
-// Options
 
 export type StartOn = "switch" | "mount" | "command";
 export type AfterActivation = "restart" | "continue" | "repeat" | "stop";
@@ -162,16 +152,12 @@ type ScannerInfrastructureOptions =
 export type ScannerOptions = ScannerBehaviorOptions &
   ScannerInfrastructureOptions;
 
-// Input port
-
 export interface ScannerInputPort {
   press(switchId: string, sourceId?: string): void;
   release(switchId: string, sourceId?: string): void;
   /** Disconnect one physical source, or every active source when omitted. */
   disconnect(sourceId?: string): void;
 }
-
-// Scanner
 
 export interface Scanner {
   /** Semantic host/caregiver/testing command; bypasses physical gesture filters. */
