@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Badge, Button, Paper, Tabs } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import {
   useScannerEvents,
   useScannerSnapshot,
@@ -31,10 +33,8 @@ export function EventLog({
 }) {
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const [view, setView] = useState<"events" | "state">("events");
-  const [wideInspector, setWideInspector] = useState(
-    () => window.matchMedia(WIDE_INSPECTOR_QUERY).matches,
-  );
-  const [inspectorOpen, setInspectorOpen] = useState(wideInspector);
+  const wideInspector = useMediaQuery(WIDE_INSPECTOR_QUERY);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const nextId = useRef(0);
   const generation = useRef(0);
   const promptPaused = useRef(false);
@@ -131,20 +131,6 @@ export function EventLog({
     }
   }, [scanner, speech]);
 
-  useEffect(() => {
-    const media = window.matchMedia(WIDE_INSPECTOR_QUERY);
-    const updateLayout = (matches: boolean) => {
-      setWideInspector(matches);
-      setInspectorOpen(matches);
-    };
-    const handleChange = (event: MediaQueryListEvent) =>
-      updateLayout(event.matches);
-
-    updateLayout(media.matches);
-    media.addEventListener("change", handleChange);
-    return () => media.removeEventListener("change", handleChange);
-  }, []);
-
   useEffect(
     () => () => {
       generation.current++;
@@ -154,13 +140,16 @@ export function EventLog({
   );
 
   return (
-    <section
-      className="panel diagnostics-panel"
+    <Paper
+      component="section"
+      className="diagnostics-panel"
+      withBorder
+      radius="md"
       aria-label="Event inspector"
       data-scanner-controls=""
     >
       <details
-        open={inspectorOpen}
+        open={wideInspector || inspectorOpen}
         onToggle={(event) => {
           if (wideInspector && !event.currentTarget.open) {
             event.currentTarget.open = true;
@@ -174,60 +163,63 @@ export function EventLog({
             <strong>Inspect events</strong>
           </span>
           {events.length > 0 && (
-            <span className="event-count">
+            <Badge className="event-count" variant="light" color="gray">
               {events.length} {events.length === 1 ? "event" : "events"}
-            </span>
+            </Badge>
           )}
         </summary>
         <div className="console-body">
-          <div className="console-tabs" aria-label="Console view">
-            <button
-              type="button"
-              aria-pressed={view === "events"}
-              onClick={() => setView("events")}
-            >
-              Events
-            </button>
-            <button
-              type="button"
-              aria-pressed={view === "state"}
-              onClick={() => setView("state")}
-            >
-              State
-            </button>
-            {view === "events" && events.length > 0 && (
-              <button
-                type="button"
-                className="clear-events"
-                onClick={() => setEvents([])}
-              >
-                Clear events
-              </button>
-            )}
-          </div>
+          <Tabs
+            className="console-tabs"
+            value={view}
+            onChange={(value) => {
+              if (value === "events" || value === "state") setView(value);
+            }}
+            variant="pills"
+          >
+            <div className="console-toolbar">
+              <Tabs.List aria-label="Console view">
+                <Tabs.Tab value="events">Events</Tabs.Tab>
+                <Tabs.Tab value="state">State</Tabs.Tab>
+              </Tabs.List>
+              {view === "events" && events.length > 0 && (
+                <Button
+                  type="button"
+                  className="clear-events"
+                  variant="subtle"
+                  color="gray"
+                  size="compact-xs"
+                  onClick={() => setEvents([])}
+                >
+                  Clear events
+                </Button>
+              )}
+            </div>
 
-          {view === "events" ? (
-            events.length === 0 ? (
-              <div className="console-empty">
-                <strong>No events yet</strong>
-                <span>Start the preview or press a mapped switch.</span>
-              </div>
-            ) : (
-              <ol className="event-list">
-                {events.map((event) => (
-                  <li key={event.id} data-event={event.type}>
-                    <code>{event.type}</code>
-                    <span>{event.text}</span>
-                  </li>
-                ))}
-              </ol>
-            )
-          ) : (
-            <StatusLine scanner={scanner} />
-          )}
+            <Tabs.Panel value="events">
+              {events.length === 0 ? (
+                <div className="console-empty">
+                  <strong>No events yet</strong>
+                  <span>Start the preview or press a mapped switch.</span>
+                </div>
+              ) : (
+                <ol className="event-list">
+                  {events.map((event) => (
+                    <li key={event.id} data-event={event.type}>
+                      <code>{event.type}</code>
+                      <span>{event.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Tabs.Panel>
+            <Tabs.Panel value="state">
+              <StatusLine scanner={scanner} />
+            </Tabs.Panel>
+          </Tabs>
         </div>
       </details>
-    </section>
+    </Paper>
   );
 }
 

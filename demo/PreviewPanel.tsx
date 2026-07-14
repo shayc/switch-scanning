@@ -4,6 +4,7 @@ import {
   type Scanner,
   type ScannerStatus,
 } from "@shayc/switch-scanning";
+import { Badge, Button, Kbd, Paper } from "@mantine/core";
 import type { ScanStyleKind } from "./App.tsx";
 import { STYLE_META } from "./ControlsPanel.tsx";
 import { PhraseBoard } from "./PhraseBoard.tsx";
@@ -24,7 +25,14 @@ export function PreviewPanel({
   const meta = STYLE_META[styleKind];
 
   return (
-    <section className="panel preview-panel" aria-labelledby="preview-heading">
+    <Paper
+      component="section"
+      className="preview-panel"
+      withBorder
+      shadow="xs"
+      radius="md"
+      aria-labelledby="preview-heading"
+    >
       <header className="preview-toolbar" data-scanner-controls="">
         <div className="preview-title">
           <h2 id="preview-heading">Phrase board</h2>
@@ -40,7 +48,7 @@ export function PreviewPanel({
         {meta.keys.map((binding) => (
           <span key={binding.action}>
             <strong>{binding.action}</strong>
-            <kbd>{binding.key}</kbd>
+            <Kbd>{binding.key}</Kbd>
           </span>
         ))}
       </div>
@@ -52,7 +60,7 @@ export function PreviewPanel({
       {pointerSwitch && (
         <PointerControls scanner={scanner} styleKind={styleKind} />
       )}
-    </section>
+    </Paper>
   );
 }
 
@@ -96,32 +104,37 @@ function RuntimeControls({ scanner }: { scanner: Scanner }) {
     <div className="runtime-controls">
       {status !== "idle" && (
         <div className="runtime-state" role="status" aria-live="polite">
-          <span
-            className={`status-dot status-dot--${status}`}
-            aria-hidden="true"
-          />
-          <span>
-            <strong>{labels[status]}</strong>
-            {detail && <small>{detail}</small>}
-          </span>
+          <Badge
+            variant="light"
+            size="sm"
+            color={
+              status === "complete"
+                ? "teal"
+                : status === "paused"
+                  ? "yellow"
+                  : "demoBlue"
+            }
+          >
+            {labels[status]}
+          </Badge>
+          {detail && <small>{detail}</small>}
         </div>
       )}
       <div className="run-actions">
-        <button
-          type="button"
-          className="button button--primary"
-          onClick={primaryAction.run}
-        >
+        <Button type="button" size="sm" h={44} onClick={primaryAction.run}>
           {primaryAction.label}
-        </button>
+        </Button>
         {isActive && (
-          <button
+          <Button
             type="button"
-            className="button button--quiet"
+            variant="subtle"
+            color="gray"
+            size="sm"
+            h={44}
             onClick={() => scanner.stop()}
           >
             Stop scanning
-          </button>
+          </Button>
         )}
       </div>
     </div>

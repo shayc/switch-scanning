@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("mixed keyboard controls pass mapped Space through", async ({ page }) => {
   await page.goto("/");
   await page.getByText("More options", { exact: true }).click();
-  const speech = page.getByRole("checkbox", {
+  const speech = page.getByRole("switch", {
     name: "Speak highlighted and selected items",
   });
   await speech.focus();
@@ -76,7 +76,7 @@ test("control architecture stays responsive and exposes only relevant run action
   });
   await expect(moreOptions).not.toHaveAttribute("open", "");
   await expect(
-    page.getByRole("checkbox", { name: "Show touch controls" }),
+    page.getByRole("switch", { name: "Show touch controls" }),
   ).not.toBeVisible();
   const previewBox = await page.locator(".preview-column").boundingBox();
   const setupBox = await page.locator(".controls-panel").boundingBox();
@@ -174,10 +174,10 @@ test("auditory prompts preserve the held inverse-scan release", async ({
     });
   });
   await page.goto("/");
-  await page.getByRole("radio", { name: "Inverse scanning" }).check();
+  await page.getByRole("radio", { name: "Inverse scanning" }).click();
   await page.getByText("More options", { exact: true }).click();
   await page
-    .getByRole("checkbox", { name: "Speak highlighted and selected items" })
+    .getByRole("switch", { name: "Speak highlighted and selected items" })
     .check();
   await page
     .getByRole("radio", { name: "Use the keyboard as a dedicated switch" })
@@ -188,7 +188,7 @@ test("auditory prompts preserve the held inverse-scan release", async ({
   await page.keyboard.up("Space");
 
   await page.getByText("Inspect events", { exact: true }).click();
-  await page.getByRole("button", { name: "State" }).click();
+  await page.getByRole("tab", { name: "State" }).click();
   const scope = page
     .locator(".status div")
     .filter({ hasText: "Scope" })
@@ -200,15 +200,15 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("radio", { name: "Two-switch step" }).check();
+  await page.getByRole("radio", { name: "Two-switch step" }).click();
   await page.getByText("More options", { exact: true }).click();
-  await page.getByRole("checkbox", { name: "Show touch controls" }).check();
+  await page.getByRole("switch", { name: "Show touch controls" }).check();
   const surface = page.getByRole("button", { name: "Next", exact: true });
   await expect(
     page.getByRole("button", { name: "Select", exact: true }),
   ).toBeVisible();
   await page.getByText("Inspect events", { exact: true }).click();
-  await page.getByRole("button", { name: "State" }).click();
+  await page.getByRole("tab", { name: "State" }).click();
   const position = page
     .locator(".status div")
     .filter({ hasText: "Position" })
@@ -371,9 +371,9 @@ test("mobile touch switch remains reachable while scan events accumulate", async
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  await page.getByRole("radio", { name: "Two-switch step" }).check();
+  await page.getByRole("radio", { name: "Two-switch step" }).click();
   await page.getByText("More options", { exact: true }).click();
-  await page.getByRole("checkbox", { name: "Show touch controls" }).check();
+  await page.getByRole("switch", { name: "Show touch controls" }).check();
   await page
     .getByRole("radio", { name: "Use the keyboard as a dedicated switch" })
     .check();
