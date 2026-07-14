@@ -186,7 +186,7 @@ export interface ScannerInputPort {
 
 /** The scanning runtime: commands, state, subscriptions, and host wiring. */
 export interface Scanner {
-  /** Semantic host/caregiver/testing command; bypasses physical gesture filters. */
+  /** Semantic host/programmatic/testing command; bypasses physical gesture filters. */
   start(): void;
   pause(): void;
   resume(): void;
