@@ -68,6 +68,7 @@ export interface ManualClock extends Clock, Scheduler {
  * the runtime relies on for exact-timestamp behavior.
  */
 export function manualClock(startAt = 0): ManualClock {
+  assertFiniteNonNegative(startAt, "initial time");
   let current = startAt;
   let seq = 0;
   let entries: ScheduledEntry[] = [];
@@ -103,6 +104,7 @@ export function manualClock(startAt = 0): ManualClock {
   return {
     now: () => current,
     schedule(delayMs, callback) {
+      assertFiniteNonNegative(delayMs, "scheduled delay");
       const entry: ScheduledEntry = {
         deadline: current + delayMs,
         seq: seq++,
@@ -114,9 +116,11 @@ export function manualClock(startAt = 0): ManualClock {
       };
     },
     advanceBy(ms) {
+      assertFiniteNonNegative(ms, "advanceBy(ms)");
       drainUntil(current + ms);
     },
     advanceTo(time) {
+      assertFiniteNonNegative(time, "advanceTo(time)");
       if (time < current) {
         throw new Error("manualClock cannot advance backwards");
       }
@@ -135,4 +139,12 @@ export function manualClock(startAt = 0): ManualClock {
       return entries.filter((entry) => entry.callback !== null).length;
     },
   };
+}
+
+function assertFiniteNonNegative(value: number, name: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new RangeError(
+      `[switch-scanning] manualClock ${name} must be a finite number >= 0 (received ${String(value)})`,
+    );
+  }
 }

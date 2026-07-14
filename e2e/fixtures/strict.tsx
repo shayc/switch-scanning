@@ -5,7 +5,7 @@ import {
   createScanner,
   stepScan,
   useScanTarget,
-} from "@shayc/switch-scanning";
+} from "@shayc/switch-scanning/react";
 
 let lastTarget: HTMLElement | null = null;
 const scanner = createScanner({ style: stepScan(), startOn: "command" });

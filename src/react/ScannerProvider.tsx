@@ -29,8 +29,8 @@ export function ScannerProvider({
     const host = createDomHost(registry, (groupId) =>
       registry.exitLabelFor(groupId),
     );
-    const detachHost = scanner.attachHost(host);
-    if (!detachHost.attached) return detachHost;
+    const attachment = scanner.attachHost(host);
+    if (!attachment.attached) return () => attachment.detach();
     const detachRegistry = registry.attach(scanner);
     // Publish the initial tree synchronously so a mount-start rule can fire.
     registry.flush();
@@ -38,7 +38,7 @@ export function ScannerProvider({
     return () => {
       scanner.stop();
       detachRegistry();
-      detachHost();
+      attachment.detach();
     };
   }, [scanner, registry]);
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useScanGroup, useScanTarget } from "@shayc/switch-scanning";
+import { useScanGroup, useScanTarget } from "@shayc/switch-scanning/react";
 import { Button, Paper, SimpleGrid, Stack, Text } from "@mantine/core";
 import classes from "./PhraseBoard.module.css";
 
@@ -69,6 +69,7 @@ export function PhraseBoard({ thanksDisabled }: { thanksDisabled: boolean }) {
         className={classes.messageBar}
         withBorder
         p="md"
+        aria-label="Selected phrases"
       >
         {message.length === 0 ? (
           <Text component="span" c="dimmed">

@@ -17,7 +17,11 @@ export interface StyleRuntime {
   scanPress(sourceKey: string, firstOfPass: boolean): void;
   scanRelease(sourceKey: string): ScanPhaseResult;
   scanCancel(sourceKey: string): ScanPhaseResult;
-  maybeStartRepeat(heldPress: boolean, sourceKey: string): void;
+  maybeStartRepeat(
+    direction: "next" | "previous",
+    heldPress: boolean,
+    sourceKey: string,
+  ): void;
   releaseRepeatOwner(sourceKey: string): void;
 }
 
@@ -30,12 +34,14 @@ export function createStyleRuntime(deps: {
   scheduler: Scheduler;
   isScanning: () => boolean;
   advance: () => void;
+  repeat: (direction: "next" | "previous") => void;
   select: () => void;
 }): StyleRuntime {
   let style = deps.style;
   let deadline: CancelScheduled | null = null;
   let repeatCancel: CancelScheduled | null = null;
   let repeatOwner: string | null = null;
+  let repeatDirection: "next" | "previous" | null = null;
   let pending: PendingTiming | null = null;
   const activeScanSources = new Set<string>();
 
@@ -86,6 +92,7 @@ export function createStyleRuntime(deps: {
     }
     repeatCancel = null;
     repeatOwner = null;
+    repeatDirection = null;
   }
 
   function scheduleRepeat(repeat: StepScanRepeat, delay: number): void {
@@ -98,8 +105,13 @@ export function createStyleRuntime(deps: {
     repeatCancel = deps.scheduler.schedule(delay, () => {
       repeatCancel = null;
       pending = null;
-      if (repeatOwner === null || !deps.isScanning()) return;
-      deps.advance();
+      if (
+        repeatOwner === null ||
+        repeatDirection === null ||
+        !deps.isScanning()
+      )
+        return;
+      deps.repeat(repeatDirection);
       scheduleRepeat(repeat, repeat.intervalMs);
     });
   }
@@ -145,10 +157,11 @@ export function createStyleRuntime(deps: {
       cancelDeadline();
       return "closed";
     },
-    maybeStartRepeat(heldPress, sourceKey) {
+    maybeStartRepeat(direction, heldPress, sourceKey) {
       if (style.kind !== "step" || style.repeat === false) return;
       if (!heldPress || repeatOwner !== null) return;
       repeatOwner = sourceKey;
+      repeatDirection = direction;
       scheduleRepeat(style.repeat, style.repeat.delayMs);
     },
     releaseRepeatOwner(sourceKey) {

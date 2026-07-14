@@ -27,14 +27,16 @@ auditory prompts, transition timing, and a dedicated touch-switch surface.
 npm install @shayc/switch-scanning
 ```
 
-`react` and `react-dom` v18 or v19 are peer dependencies.
+The core entry points work without React. The `/react` bindings support
+`react` and `react-dom` v18 or v19 as peer dependencies.
 
 ## Entry points
 
 | Import                                | Contents                                         |
 | ------------------------------------- | ------------------------------------------------ |
-| `@shayc/switch-scanning`              | React hooks + provider (re-exports the core)     |
-| `@shayc/switch-scanning/core`         | Framework-agnostic engine, styles, switches      |
+| `@shayc/switch-scanning`              | Framework-agnostic engine, styles, switches      |
+| `@shayc/switch-scanning/core`         | Compatibility alias for the core                 |
+| `@shayc/switch-scanning/react`        | React bindings plus core re-exports              |
 | `@shayc/switch-scanning/core/testing` | `manualClock`, `createScannerFixture`, recorders |
 | `@shayc/switch-scanning/styles.css`   | Optional, forced-colors-aware highlight styles   |
 
@@ -47,7 +49,7 @@ import {
   useKeyboardSwitches,
   useScanner,
   useScanTarget,
-} from "@shayc/switch-scanning";
+} from "@shayc/switch-scanning/react";
 import "@shayc/switch-scanning/styles.css";
 
 function PhraseBoard({ phrases }: { phrases: Phrase[] }) {
@@ -90,7 +92,7 @@ at activation time, but DOM-only changes do not themselves schedule a rebuild.
 
 ```ts
 autoScan({ intervalMs, loops, firstItemPauseMs?, transitionTimeMs? })
-stepScan({ repeat? })                                    // one action advances; another selects
+stepScan({ repeat? })                                    // next/previous can repeat while held
 singleSwitchStepScan({ dwellTimeMs })                    // switch advances; stillness selects
 inverseScan({ intervalMs, loops, firstItemPauseMs? })    // hold advances; release selects
 ```
@@ -98,6 +100,9 @@ inverseScan({ intervalMs, loops, firstItemPauseMs? })    // hold advances; relea
 Timing and loop values that materially define an access method are required —
 no universal scan speed is implied. Style constructors return frozen, validated
 data.
+
+Step repeat uses the same delay and interval in both directions. Independent
+reverse speed is reserved for a future overscan feature.
 
 Use scanner-level `selectionDelay: { durationMs, resetOnInput? }` to protect
 the next semantic selection independently of per-switch `ignoreRepeatMs`.
@@ -252,7 +257,7 @@ See the [full API reference](docs/API.md),
 ## Testing without a browser
 
 ```ts
-import { createScanner, autoScan } from "@shayc/switch-scanning/core";
+import { createScanner, autoScan } from "@shayc/switch-scanning";
 import {
   manualClock,
   createScannerFixture,

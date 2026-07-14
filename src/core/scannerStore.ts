@@ -27,7 +27,7 @@ export function createScannerStore(
     status: "idle",
     highlight: null,
     path: [],
-    loop: 0,
+    pass: 0,
     position: null,
     pending: null,
   };

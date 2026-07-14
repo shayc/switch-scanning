@@ -43,7 +43,9 @@ test("timing controls reject values below their configured minimum", async ({
   await expect(selectionDelay).toHaveValue("0");
   const start = page.getByRole("button", { name: "Start scanning" });
   await start.click();
-  await expect(page.locator(".runtime-state")).toContainText("Scanning");
+  await expect(
+    page.getByRole("status", { name: "Scanner status" }),
+  ).toContainText("Scanning");
   await expect(start).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Pause scanning" }),
@@ -76,8 +78,12 @@ test("control architecture stays responsive and exposes only relevant run action
   await expect(
     page.getByRole("switch", { name: "Show touch controls" }),
   ).not.toBeVisible();
-  const previewBox = await page.locator(".preview-column").boundingBox();
-  const setupBox = await page.locator(".controls-panel").boundingBox();
+  const previewBox = await page
+    .getByRole("region", { name: "Phrase board", exact: true })
+    .boundingBox();
+  const setupBox = await page
+    .getByRole("complementary", { name: "Setup" })
+    .boundingBox();
   expect(previewBox).not.toBeNull();
   expect(setupBox).not.toBeNull();
   expect(previewBox!.y).toBeLessThan(setupBox!.y);
@@ -90,7 +96,10 @@ test("control architecture stays responsive and exposes only relevant run action
     page.getByRole("button", { name: "Pause scanning" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Start over" })).toHaveCount(0);
-  const preview = page.getByRole("region", { name: "Phrase board" });
+  const preview = page.getByRole("region", {
+    name: "Phrase board",
+    exact: true,
+  });
   await expect(
     preview.getByRole("button", { name: "Stop scanning", exact: true }),
   ).toBeVisible();
@@ -150,9 +159,12 @@ test("wide layouts keep a compact live event inspector open on the right", async
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto("/");
 
-  const preview = page.locator(".preview-panel");
-  const inspector = page.locator(".diagnostics-panel");
-  const details = inspector.locator("details");
+  const preview = page.getByRole("region", {
+    name: "Phrase board",
+    exact: true,
+  });
+  const inspector = page.getByRole("region", { name: "Event inspector" });
+  const details = inspector.getByRole("group", { name: "Inspect events" });
   const previewBox = await preview.boundingBox();
   const inspectorBox = await inspector.boundingBox();
 
@@ -162,8 +174,8 @@ test("wide layouts keep a compact live event inspector open on the right", async
   await expect(details).toHaveAttribute("open", "");
 
   await page.getByRole("button", { name: "Start scanning" }).click();
-  await expect(inspector.locator(".event-list li").first()).toBeVisible();
-  await expect(inspector.locator(".event-list li").first()).toContainText(
+  await expect(inspector.locator("[data-event]").first()).toBeVisible();
+  await expect(inspector.locator("[data-event]").first()).toContainText(
     "highlight.changed",
   );
 });
@@ -173,13 +185,13 @@ test("direct and scanner activation share the native button path", async ({
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Yes" }).click();
-  await expect(page.locator(".message-bar")).toContainText("Yes");
+  await expect(page.getByLabel("Selected phrases")).toContainText("Yes");
 
   await page.getByRole("button", { name: "Clear" }).click();
   await page.keyboard.press("Space"); // start on first row group
   await page.keyboard.press("Space"); // enter row
   await page.keyboard.press("Space"); // activate first phrase
-  await expect(page.locator(".message-bar")).toContainText("I want");
+  await expect(page.getByLabel("Selected phrases")).toContainText("I want");
 });
 
 test("auditory prompts preserve the held inverse-scan release", async ({
@@ -219,15 +231,14 @@ test("auditory prompts preserve the held inverse-scan release", async ({
     .check();
 
   await page.keyboard.down("Space");
-  await expect(page.locator(".runtime-state")).toContainText("Scanning");
+  await expect(
+    page.getByRole("status", { name: "Scanner status" }),
+  ).toContainText("Scanning");
   await page.keyboard.up("Space");
 
   await page.getByText("Inspect events", { exact: true }).click();
   await page.getByRole("tab", { name: "State" }).click();
-  const scope = page
-    .locator(".status div")
-    .filter({ hasText: "Scope" })
-    .locator("dd");
+  const scope = page.getByLabel("Scope");
   await expect(scope).toHaveText("row-wants");
 });
 
@@ -244,10 +255,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
   ).toBeVisible();
   await page.getByText("Inspect events", { exact: true }).click();
   await page.getByRole("tab", { name: "State" }).click();
-  const position = page
-    .locator(".status div")
-    .filter({ hasText: "Position" })
-    .locator("dd");
+  const position = page.getByLabel("Position");
   await expect(surface).toHaveAttribute("data-scan-pointer-switch", "");
   await expect(surface).toHaveCSS("touch-action", "none");
   await page.getByRole("button", { name: "Start scanning" }).click();

@@ -1,7 +1,4 @@
-import type {
-  ScanGroupNode,
-  ScanTargetNode,
-} from "@shayc/switch-scanning/core";
+import type { ScanGroupNode, ScanTargetNode } from "@shayc/switch-scanning";
 
 export interface ObfButton {
   id: string;

@@ -110,7 +110,7 @@ export class ScanSession {
       path: this.frames.flatMap((item) =>
         item.groupId === null ? [] : [item.groupId],
       ),
-      loop: frame ? frame.pass : 0,
+      pass: frame ? frame.pass : 0,
       position: frame
         ? { index: frame.index, count: frame.candidates.length }
         : null,
@@ -375,16 +375,21 @@ function candidateToHighlight(candidate: Candidate): NonNullable<Highlight> {
 
 export function highlightEquals(a: Highlight, b: Highlight): boolean {
   if (a === null || b === null) return a === b;
-  if (a.kind !== b.kind) return false;
-  if (a.kind === "exit" && b.kind === "exit") return a.groupId === b.groupId;
-  return "id" in a && "id" in b && a.id === b.id;
+  switch (a.kind) {
+    case "exit":
+      return b.kind === "exit" && a.groupId === b.groupId;
+    case "group":
+      return b.kind === "group" && a.id === b.id;
+    case "target":
+      return b.kind === "target" && a.id === b.id;
+  }
 }
 
 export function snapshotEquals(
   a: ScannerSnapshot,
   b: ScannerSnapshot,
 ): boolean {
-  if (a.status !== b.status || a.loop !== b.loop) return false;
+  if (a.status !== b.status || a.pass !== b.pass) return false;
   if (a.path.length !== b.path.length) return false;
   for (let i = 0; i < a.path.length; i += 1) {
     if (a.path[i] !== b.path[i]) return false;

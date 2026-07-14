@@ -25,6 +25,8 @@ try {
   )[0];
   const names = new Set(packed.files.map((file) => file.path));
   for (const required of [
+    "dist/index.js",
+    "dist/index.d.ts",
     "dist/core/index.js",
     "dist/core/index.d.ts",
     "dist/react/index.js",
@@ -60,6 +62,8 @@ try {
   writeFileSync(
     fixture,
     `
+      const root = await import("@shayc/switch-scanning");
+      if (typeof root.createScanner !== "function") throw new Error("root core import failed");
       const core = await import("@shayc/switch-scanning/core");
       if (typeof core.createScanner !== "function") throw new Error("core import failed");
       const testing = await import("@shayc/switch-scanning/core/testing");
@@ -67,6 +71,33 @@ try {
     `,
   );
   execFileSync("node", [fixture], { cwd: temp, env, stdio: "inherit" });
+
+  const typeFixture = join(temp, "core-consumer.ts");
+  writeFileSync(
+    typeFixture,
+    `
+      import { createScanner, stepScan } from "@shayc/switch-scanning";
+      import { autoScan } from "@shayc/switch-scanning/core";
+      import { manualClock } from "@shayc/switch-scanning/core/testing";
+      void createScanner({ style: stepScan(), clock: manualClock() });
+      void autoScan({ intervalMs: 100, loops: 1 });
+    `,
+  );
+  execFileSync(
+    join(root, "node_modules", ".bin", "tsc"),
+    [
+      "--noEmit",
+      "--skipLibCheck",
+      "--target",
+      "ES2022",
+      "--module",
+      "ESNext",
+      "--moduleResolution",
+      "Bundler",
+      typeFixture,
+    ],
+    { cwd: temp, env, stdio: "inherit" },
+  );
 
   for (const dependency of ["react", "react-dom"]) {
     const destination = join(temp, "node_modules", dependency);
@@ -77,11 +108,39 @@ try {
   writeFileSync(
     fixture,
     `
-      const reactEntry = await import("@shayc/switch-scanning");
+      const reactEntry = await import("@shayc/switch-scanning/react");
       if (typeof reactEntry.ScannerProvider !== "function") throw new Error("React import failed");
     `,
   );
   execFileSync("node", [fixture], { cwd: temp, env, stdio: "inherit" });
+
+  writeFileSync(
+    typeFixture,
+    `
+      import { createScanner } from "@shayc/switch-scanning";
+      import { stepScan } from "@shayc/switch-scanning/core";
+      import { manualClock } from "@shayc/switch-scanning/core/testing";
+      import { ScannerProvider, useScanner } from "@shayc/switch-scanning/react";
+      void createScanner({ style: stepScan(), clock: manualClock() });
+      void ScannerProvider;
+      void useScanner;
+    `,
+  );
+  execFileSync(
+    join(root, "node_modules", ".bin", "tsc"),
+    [
+      "--noEmit",
+      "--skipLibCheck",
+      "--target",
+      "ES2022",
+      "--module",
+      "ESNext",
+      "--moduleResolution",
+      "Bundler",
+      typeFixture,
+    ],
+    { cwd: temp, env, stdio: "inherit" },
+  );
 
   const manifest = JSON.parse(
     readFileSync(
@@ -90,6 +149,10 @@ try {
   );
   if (!manifest.exports?.["./styles.css"])
     throw new Error("stylesheet export is missing");
+  if (!manifest.exports?.["./react"])
+    throw new Error("React export is missing");
+  if (manifest.peerDependencies?.react !== "^18.0.0 || ^19.0.0")
+    throw new Error("React 18/19 peer range is missing");
 } finally {
   rmSync(temp, { recursive: true, force: true });
 }

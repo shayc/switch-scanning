@@ -47,7 +47,7 @@ export interface ScannerSnapshot {
   /** Group IDs from root to the active scope (root itself is omitted). */
   readonly path: readonly string[];
   /** The active scope's pass number, 1-based. */
-  readonly loop: number;
+  readonly pass: number;
   readonly position: ScanPosition | null;
   readonly pending: PendingTiming | null;
 }
@@ -115,9 +115,10 @@ export type Detach = () => void;
 export type Unsubscribe = () => void;
 
 export interface HostAttachment {
-  (): void;
   /** Whether this host acquired the scanner's exclusive host slot. */
   readonly attached: boolean;
+  /** Release the host slot. Safe to call more than once. */
+  detach(): void;
 }
 
 export type StartOn = "switch" | "mount" | "command";

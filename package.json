@@ -31,12 +31,16 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./core": {
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
     },
     "./core/testing": {
       "types": "./dist/core/testing/index.d.ts",
@@ -45,8 +49,8 @@
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },
-  "types": "./dist/react/index.d.ts",
-  "module": "./dist/react/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.js",
   "scripts": {
     "dev": "vite",
     "demo:build": "vite build --config vite.demo.config.ts",

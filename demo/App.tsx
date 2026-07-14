@@ -10,7 +10,7 @@ import {
   type KeyboardSwitchBindings,
   type ScanStyle,
   type SwitchDefinition,
-} from "@shayc/switch-scanning";
+} from "@shayc/switch-scanning/react";
 import { useMemo, useState } from "react";
 import { ControlsPanel } from "./ControlsPanel.tsx";
 import { EventLog } from "./EventLog.tsx";

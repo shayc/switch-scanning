@@ -1,5 +1,15 @@
 # Migrating from 0.1 to 0.2
 
+- The package root is now the framework-agnostic core. React applications must
+  import hooks and `ScannerProvider` from `@shayc/switch-scanning/react`.
+  `@shayc/switch-scanning/core` remains a compatibility alias.
+- `scanner.attachHost(host)` now returns `{ attached, detach() }`; replace calls
+  to a callable attachment handle with `attachment.detach()`.
+- Rename `snapshot.loop` to `snapshot.pass`. It remains one-based in an active
+  scope and `0` without a session. Style configuration still uses `loops`.
+- Held step repeat now applies symmetrically to `next` and `previous` using the
+  same delay and interval.
+
 - Replace `groupExit: "none"` with `groupExit: "back-only"` and declare at
   least one logical switch whose discrete or tap/hold action is `back`.
   `before`/`after` remain the safe virtual-exit choices.

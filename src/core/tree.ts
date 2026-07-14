@@ -25,7 +25,7 @@ export function compileTree(root: ScanGroupNode): CompiledTree {
       for (const child of node.children) walk(child);
     }
   };
-  for (const child of root.children) walk(child);
+  walk(root);
 
   return { root, byId };
 }

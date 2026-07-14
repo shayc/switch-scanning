@@ -7,7 +7,10 @@ import {
 } from "react";
 import { useScannerContext } from "../context.ts";
 import { useRegistrationRef } from "./refs.ts";
-import type { ScanGroupOptions } from "../registry.ts";
+import {
+  scanGroupStructuralSignature,
+  type ScanGroupOptions,
+} from "../registry.ts";
 
 export interface UseScanGroupOptions extends ScanGroupOptions {
   ref?: Ref<HTMLElement>;
@@ -43,18 +46,10 @@ export function useScanGroup(options: UseScanGroupOptions): ScanGroupBinding {
     options.ref,
   );
 
-  const sequenceKey = options.sequence ? options.sequence.join("\0") : "";
+  const structuralSignature = scanGroupStructuralSignature(options);
   useEffect(() => {
     registry.touchGroup();
-  }, [
-    registry,
-    id,
-    options.label,
-    options.exitLabel,
-    options.disabled,
-    options.parentId,
-    sequenceKey,
-  ]);
+  }, [registry, structuralSignature]);
 
   return { props: { ref, "data-scan-group": "" } };
 }

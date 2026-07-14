@@ -1,6 +1,10 @@
 import type { Detach, Scanner } from "../core/index.ts";
 import { isDevelopment } from "./env.ts";
 import {
+  createDiagnosticWarner,
+  formatDiagnostic,
+} from "../core/diagnostics.ts";
+import {
   compileRegistryTree,
   isElementDisabled,
   type RegistryGroupEntry,
@@ -27,6 +31,32 @@ export interface ScanGroupOptions {
   sequence?: readonly string[];
 }
 
+/** @internal Curated fields that can change the published target tree. */
+export function scanTargetStructuralSignature(
+  options: ScanTargetOptions,
+): string {
+  return JSON.stringify({
+    id: options.id,
+    label: options.label,
+    groupId: options.groupId ?? null,
+    disabled: options.disabled ?? null,
+  });
+}
+
+/** @internal Curated fields that can change the published group tree. */
+export function scanGroupStructuralSignature(
+  options: ScanGroupOptions,
+): string {
+  return JSON.stringify({
+    id: options.id,
+    label: options.label,
+    parentId: options.parentId ?? null,
+    exitLabel: options.exitLabel ?? null,
+    disabled: options.disabled ?? null,
+    sequence: options.sequence ?? null,
+  });
+}
+
 /**
  * Owns live DOM registrations and publishes one compiled scan tree per
  * microtask. Tree construction itself lives in registryTree.ts.
@@ -39,6 +69,7 @@ export class ScanRegistry {
   private scanner: Scanner | null = null;
   private dirty = false;
   private flushScheduled = false;
+  private readonly warnOnce = createDiagnosticWarner();
 
   attach(scanner: Scanner): Detach {
     this.scanner = scanner;
@@ -185,20 +216,20 @@ export class ScanRegistry {
 
   private reportDuplicate(kind: string, id: string): void {
     const message = `duplicate scan ${kind} id "${id}"`;
-    if (isDevelopment()) throw new Error(`[switch-scanning] ${message}`);
+    if (isDevelopment())
+      throw new Error(formatDiagnostic("duplicate-id", message));
     this.warn("duplicate-id", `${message}; keeping the first registration`);
   }
 
   private reportParentCycle(cycle: readonly string[]): void {
     const route = [...cycle, cycle[0]].join(" -> ");
     const message = `cyclic scan group parentage: ${route}`;
-    if (isDevelopment()) throw new Error(`[switch-scanning] ${message}`);
+    if (isDevelopment())
+      throw new Error(formatDiagnostic("parent-cycle", message));
     this.warn("parent-cycle", `${message}; keeping "${cycle[0]}" at the root`);
   }
 
   private warn(code: string, message: string): void {
-    if (typeof console !== "undefined") {
-      console.warn(`[switch-scanning] (${code}) ${message}`);
-    }
+    this.warnOnce(code, message);
   }
 }

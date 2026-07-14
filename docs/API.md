@@ -42,9 +42,10 @@ The bindable `togglePause` switch action pauses from `scanning` or
 `transitioning` and resumes from `paused`. Pausing forgets held gestures, so a
 fresh gesture is required after resume.
 
-`scanner.attachHost(host)` returns a callable detach handle whose `attached`
-property reports whether the exclusive host slot was acquired. A second live
-host is diagnosed and receives a handle with `attached: false`. Detaching
+`scanner.attachHost(host)` returns `{ attached, detach() }`. The `attached`
+property reports whether the exclusive host slot was acquired, and `detach()`
+is idempotent. A second live host is diagnosed and receives a handle with
+`attached: false`. Detaching
 clears the old host's presentation without discarding the logical session; a
 replacement host restores any visible active cursor before accepting input.
 
@@ -54,7 +55,7 @@ replacement host restores any visible active cursor before accepting input.
 - `highlight`: the currently presented group/target/exit, or `null` when no
   highlight is visible.
 - `path`: entered group IDs from root to active scope.
-- `loop`: one-based active pass, or `0` without a session.
+- `pass`: one-based active pass, or `0` without a session.
 - `position`: zero-based `{ index, count }` in the active scope.
 - `pending`: `{ kind, startedAt, dueAt }` for the effective `advance`, `dwell`,
   or `transition` wait. Times use the injected clock.
@@ -104,3 +105,8 @@ The optional stylesheet uses `data-scan-highlighted`, `data-scan-within`, and
 `--scan-outline-color`, `--scan-outline-offset`, `--scan-within-width`,
 `--scan-within-color`, and `--scan-within-offset`. Canvas system colors remain
 visible in forced-colors modes.
+
+The default exit-positioning selector has deliberately low specificity so an
+application's positioning wins. If the application supplies no positioning,
+the exit-highlight rule establishes the containing block used by its label
+pseudo-element.

@@ -22,7 +22,7 @@
   outline-offset: var(--scan-within-offset, 2px);
 }
 
-[data-scan-exit-highlighted] {
+:where([data-scan-exit-highlighted]) {
   position: relative;
   outline: var(--scan-outline-width, 4px) dashed
     var(--scan-outline-color, CanvasText);

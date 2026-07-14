@@ -127,8 +127,8 @@ describe("registry tree compiler", () => {
     });
 
     expect(tree.children).toEqual([
-      { kind: "target", id: "target", label: "Target" },
       { kind: "group", id: "group", label: "Group", children: [] },
+      { kind: "target", id: "target", label: "Target" },
     ]);
     expect(warn).toHaveBeenCalledWith(
       "missing-parent",
@@ -184,7 +184,11 @@ describe("registry tree compiler", () => {
       disabled: true,
       children: [{ id: "b" }, { id: "a" }, { id: "c" }],
     });
-    expect(warn).toHaveBeenCalledTimes(3);
+    expect(warn).toHaveBeenCalledTimes(4);
+    expect(warn).toHaveBeenCalledWith(
+      "disconnected-order",
+      expect.stringContaining("explicit sequence"),
+    );
   });
 
   it("marks controls disabled by an ancestor fieldset as ineligible", () => {

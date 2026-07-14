@@ -7,7 +7,10 @@ import {
 } from "react";
 import { useScannerContext } from "../context.ts";
 import { useRegistrationRef } from "./refs.ts";
-import type { ScanTargetOptions } from "../registry.ts";
+import {
+  scanTargetStructuralSignature,
+  type ScanTargetOptions,
+} from "../registry.ts";
 
 export interface UseScanTargetOptions extends ScanTargetOptions {
   ref?: Ref<HTMLElement>;
@@ -45,11 +48,10 @@ export function useScanTarget(
     options.ref,
   );
 
-  // Republish when a structural field changes; freshness of `activate` does
-  // not require a new registration.
+  const structuralSignature = scanTargetStructuralSignature(options);
   useEffect(() => {
     registry.touchTarget();
-  }, [registry, id, options.label, options.disabled, options.groupId]);
+  }, [registry, structuralSignature]);
 
   return { props: { ref, "data-scan-target": "" } };
 }

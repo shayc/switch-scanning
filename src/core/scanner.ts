@@ -19,6 +19,8 @@ import { highlightEquals, ScanSession, type SessionEffect } from "./session.ts";
 import { createScannerStore } from "./scannerStore.ts";
 import { createStyleRuntime, type StyleRuntime } from "./styleRuntime.ts";
 import type { DiscreteAction } from "./input/switches.ts";
+import { createDiagnosticWarner } from "./diagnostics.ts";
+import { isDevelopment } from "./env.ts";
 import {
   compileTree,
   DuplicateScanNodeIdError,
@@ -88,9 +90,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     ),
   );
   const { runTransition, serialized, emit, reportBoundaryError } = store;
+  const warnDiagnostic = createDiagnosticWarner();
 
   function diagnostic(code: ScannerDiagnosticCode, message: string): void {
     emit({ type: "diagnostic", code, message });
+    warnDiagnostic(code, message);
   }
 
   const scheduler: Scheduler = {
@@ -105,6 +109,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     scheduler,
     isScanning: () => status === "scanning",
     advance: onAdvanceTick,
+    repeat: onRepeatTick,
     select: onDwellExpire,
   });
 
@@ -114,7 +119,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (
       transitionPending !== null &&
       stylePending !== null &&
-      isDevelopmentBuild()
+      isDevelopment()
     ) {
       throw new Error(
         "[switch-scanning] invariant violated: transition and style timing cannot both be pending",
@@ -250,6 +255,16 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function onAdvanceTick(): void {
     if (status !== "scanning") return;
     applySessionEffects(session.stepForward(resolveLoopLimit()), PRESENT);
+  }
+
+  function onRepeatTick(direction: "next" | "previous"): void {
+    if (status !== "scanning") return;
+    applySessionEffects(
+      direction === "next"
+        ? session.stepForward(resolveLoopLimit())
+        : session.stepBackward(),
+      PRESENT,
+    );
   }
 
   function onDwellExpire(): void {
@@ -524,10 +539,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
           session.stepForward(resolveLoopLimit()),
           PRESENT_ARMED,
         );
-        styleRuntime.maybeStartRepeat(heldPress, context.sourceKey);
+        styleRuntime.maybeStartRepeat("next", heldPress, context.sourceKey);
         break;
       case "previous":
         applySessionEffects(session.stepBackward(), PRESENT_ARMED);
+        styleRuntime.maybeStartRepeat("previous", heldPress, context.sourceKey);
         break;
       case "select":
         selectCurrent();
@@ -769,7 +785,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
           if (hasPublishedTree) maybeStartOnMount();
         }
       });
-      return Object.assign(detach, { attached });
+      return { attached, detach };
     },
     input,
     dispose: serialized(() => {
@@ -845,15 +861,4 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function isDevelopmentBuild(): boolean {
-  try {
-    if (typeof process !== "undefined" && process.env?.NODE_ENV) {
-      return process.env.NODE_ENV !== "production";
-    }
-  } catch {
-    // Browsers without a process shim should retain invariant checks.
-  }
-  return true;
 }

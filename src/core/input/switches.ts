@@ -77,7 +77,7 @@ function assertPositive(value: number, name: string): void {
   }
 }
 
-function isDiscreteAction(action: string): action is DiscreteAction {
+function isDiscreteAction(action: unknown): action is DiscreteAction {
   return (
     action === "select" ||
     action === "next" ||
@@ -91,63 +91,82 @@ export function normalizeSwitch(
   id: string,
   def: SwitchDefinition,
 ): NormalizedSwitch {
-  if (id.trim() === "") {
+  if (typeof id !== "string" || id.trim() === "") {
     fail("switch IDs must be non-empty strings");
   }
 
-  if ("tap" in def) {
-    if (
-      (def.tap as string) === "scan" ||
-      (def.hold.action as string) === "scan"
-    ) {
+  if (typeof def !== "object" || def === null || Array.isArray(def)) {
+    fail(`switch "${id}": definition must be an object`);
+  }
+
+  const candidate = def as unknown as Record<string, unknown>;
+
+  if ("tap" in candidate) {
+    const hold = candidate.hold;
+    if (typeof hold !== "object" || hold === null || Array.isArray(hold)) {
+      fail(`switch "${id}": hold must be an object`);
+    }
+    const holdCandidate = hold as Record<string, unknown>;
+    if (candidate.tap === "scan" || holdCandidate.action === "scan") {
       fail(`switch "${id}": tap/hold cannot use the phaseful "scan" action`);
     }
-    if (!isDiscreteAction(def.tap)) {
+    if (!isDiscreteAction(candidate.tap)) {
       fail(`switch "${id}": tap must be a discrete action`);
     }
-    if (!isDiscreteAction(def.hold.action)) {
+    if (!isDiscreteAction(holdCandidate.action)) {
       fail(`switch "${id}": hold.action must be a discrete action`);
     }
-    assertPositive(def.hold.afterMs, `switch "${id}": hold.afterMs`);
-    const holdDurationMs = def.holdDurationMs ?? 0;
-    const ignoreRepeatMs = def.ignoreRepeatMs ?? 0;
+    assertPositive(
+      holdCandidate.afterMs as number,
+      `switch "${id}": hold.afterMs`,
+    );
+    const holdDurationMs =
+      (candidate.holdDurationMs as number | undefined) ?? 0;
+    const ignoreRepeatMs =
+      (candidate.ignoreRepeatMs as number | undefined) ?? 0;
     assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
     assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
-    if (holdDurationMs >= def.hold.afterMs) {
+    if (holdDurationMs >= (holdCandidate.afterMs as number)) {
       fail(`switch "${id}": holdDurationMs must be less than hold.afterMs`);
     }
     return {
       type: "tapHold",
-      tap: def.tap,
-      holdAfterMs: def.hold.afterMs,
-      holdAction: def.hold.action,
+      tap: candidate.tap,
+      holdAfterMs: holdCandidate.afterMs as number,
+      holdAction: holdCandidate.action,
       holdDurationMs,
       ignoreRepeatMs,
     };
   }
 
-  if (def.action === "scan") {
+  if (candidate.action === "scan") {
     if ((def as { performOn?: unknown }).performOn !== undefined) {
       fail(`switch "${id}": a "scan" definition cannot specify performOn`);
     }
-    const holdDurationMs = def.holdDurationMs ?? 0;
-    const ignoreRepeatMs = def.ignoreRepeatMs ?? 0;
+    const holdDurationMs =
+      (candidate.holdDurationMs as number | undefined) ?? 0;
+    const ignoreRepeatMs =
+      (candidate.ignoreRepeatMs as number | undefined) ?? 0;
     assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
     assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
     return { type: "scan", holdDurationMs, ignoreRepeatMs };
   }
 
-  if (!isDiscreteAction(def.action)) {
-    fail(`switch "${id}": unknown action "${String(def.action)}"`);
+  if (!isDiscreteAction(candidate.action)) {
+    fail(`switch "${id}": unknown action "${String(candidate.action)}"`);
   }
-  const performOn = def.performOn ?? "press";
-  const holdDurationMs = def.holdDurationMs ?? 0;
-  const ignoreRepeatMs = def.ignoreRepeatMs ?? 0;
+  const performOn =
+    candidate.performOn === undefined ? "press" : candidate.performOn;
+  if (performOn !== "press" && performOn !== "release") {
+    fail(`switch "${id}": performOn must be "press" or "release"`);
+  }
+  const holdDurationMs = (candidate.holdDurationMs as number | undefined) ?? 0;
+  const ignoreRepeatMs = (candidate.ignoreRepeatMs as number | undefined) ?? 0;
   assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
   assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
   return {
     type: "discrete",
-    action: def.action,
+    action: candidate.action,
     performOn,
     holdDurationMs,
     ignoreRepeatMs,

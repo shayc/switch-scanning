@@ -1,8 +1,53 @@
 import { describe, expect, it } from "vitest";
 import { createScanner, stepScan } from "../core/index.ts";
-import { ScanRegistry } from "./registry.ts";
+import {
+  ScanRegistry,
+  scanGroupStructuralSignature,
+  scanTargetStructuralSignature,
+} from "./registry.ts";
 
 describe("registry ownership", () => {
+  it("signs every tree-affecting registration field and excludes callbacks", () => {
+    const activate = () => undefined;
+    const target = {
+      id: "target",
+      label: "Target",
+      groupId: "group",
+      disabled: false,
+      activate,
+    };
+    const targetSignature = scanTargetStructuralSignature(target);
+    expect(targetSignature).toBe(
+      '{"id":"target","label":"Target","groupId":"group","disabled":false}',
+    );
+    expect(
+      scanTargetStructuralSignature({ ...target, activate: () => 1 }),
+    ).toBe(targetSignature);
+    expect(
+      scanTargetStructuralSignature({
+        ...target,
+        ref: { current: null },
+      } as never),
+    ).toBe(targetSignature);
+    expect(
+      scanTargetStructuralSignature({ ...target, disabled: true }),
+    ).not.toBe(targetSignature);
+
+    const group = {
+      id: "group",
+      label: "Group",
+      parentId: "parent",
+      exitLabel: "Leave",
+      disabled: false,
+      sequence: ["b", "a"],
+    };
+    const groupSignature = scanGroupStructuralSignature(group);
+    expect(groupSignature).toContain('"sequence":["b","a"]');
+    expect(
+      scanGroupStructuralSignature({ ...group, exitLabel: "Back" }),
+    ).not.toBe(groupSignature);
+  });
+
   it("does not let stale cleanup remove a newer registration", () => {
     const registry = new ScanRegistry();
     const element = document.createElement("button");
@@ -16,7 +61,7 @@ describe("registry ownership", () => {
     expect(registry.getTarget("x")?.getOptions().label).toBe("Second");
   });
 
-  it("keeps the synthetic root outside the user ID namespace", () => {
+  it("allows an ordinary group named root when it does not collide", () => {
     const registry = new ScanRegistry();
     const scanner = createScanner({ style: stepScan(), startOn: "command" });
     const group = document.createElement("div");
@@ -24,13 +69,13 @@ describe("registry ownership", () => {
 
     registry.attach(scanner);
     registry.mountGroup(
-      "__root__",
-      () => ({ id: "__root__", label: "User root" }),
+      "root",
+      () => ({ id: "root", label: "User root" }),
       group,
     );
     registry.mountTarget(
       "inside",
-      () => ({ id: "inside", label: "Inside", groupId: "__root__" }),
+      () => ({ id: "inside", label: "Inside", groupId: "root" }),
       target,
     );
     registry.flush();
@@ -38,11 +83,11 @@ describe("registry ownership", () => {
     scanner.start();
     expect(scanner.getSnapshot().highlight).toEqual({
       kind: "group",
-      id: "__root__",
+      id: "root",
     });
     scanner.select();
     expect(scanner.getSnapshot()).toMatchObject({
-      path: ["__root__"],
+      path: ["root"],
       highlight: { kind: "target", id: "inside" },
     });
   });

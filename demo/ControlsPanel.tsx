@@ -12,7 +12,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { useScannerSnapshot, type Scanner } from "@shayc/switch-scanning";
+import { useScannerSnapshot, type Scanner } from "@shayc/switch-scanning/react";
 import type { ScanStyleKind, Timing } from "./App.tsx";
 import { DurationField } from "./DurationField.tsx";
 import { STYLE_META, STYLE_ORDER } from "./styleMeta.ts";

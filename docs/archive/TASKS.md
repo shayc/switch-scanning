@@ -1,4 +1,4 @@
-# Improvement Plan (v3)
+# Improvement Plan (v3) — Archived
 
 > Historical implementation plan. Completed sections preserve the rationale
 > and acceptance criteria that produced the current code; `README.md`,

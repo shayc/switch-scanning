@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useScanGroup, useScanTarget } from "@shayc/switch-scanning";
+import { useScanGroup, useScanTarget } from "@shayc/switch-scanning/react";
 import {
   activateObfButton,
   buildObfScanRows,

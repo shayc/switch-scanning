@@ -27,7 +27,13 @@ export default defineConfig({
         branches: 85,
         functions: 90,
         lines: 90,
-        "src/core/{scanner,session,gestures,styleRuntime}.ts": {
+        "src/core/{scanner,session,styleRuntime}.ts": {
+          statements: 90,
+          branches: 85,
+          functions: 90,
+          lines: 90,
+        },
+        "src/core/input/gestures.ts": {
           statements: 90,
           branches: 85,
           functions: 90,
@@ -39,7 +45,7 @@ export default defineConfig({
           functions: 90,
           lines: 90,
         },
-        "src/react/{useKeyboardSwitches,usePointerSwitch}.ts": {
+        "src/react/hooks/{useKeyboardSwitches,usePointerSwitch}.ts": {
           statements: 90,
           branches: 85,
           functions: 90,

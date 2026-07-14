@@ -16,7 +16,7 @@ import {
   useScannerSnapshot,
   type Scanner,
   type ScannerEvent,
-} from "@shayc/switch-scanning";
+} from "@shayc/switch-scanning/react";
 import { useEffect, useRef, useState } from "react";
 import type { ScanStyleKind } from "./App.tsx";
 import classes from "./EventLog.module.css";
@@ -161,6 +161,8 @@ export function EventLog({
       data-scanner-controls=""
     >
       <details
+        role="group"
+        aria-label="Inspect events"
         open={wideInspector || inspectorOpen}
         onToggle={(event) => {
           if (wideInspector && !event.currentTarget.open) {
@@ -241,7 +243,7 @@ export function EventLog({
 
 function StatusLine({ scanner }: { scanner: Scanner }) {
   const status = useScannerSnapshot(scanner, (snapshot) => snapshot.status);
-  const loop = useScannerSnapshot(scanner, (snapshot) => snapshot.loop);
+  const pass = useScannerSnapshot(scanner, (snapshot) => snapshot.pass);
   const path = useScannerSnapshot(
     scanner,
     (snapshot) => snapshot.path.join(" › "),
@@ -262,7 +264,13 @@ function StatusLine({ scanner }: { scanner: Scanner }) {
         <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
           Status
         </Text>
-        <Text component="dd" size="sm" fw={600} data-status={status}>
+        <Text
+          component="dd"
+          size="sm"
+          fw={600}
+          data-status={status}
+          aria-label="Status"
+        >
           {status}
         </Text>
       </Stack>
@@ -270,7 +278,7 @@ function StatusLine({ scanner }: { scanner: Scanner }) {
         <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
           Position
         </Text>
-        <Text component="dd" size="sm" fw={600}>
+        <Text component="dd" size="sm" fw={600} aria-label="Position">
           {position ? `${position.index + 1}/${position.count}` : "—"}
         </Text>
       </Stack>
@@ -278,7 +286,7 @@ function StatusLine({ scanner }: { scanner: Scanner }) {
         <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
           Timer
         </Text>
-        <Text component="dd" size="sm" fw={600}>
+        <Text component="dd" size="sm" fw={600} aria-label="Timer">
           {pending?.kind ?? "none"}
         </Text>
       </Stack>
@@ -286,7 +294,7 @@ function StatusLine({ scanner }: { scanner: Scanner }) {
         <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
           Scope
         </Text>
-        <Text component="dd" size="sm" fw={600}>
+        <Text component="dd" size="sm" fw={600} aria-label="Scope">
           {path === "" ? "root" : path}
         </Text>
       </Stack>
@@ -294,8 +302,8 @@ function StatusLine({ scanner }: { scanner: Scanner }) {
         <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
           Pass index
         </Text>
-        <Text component="dd" size="sm" fw={600}>
-          {loop}
+        <Text component="dd" size="sm" fw={600} aria-label="Pass index">
+          {pass}
         </Text>
       </Stack>
     </SimpleGrid>

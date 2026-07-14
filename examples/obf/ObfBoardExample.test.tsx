@@ -4,7 +4,7 @@ import {
   ScannerProvider,
   createScanner,
   stepScan,
-} from "@shayc/switch-scanning";
+} from "@shayc/switch-scanning/react";
 import { ObfBoardExample } from "./ObfBoardExample.tsx";
 import type { ObfBoard } from "./adapter.ts";
 

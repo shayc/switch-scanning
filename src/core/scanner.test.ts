@@ -281,13 +281,13 @@ describe("clearing host decorations", () => {
   it("restores the visible cursor before a replacement host can activate it", () => {
     const scanner = createScanner({ style: stepScan(), startOn: "command" });
     const firstReveals: Highlight[] = [];
-    const detach = scanner.attachHost({
+    const attachment = scanner.attachHost({
       activate: () => ({ activated: true }),
       reveal: (highlight) => firstReveals.push(highlight),
     });
     scanner.setTree(rootOf(YES_NO));
     scanner.start();
-    detach();
+    attachment.detach();
     expect(firstReveals.at(-1)).toBeNull();
     expect(scanner.getSnapshot()).toMatchObject({
       status: "scanning",

@@ -15,7 +15,7 @@ import {
   useScannerSnapshot,
   type Scanner,
   type ScannerStatus,
-} from "@shayc/switch-scanning";
+} from "@shayc/switch-scanning/react";
 import type { ScanStyleKind } from "./App.tsx";
 import { STYLE_META } from "./styleMeta.ts";
 import classes from "./PreviewPanel.module.css";
@@ -143,6 +143,7 @@ function RuntimeControls({ scanner }: { scanner: Scanner }) {
           gap="xs"
           wrap="nowrap"
           role="status"
+          aria-label="Scanner status"
           aria-live="polite"
         >
           <Badge

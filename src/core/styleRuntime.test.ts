@@ -13,6 +13,7 @@ describe("style runtime", () => {
       scheduler: clock,
       isScanning: () => true,
       advance,
+      repeat: vi.fn(),
       select: vi.fn(),
     });
 
@@ -32,6 +33,7 @@ describe("style runtime", () => {
       scheduler: clock,
       isScanning: () => true,
       advance,
+      repeat: vi.fn(),
       select: vi.fn(),
     });
 
@@ -46,20 +48,23 @@ describe("style runtime", () => {
   it("owns step-repeat scheduling and release", () => {
     const clock = manualClock();
     const advance = vi.fn();
+    const repeat = vi.fn();
     const runtime = createStyleRuntime({
       style: stepScan({ repeat: { delayMs: 200, intervalMs: 50 } }),
       clock,
       scheduler: clock,
       isScanning: () => true,
       advance,
+      repeat,
       select: vi.fn(),
     });
 
-    runtime.maybeStartRepeat(true, "source");
+    runtime.maybeStartRepeat("previous", true, "source");
     clock.advanceBy(250);
-    expect(advance).toHaveBeenCalledTimes(2);
+    expect(repeat).toHaveBeenCalledTimes(2);
+    expect(repeat).toHaveBeenNthCalledWith(1, "previous");
     runtime.releaseRepeatOwner("source");
     clock.advanceBy(1000);
-    expect(advance).toHaveBeenCalledTimes(2);
+    expect(repeat).toHaveBeenCalledTimes(2);
   });
 });

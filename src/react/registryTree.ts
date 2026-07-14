@@ -89,16 +89,38 @@ export function compileRegistryTree(
   const elementOf = (id: string): HTMLElement | null =>
     targets.get(id)?.element ?? groups.get(id)?.element ?? null;
 
-  const domOrder = (ids: readonly string[]): string[] =>
-    [...ids].sort((a, b) => {
-      const elementA = elementOf(a);
-      const elementB = elementOf(b);
-      if (!elementA || !elementB) return 0;
+  const domOrder = (parentId: ParentId, ids: readonly string[]): string[] => {
+    const elements = ids.map(elementOf);
+    const firstElement = elements[0];
+    const useFallback = elements.some(
+      (element) =>
+        !element?.isConnected ||
+        (!!firstElement &&
+          !!(
+            firstElement.compareDocumentPosition(element) &
+            Node.DOCUMENT_POSITION_DISCONNECTED
+          )),
+    );
+    if (useFallback) {
+      if (isDevelopment() && ids.length > 1) {
+        const scope = parentId === ROOT_PARENT ? "root" : `group "${parentId}"`;
+        diagnostics.warn(
+          "disconnected-order",
+          `${scope} has disconnected siblings; using deterministic ID order. Supply an explicit sequence for intentional scan order`,
+        );
+      }
+      return [...ids].sort((a, b) => a.localeCompare(b));
+    }
+
+    return [...ids].sort((a, b) => {
+      const elementA = elementOf(a)!;
+      const elementB = elementOf(b)!;
       const position = elementA.compareDocumentPosition(elementB);
       if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
       if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-      return 0;
+      return a.localeCompare(b);
     });
+  };
 
   const applySequence = (
     parentId: string,
@@ -132,7 +154,10 @@ export function compileRegistryTree(
       }
     }
 
-    const remainder = domOrder(ids.filter((id) => !used.has(id)));
+    const remainder = domOrder(
+      parentId,
+      ids.filter((id) => !used.has(id)),
+    );
     if (isDevelopment() && remainder.length > 0) {
       diagnostics.warn(
         "sequence-mismatch",
@@ -150,7 +175,7 @@ export function compileRegistryTree(
     const sequence = group?.getOptions().sequence;
     return parentId !== ROOT_PARENT && sequence && sequence.length > 0
       ? applySequence(parentId, ids, sequence)
-      : domOrder(ids);
+      : domOrder(parentId, ids);
   };
 
   const buildTargetNode = (entry: RegistryTargetEntry): ScanTargetNode => {

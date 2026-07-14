@@ -1,5 +1,5 @@
-// Re-export the framework-agnostic core so `@shayc/switch-scanning` is a
-// complete entry point for React applications.
+// Re-export the framework-agnostic core so the `/react` entry is complete for
+// React applications.
 export * from "../core/index.ts";
 
 export {

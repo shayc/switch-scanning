@@ -275,7 +275,7 @@ describe("safe configuration and lifecycle", () => {
       status: "idle",
       highlight: null,
       path: [],
-      loop: 0,
+      pass: 0,
       position: null,
       pending: null,
     });
@@ -285,7 +285,7 @@ describe("safe configuration and lifecycle", () => {
     const scanner = createScanner({ style: stepScan() });
     const first: Highlight[] = [];
     const second: Highlight[] = [];
-    const detach = scanner.attachHost({
+    const attachment = scanner.attachHost({
       activate: () => ({ activated: true }),
       reveal: (highlight) => first.push(highlight),
     });
@@ -293,7 +293,7 @@ describe("safe configuration and lifecycle", () => {
       activate: () => ({ activated: true }),
       reveal: (highlight) => second.push(highlight),
     });
-    expect(detach.attached).toBe(true);
+    expect(attachment.attached).toBe(true);
     expect(rejected.attached).toBe(false);
     scanner.setTree({
       kind: "group",
@@ -304,7 +304,8 @@ describe("safe configuration and lifecycle", () => {
     scanner.start();
     expect(first.at(-1)).toEqual({ kind: "target", id: "yes" });
     expect(second).toEqual([]);
-    detach();
+    attachment.detach();
+    attachment.detach();
     expect(first.at(-1)).toBeNull();
     expect(scanner.getSnapshot().highlight).toBeNull();
   });

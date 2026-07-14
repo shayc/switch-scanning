@@ -49,7 +49,7 @@ export function createScannerFixture(
     },
   };
 
-  const detachHost = scanner.attachHost(host);
+  const attachment = scanner.attachHost(host);
 
   const toRoot = (children: readonly ScanNode[]): ScanGroupNode => ({
     kind: "group",
@@ -75,7 +75,7 @@ export function createScannerFixture(
       scanner.setTree(toRoot(next));
     },
     dispose() {
-      detachHost();
+      attachment.detach();
     },
   };
 }

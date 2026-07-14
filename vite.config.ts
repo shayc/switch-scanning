@@ -32,15 +32,29 @@ export default defineConfig({
     // Let the demo import the package by name so its source reads exactly like
     // consumer code. Lib builds never resolve these (nothing in src imports the
     // package name), so this is inert for `vite build`. Most-specific first.
-    alias: {
-      "@shayc/switch-scanning/styles.css": resolve(__dirname, "src/styles.css"),
-      "@shayc/switch-scanning/core": resolve(__dirname, "src/core/index.ts"),
-      "@shayc/switch-scanning": resolve(__dirname, "src/react/index.ts"),
-    },
+    alias: [
+      {
+        find: "@shayc/switch-scanning/styles.css",
+        replacement: resolve(__dirname, "src/styles.css"),
+      },
+      {
+        find: "@shayc/switch-scanning/react",
+        replacement: resolve(__dirname, "src/react/index.ts"),
+      },
+      {
+        find: "@shayc/switch-scanning/core",
+        replacement: resolve(__dirname, "src/core/index.ts"),
+      },
+      {
+        find: /^@shayc\/switch-scanning$/,
+        replacement: resolve(__dirname, "src/index.ts"),
+      },
+    ],
   },
   build: {
     lib: {
       entry: {
+        index: resolve(__dirname, "src/index.ts"),
         "react/index": resolve(__dirname, "src/react/index.ts"),
         "core/index": resolve(__dirname, "src/core/index.ts"),
         "core/testing/index": resolve(__dirname, "src/core/testing/index.ts"),

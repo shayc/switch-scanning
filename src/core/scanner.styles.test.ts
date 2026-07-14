@@ -71,7 +71,7 @@ describe("automatic scanning", () => {
       kind: "target",
       id: "yes",
     });
-    expect(scanner.getSnapshot().loop).toBe(2);
+    expect(scanner.getSnapshot().pass).toBe(2);
   });
 
   it("completes after the configured number of root passes", () => {
@@ -83,7 +83,7 @@ describe("automatic scanning", () => {
     // Two full yes/no passes complete on the next wrap.
     clock.advanceBy(100);
     clock.advanceBy(100);
-    expect(scanner.getSnapshot().loop).toBe(2);
+    expect(scanner.getSnapshot().pass).toBe(2);
     clock.advanceBy(100);
     clock.advanceBy(100);
     expect(scanner.getSnapshot().status).toBe("complete");

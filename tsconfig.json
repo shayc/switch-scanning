@@ -26,8 +26,9 @@
     "types": ["vitest/globals", "node"],
 
     "paths": {
+      "@shayc/switch-scanning/react": ["./src/react/index.ts"],
       "@shayc/switch-scanning/core": ["./src/core/index.ts"],
-      "@shayc/switch-scanning": ["./src/react/index.ts"]
+      "@shayc/switch-scanning": ["./src/index.ts"]
     }
   },
   "include": [

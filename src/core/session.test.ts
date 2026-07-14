@@ -198,12 +198,12 @@ describe("scan session", () => {
       status: "scanning" as const,
       highlight: { kind: "target" as const, id: "a" },
       path: ["row"],
-      loop: 1,
+      pass: 1,
       position: { index: 0, count: 2 },
       pending: { kind: "advance" as const, startedAt: 0, dueAt: 10 },
     };
     expect(snapshotEquals(base, { ...base })).toBe(true);
-    expect(snapshotEquals(base, { ...base, loop: 2 })).toBe(false);
+    expect(snapshotEquals(base, { ...base, pass: 2 })).toBe(false);
     expect(snapshotEquals(base, { ...base, path: [] })).toBe(false);
     expect(
       snapshotEquals(base, { ...base, position: { index: 1, count: 2 } }),
