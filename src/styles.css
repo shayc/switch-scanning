@@ -52,3 +52,12 @@
   border: 2px solid CanvasText;
   pointer-events: none;
 }
+
+/* Keep the visual exit badge out of the accessibility tree where generated
+ * content alternative text is supported. Programmatic announcements should
+ * use the scanner's group.exited event instead. */
+@supports (content: "visible" / "alternative") {
+  [data-scan-exit-highlighted]::after {
+    content: attr(data-scan-exit-label) / "";
+  }
+}

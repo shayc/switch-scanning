@@ -27,7 +27,7 @@ describe("live OBF board replacement", () => {
       <ScannerProvider scanner={scanner}>
         <ObfBoardExample
           initialBoard={FIRST}
-          loadBoard={async () => SECOND}
+          loadBoard={() => Promise.resolve(SECOND)}
           speak={vi.fn()}
           playSound={vi.fn()}
           performAction={vi.fn()}

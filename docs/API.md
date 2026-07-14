@@ -41,7 +41,8 @@ end-user path; safety guarantees involving declared switches apply there.
 
 `start()` begins a session only from `idle` or `complete`; while an active or
 paused session exists it is diagnosed and ignored. `restart()` explicitly
-discards any current session and begins again from the root.
+discards any current session and begins again from the root. Restarting an
+active or paused session emits `scan.stopped` before the new `scan.started`.
 
 The bindable `togglePause` switch action pauses from `scanning` or
 `transitioning` and resumes from `paused`. Pausing forgets held gestures, so a
@@ -69,13 +70,15 @@ replacement host restores any visible active cursor before accepting input.
 
 Lifecycle events are `scan.started`, `scan.paused`, `scan.resumed`,
 `scan.transitionStarted`, `scan.transitionEnded`, `scan.completed`, and
-`scan.stopped`. Cancellation paths such as pause/stop do not also emit a
-transition-ended event.
+`scan.stopped`. Resuming after a transition deadline and changing to a different
+style kind both close an in-flight transition with `scan.transitionEnded`.
+Terminal cancellation paths such as stop and disable do not also emit it.
 
 `highlight.changed` is the single presentation stream. Discriminate on
 `current === null`; `label` is present only for a non-null landing. Group and
 target events report hierarchy and activation attempts/results. Diagnostics
-report recoverable integration errors.
+report recoverable integration errors. `group.exited` uses reason `reconcile`
+when a live tree change removes or invalidates an entered scope.
 
 `scanner.input.disconnect(sourceId)` cancels a physical source without treating
 it as a normal release. Omit `sourceId` to disconnect every active source.
@@ -84,10 +87,15 @@ it as a normal release. Omit `sourceId` to disconnect every active source.
 
 - `ScannerProvider` attaches the DOM host and registry.
 - `useScanTarget` and `useScanGroup` decorate existing elements without
-  wrappers. Use explicit `groupId`/`parentId` for portals and `sequence` when
+  wrappers. Both targets and groups use `parentId` for portals or other
+  non-contained composition; use `sequence` when
   DOM order is not scan order. Unknown explicit parents stay at the root and
   produce a development diagnostic. `__root__` is reserved for the registry's
   synthetic root and cannot be used as a target or group ID.
+  `ScanTargetOptions.activate` overrides the default DOM host's native
+  `element.click()` path; use it for non-DOM controls or targets whose public
+  activation cannot be expressed as a native click. It is ignored while the
+  target is structurally or natively disabled.
 - `useKeyboardSwitches` captures a dedicated switch keyboard by default.
   Accepted mapped keys are prevented and stopped during capture. Use `target`
   or `shouldHandle` for mixed-input applications. An undefined target defaults
@@ -124,4 +132,8 @@ support both light and dark themes should declare `color-scheme` accurately.
 The default exit-positioning selector has deliberately low specificity so an
 application's positioning wins. If the application supplies no positioning,
 the exit-highlight rule establishes the containing block used by its label
-pseudo-element.
+pseudo-element. Where supported, the stylesheet gives that generated label an
+empty accessibility alternative so it remains visual-only. Applications that
+need a programmatic exit announcement should observe `group.exited` (and, for
+entry feedback, `group.entered`) with `useScannerEvents` rather than relying on
+generated CSS content.

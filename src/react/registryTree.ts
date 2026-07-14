@@ -52,7 +52,7 @@ export function compileRegistryTree(
   };
 
   const resolveTargetParent = (entry: RegistryTargetEntry): ParentId => {
-    const explicit = entry.getOptions().groupId;
+    const explicit = entry.getOptions().parentId;
     if (explicit !== undefined) {
       if (groups.has(explicit)) return explicit;
       if (isDevelopment()) {

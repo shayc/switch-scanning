@@ -84,6 +84,10 @@ export function createGestureEngine(deps: {
     const now = clock.now();
     const until = blockedUntil.get(switchId);
     if (until !== undefined && now < until) return false;
+    // Recognition owns debounce, so a stabilized gesture consumes its window
+    // even when the scanner later ignores the semantic action for its captured
+    // lifecycle state. This prevents the same physical bounce from becoming a
+    // fresh command immediately after a pause/resume or other state change.
     if (def.ignoreRepeatMs > 0) {
       blockedUntil.set(switchId, now + def.ignoreRepeatMs);
     }

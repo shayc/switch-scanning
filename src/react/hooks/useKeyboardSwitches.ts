@@ -49,7 +49,8 @@ export function useKeyboardSwitches(
     // keyup, but the logical switch that opened the gesture must be released.
     const held = new Map<
       string,
-      { accepted: true; switchId: string } | { accepted: false }
+      | { accepted: true; connected: boolean; switchId: string }
+      | { accepted: false }
     >();
     const sourceId = (code: string): string => `key:${code}`;
 
@@ -70,7 +71,7 @@ export function useKeyboardSwitches(
       }
 
       own(event);
-      held.set(event.code, { accepted: true, switchId });
+      held.set(event.code, { accepted: true, connected: true, switchId });
       scanner.input.press(switchId, sourceId(event.code));
     };
 
@@ -80,14 +81,18 @@ export function useKeyboardSwitches(
       held.delete(event.code);
       if (!decision.accepted) return;
       own(event);
-      scanner.input.release(decision.switchId, sourceId(event.code));
+      if (decision.connected) {
+        scanner.input.release(decision.switchId, sourceId(event.code));
+      }
     };
 
     const disconnectAll = (): void => {
       for (const [code, decision] of held) {
-        if (decision.accepted) scanner.input.disconnect(sourceId(code));
+        if (decision.accepted && decision.connected) {
+          scanner.input.disconnect(sourceId(code));
+          decision.connected = false;
+        }
       }
-      held.clear();
     };
     disconnectAllRef.current = disconnectAll;
 
@@ -129,5 +134,5 @@ export function useKeyboardSwitches(
 
 function own(event: KeyboardEvent): void {
   event.preventDefault();
-  event.stopPropagation();
+  event.stopImmediatePropagation();
 }

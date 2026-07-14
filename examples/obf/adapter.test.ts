@@ -41,18 +41,22 @@ describe("OBF adapter", () => {
   });
 
   it("routes speech, sound, board navigation, and custom actions", () => {
+    const speak = vi.fn();
+    const playSound = vi.fn();
+    const loadBoard = vi.fn();
+    const performAction = vi.fn();
     const host: ObfActivationHost = {
-      speak: vi.fn(),
-      playSound: vi.fn(),
-      loadBoard: vi.fn(),
-      performAction: vi.fn(),
+      speak,
+      playSound,
+      loadBoard,
+      performAction,
     };
     for (const button of BOARD.buttons.slice(0, 4))
-      expect(activateObfButton(button!, host)).toBe(true);
-    expect(host.speak).toHaveBeenCalledWith("Hi");
-    expect(host.playSound).toHaveBeenCalledWith("bell");
-    expect(host.loadBoard).toHaveBeenCalledWith({ id: "next-board" });
-    expect(host.performAction).toHaveBeenCalledWith(":clear", BOARD.buttons[3]);
+      expect(activateObfButton(button, host)).toBe(true);
+    expect(speak).toHaveBeenCalledWith("Hi");
+    expect(playSound).toHaveBeenCalledWith("bell");
+    expect(loadBoard).toHaveBeenCalledWith({ id: "next-board" });
+    expect(performAction).toHaveBeenCalledWith(":clear", BOARD.buttons[3]);
   });
 
   it("omits null, empty, and disabled cells and reverses RTL explicitly", () => {

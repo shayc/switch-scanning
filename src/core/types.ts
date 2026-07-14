@@ -89,7 +89,8 @@ export type ScannerEvent =
       type: "group.exited";
       id: string;
       label: string;
-      reason: "selected-exit" | "back" | "loops-complete" | "empty";
+      reason:
+        "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile";
     }
   | { type: "target.activationRequested"; id: string; label: string }
   | { type: "target.activated"; id: string; label: string }

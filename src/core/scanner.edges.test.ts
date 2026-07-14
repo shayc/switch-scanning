@@ -187,6 +187,7 @@ describe("option and lifecycle edges", () => {
       clock,
     });
     createScannerFixture(scanner, [TARGET]);
+    const events = recordScannerEvents(scanner);
     scanner.start();
     scanner.setOptions({ style: stepScan() });
     expect(scanner.getSnapshot()).toMatchObject({
@@ -209,10 +210,12 @@ describe("option and lifecycle edges", () => {
     });
     scanner.select();
     expect(scanner.getSnapshot().status).toBe("transitioning");
+    events.clear();
     scanner.setOptions({
       style: inverseScan({ intervalMs: 20, loops: 2 }),
     });
     expect(scanner.getSnapshot().status).toBe("scanning");
+    expect(events.ofType("scan.transitionEnded")).toHaveLength(1);
   });
 
   it("handles transition pause/resume both before and after expiry", () => {
@@ -224,6 +227,7 @@ describe("option and lifecycle edges", () => {
     });
     createScannerFixture(scanner, [TARGET]);
     scanner.start();
+    const events = recordScannerEvents(scanner);
     scanner.select();
     scanner.pause();
     clock.advanceBy(20);
@@ -231,11 +235,55 @@ describe("option and lifecycle edges", () => {
     expect(scanner.getSnapshot().status).toBe("transitioning");
     scanner.pause();
     clock.advanceBy(100);
+    events.clear();
     scanner.resume();
     expect(scanner.getSnapshot()).toMatchObject({
       status: "scanning",
       highlight: { kind: "target", id: "x" },
     });
+    expect(events.events.map((event) => event.type)).toEqual([
+      "scan.resumed",
+      "scan.transitionEnded",
+      "highlight.changed",
+    ]);
+  });
+
+  it("emits group.exited when reconciliation drops an entered scope", () => {
+    const scanner = createScanner({ style: stepScan() });
+    const fixture = createScannerFixture(scanner, [
+      {
+        kind: "group",
+        id: "row",
+        label: "Row",
+        children: [TARGET],
+      },
+      { kind: "target", id: "other", label: "Other" },
+    ]);
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+    scanner.select();
+    events.clear();
+
+    fixture.setNodes([{ kind: "target", id: "other", label: "Other" }]);
+
+    expect(events.ofType("group.exited")).toEqual([
+      { type: "group.exited", id: "row", label: "Row", reason: "reconcile" },
+    ]);
+  });
+
+  it("dispose cancels every pending scanner deadline", () => {
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: autoScan({ intervalMs: 100, loops: "infinite" }),
+      clock,
+    });
+    createScannerFixture(scanner, [TARGET]);
+    scanner.start();
+    expect(clock.pending).toBeGreaterThan(0);
+
+    scanner.dispose();
+
+    expect(clock.pending).toBe(0);
   });
 
   it("ignores all mutation ports after disposal", () => {

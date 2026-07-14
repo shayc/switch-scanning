@@ -101,7 +101,7 @@ describe("registry tree compiler", () => {
           getOptions: () => ({
             id: "target",
             label: "Target",
-            groupId: "missing-target-parent",
+            parentId: "missing-target-parent",
           }),
         },
       ],
@@ -167,7 +167,7 @@ describe("registry tree compiler", () => {
           getOptions: () => ({
             id,
             label: id.toUpperCase(),
-            groupId: "group",
+            parentId: "group",
           }),
         },
       ]),

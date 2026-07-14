@@ -8,7 +8,12 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores(["dist", "coverage"]),
   {
-    files: ["src/**/*.{ts,tsx}", "demo/**/*.{ts,tsx}"],
+    files: [
+      "src/**/*.{ts,tsx}",
+      "demo/**/*.{ts,tsx}",
+      "examples/**/*.{ts,tsx}",
+      "e2e/**/*.{ts,tsx}",
+    ],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommendedTypeChecked,
@@ -42,6 +47,14 @@ export default defineConfig([
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+      ecmaVersion: "latest",
+      globals: globals.node,
+    },
+  },
+  {
+    files: ["scripts/*.mjs"],
+    extends: [js.configs.recommended, eslintConfigPrettier],
+    languageOptions: {
       ecmaVersion: "latest",
       globals: globals.node,
     },

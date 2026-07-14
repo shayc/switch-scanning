@@ -20,7 +20,8 @@ export interface ScanTargetOptions {
   /** Unique node ID. `__root__` is reserved by the React registry. */
   id: string;
   label: string;
-  groupId?: string;
+  /** Explicit parent group for portals or non-contained composition. */
+  parentId?: string;
   /** Structural eligibility; keep this aligned with the control's disabled state. */
   disabled?: boolean;
   activate?: () => void;
@@ -44,7 +45,7 @@ export function scanTargetStructuralSignature(
   return JSON.stringify({
     id: options.id,
     label: options.label,
-    groupId: options.groupId ?? null,
+    parentId: options.parentId ?? null,
     disabled: options.disabled ?? null,
   });
 }

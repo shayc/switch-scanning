@@ -12,10 +12,10 @@ import {
 
 export interface ObfBoardExampleProps {
   initialBoard: ObfBoard;
-  loadBoard(reference: { id?: string; path?: string }): Promise<ObfBoard>;
-  speak(text: string): void;
-  playSound(soundId: string): void;
-  performAction(action: string, button: ObfButton): void;
+  loadBoard: (reference: { id?: string; path?: string }) => Promise<ObfBoard>;
+  speak: (text: string) => void;
+  playSound: (soundId: string) => void;
+  performAction: (action: string, button: ObfButton) => void;
 }
 
 /** Public-API-only live OBF navigation example. */
@@ -59,7 +59,7 @@ function ObfRow({
 }: {
   row: ObfScanRow;
   buttons: ReadonlyMap<string, ObfButton>;
-  activate(button: ObfButton): boolean;
+  activate: (button: ObfButton) => boolean;
 }) {
   const group = useScanGroup({
     id: row.id,
@@ -81,7 +81,7 @@ function ObfKey({
   activate,
 }: {
   button: ObfButton;
-  activate(button: ObfButton): boolean;
+  activate: (button: ObfButton) => boolean;
 }) {
   const target = useScanTarget({
     id: button.id,

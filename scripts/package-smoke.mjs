@@ -122,7 +122,7 @@ try {
     { cwd: temp, env, stdio: "inherit" },
   );
 
-  for (const dependency of ["react", "react-dom"]) {
+  for (const dependency of ["react"]) {
     const destination = join(temp, "node_modules", dependency);
     if (!existsSync(destination)) {
       symlinkSync(join(root, "node_modules", dependency), destination, "dir");

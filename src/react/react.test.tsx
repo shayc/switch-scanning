@@ -270,7 +270,7 @@ describe("keyed DOM reorder", () => {
 
   it("does not republish an unchanged tree across repeated renders", async () => {
     const scanner = createScanner({ style: stepScan(), startOn: "command" });
-    const app = (_renderCount: number) => (
+    const app = () => (
       <ScannerProvider scanner={scanner}>
         <div>
           <TargetButton id="a" label="A" />
@@ -278,12 +278,12 @@ describe("keyed DOM reorder", () => {
         </div>
       </ScannerProvider>
     );
-    const view = render(app(0));
+    const view = render(app());
     await flushMicrotasks();
     const setTree = vi.spyOn(scanner, "setTree");
 
     for (let renderCount = 1; renderCount <= 5; renderCount += 1) {
-      view.rerender(app(renderCount));
+      view.rerender(app());
       await flushMicrotasks();
     }
 
@@ -307,6 +307,64 @@ describe("snapshot selection", () => {
     expect(view.getByText("first:idle")).toBeTruthy();
     view.rerender(<SelectedStatus prefix="second" />);
     expect(view.getByText("second:idle")).toBeTruthy();
+  });
+
+  it("uses a custom isEqual to suppress equivalent selected objects", () => {
+    const scanner = createScanner({ style: stepScan() });
+    createScannerFixture(scanner, [
+      { kind: "target", id: "a", label: "A" },
+      { kind: "target", id: "b", label: "B" },
+    ]);
+    const isEqual = vi.fn(
+      (a: { status: string }, b: { status: string }) => a.status === b.status,
+    );
+    const renders = vi.fn();
+
+    function SelectedStatus() {
+      useEffect(() => {
+        renders();
+      });
+      const selected = useScannerSnapshot(
+        scanner,
+        (snapshot) => ({ status: snapshot.status }),
+        isEqual,
+      );
+      return <output>{selected.status}</output>;
+    }
+
+    render(<SelectedStatus />);
+    act(() => scanner.start());
+    const afterStart = renders.mock.calls.length;
+    act(() => scanner.next());
+
+    expect(renders).toHaveBeenCalledTimes(afterStart);
+    expect(isEqual).toHaveBeenCalled();
+  });
+});
+
+describe("live useScanner options", () => {
+  it("forwards committed behavior changes through setOptions", async () => {
+    const onReady = vi.fn<(scanner: ReturnType<typeof useScanner>) => void>();
+
+    function Headless({ intervalMs }: { intervalMs: number }) {
+      const scanner = useScanner({
+        style: autoScan({ intervalMs, loops: 2 }),
+        startOn: "command",
+      });
+      useEffect(() => onReady(scanner), [scanner]);
+      return null;
+    }
+
+    const view = render(<Headless intervalMs={100} />);
+    const scanner = onReady.mock.calls[0]![0];
+    const setOptions = vi.spyOn(scanner, "setOptions");
+    view.rerender(<Headless intervalMs={250} />);
+    await flushMicrotasks();
+
+    expect(setOptions).toHaveBeenCalledOnce();
+    expect(setOptions.mock.calls[0]?.[0]).toMatchObject({
+      style: { kind: "auto", intervalMs: 250 },
+    });
   });
 });
 

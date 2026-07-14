@@ -211,6 +211,13 @@ describe("start rules", () => {
       kind: "target",
       id: "yes",
     });
+    expect(
+      events.events
+        .filter((event) =>
+          ["scan.stopped", "scan.started"].includes(event.type),
+        )
+        .map((event) => event.type),
+    ).toEqual(["scan.stopped", "scan.started"]);
   });
 });
 

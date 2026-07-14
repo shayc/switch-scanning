@@ -15,13 +15,13 @@ describe("registry ownership", () => {
     const target = {
       id: "target",
       label: "Target",
-      groupId: "group",
+      parentId: "group",
       disabled: false,
       activate,
     };
     const targetSignature = scanTargetStructuralSignature(target);
     expect(targetSignature).toBe(
-      '{"id":"target","label":"Target","groupId":"group","disabled":false}',
+      '{"id":"target","label":"Target","parentId":"group","disabled":false}',
     );
     expect(
       scanTargetStructuralSignature({ ...target, activate: () => 1 }),
@@ -78,7 +78,7 @@ describe("registry ownership", () => {
     );
     registry.mountTarget(
       "inside",
-      () => ({ id: "inside", label: "Inside", groupId: "root" }),
+      () => ({ id: "inside", label: "Inside", parentId: "root" }),
       target,
     );
     registry.flush();

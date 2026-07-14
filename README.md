@@ -27,8 +27,9 @@ auditory prompts, transition timing, and a dedicated touch-switch surface.
 npm install @shayc/switch-scanning
 ```
 
-The core entry points work without React. The `/react` bindings support
-`react` and `react-dom` v18 or v19 as peer dependencies.
+The core entry points work without React. The `/react` bindings support React
+v18 or v19 as an optional peer dependency. They do not import or require
+`react-dom`; DOM applications choose their renderer separately.
 
 ## Entry points
 
@@ -244,6 +245,10 @@ analytics) observes events with `useScannerEvents(listener)`. Commands issued
 by a listener run after the transition being observed; listener failures are
 reported without interrupting scanning.
 
+The default CSS exit badge is visual-only where generated-content alternative
+text is supported. Announce programmatic scope changes from `group.entered` and
+`group.exited` events instead of relying on pseudo-element content.
+
 For scoped keyboard input, `useKeyboardSwitches` treats an undefined `target`
 as the global document and `target: null` as intentionally unattached. A key
 accepted by an element target is still released if key-up occurs elsewhere in
@@ -257,8 +262,7 @@ landing-only `label`.
 
 See the [full API reference](docs/API.md),
 [auditory scanning recipe](docs/auditory-scanning.md),
-[OBF adapter example](examples/obf/README.md), and
-[preview → 0.2.0 migration guide](docs/MIGRATION.md).
+and [OBF adapter example](examples/obf/README.md).
 
 ## Testing without a browser
 

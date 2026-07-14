@@ -58,9 +58,7 @@ test("timing controls reject values below their configured minimum", async ({
   await expect(selectionDelay).toHaveValue("0");
   const start = page.getByRole("button", { name: "Start scanning" });
   await start.click();
-  await expect(
-    page.getByRole("status", { name: "Scanner status" }),
-  ).toContainText("Scanning");
+  await expect(page.locator("[data-scanner-status]")).toContainText("Scanning");
   await expect(start).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Pause scanning" }),
@@ -211,6 +209,35 @@ test("direct and scanner activation share the native button path", async ({
   await expect(page.getByLabel("Selected phrases")).toContainText("I want");
 });
 
+test("live announcements report selections and scope changes, not landings", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const announcements = page.getByRole("status", {
+    name: "Scanner announcements",
+  });
+  await expect(announcements).toHaveCount(1);
+  await expect(announcements).toHaveText("");
+
+  await page
+    .getByRole("radio", { name: "Move and select", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Start scanning" }).click();
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+  await page.keyboard.press("Space");
+  await expect(announcements).toHaveText("");
+
+  await page.keyboard.press("Enter");
+  await expect(announcements).toContainText("Entered Row");
+  const entered = await announcements.textContent();
+  expect(entered).not.toBeNull();
+  await page.keyboard.press("Space");
+  await expect(announcements).toHaveText(entered ?? "");
+
+  await page.keyboard.press("Enter");
+  await expect(announcements).toContainText("Selected");
+});
+
 test("auditory prompts preserve the held inverse-scan release", async ({
   page,
 }) => {
@@ -248,9 +275,7 @@ test("auditory prompts preserve the held inverse-scan release", async ({
     .check();
 
   await page.keyboard.down("Space");
-  await expect(
-    page.getByRole("status", { name: "Scanner status" }),
-  ).toContainText("Scanning");
+  await expect(page.locator("[data-scanner-status]")).toContainText("Scanning");
   await page.keyboard.up("Space");
 
   await page.getByText("Inspect events", { exact: true }).click();

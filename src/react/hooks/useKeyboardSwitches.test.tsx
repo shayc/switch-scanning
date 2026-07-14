@@ -1,5 +1,5 @@
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createScanner,
   inverseScan,
@@ -199,6 +199,33 @@ describe("keyboard switches", () => {
     expect(scanner.getSnapshot().status).toBe("complete");
   });
 
+  it("stops later listeners on the same capture target", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "switch",
+      switches: { next: { action: "next" } },
+    });
+    function KeyApp() {
+      useKeyboardSwitches(scanner, { Space: "next" });
+      return null;
+    }
+    render(<KeyApp />);
+    const laterListener = vi.fn();
+    document.addEventListener("keydown", laterListener, true);
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "Space", cancelable: true }),
+      );
+      document.dispatchEvent(
+        new KeyboardEvent("keyup", { code: "Space", cancelable: true }),
+      );
+    });
+
+    document.removeEventListener("keydown", laterListener, true);
+    expect(laterListener).not.toHaveBeenCalled();
+  });
+
   it("honors an explicit target across rejected, disabled, and repeated keys", () => {
     const scanner = createScanner({
       style: stepScan(),
@@ -373,14 +400,21 @@ describe("keyboard switches", () => {
     act(() => clock.advanceBy(5000));
     expect(scanner.getSnapshot().highlight).toMatchObject({ id: "y" });
 
+    const repeatedAfterDisconnect = new KeyboardEvent("keydown", {
+      code: "Space",
+      repeat: true,
+      cancelable: true,
+    });
     const up = new KeyboardEvent("keyup", {
       code: "Space",
       cancelable: true,
     });
     act(() => {
+      document.dispatchEvent(repeatedAfterDisconnect);
       document.dispatchEvent(up);
     });
-    expect(up.defaultPrevented).toBe(false);
+    expect(repeatedAfterDisconnect.defaultPrevented).toBe(true);
+    expect(up.defaultPrevented).toBe(true);
     expect(fixture.activations).toEqual([]);
   });
 
@@ -404,13 +438,25 @@ describe("keyboard switches", () => {
       repeat: true,
       cancelable: true,
     });
+    const repeatedAfterBlur = new KeyboardEvent("keydown", {
+      code: "Space",
+      repeat: true,
+      cancelable: true,
+    });
+    const up = new KeyboardEvent("keyup", {
+      code: "Space",
+      cancelable: true,
+    });
     act(() => {
       document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
       document.dispatchEvent(repeated);
       window.dispatchEvent(new Event("blur"));
-      document.dispatchEvent(new KeyboardEvent("keyup", { code: "Space" }));
+      document.dispatchEvent(repeatedAfterBlur);
+      document.dispatchEvent(up);
     });
     expect(repeated.defaultPrevented).toBe(true);
+    expect(repeatedAfterBlur.defaultPrevented).toBe(true);
+    expect(up.defaultPrevented).toBe(true);
     expect(fixture.activations).toEqual([]);
   });
 

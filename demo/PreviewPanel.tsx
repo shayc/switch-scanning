@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Badge,
   Box,
@@ -12,6 +13,7 @@ import {
 } from "@mantine/core";
 import {
   usePointerSwitch,
+  useScannerEvents,
   useScannerSnapshot,
   type Scanner,
   type ScannerStatus,
@@ -88,11 +90,26 @@ export function PreviewPanel({
 }
 
 function RuntimeControls({ scanner }: { scanner: Scanner }) {
+  const [announcement, setAnnouncement] = useState("");
   const status = useScannerSnapshot(scanner, (snapshot) => snapshot.status);
   const position = useScannerSnapshot(scanner, (snapshot) => snapshot.position);
   const pending = useScannerSnapshot(scanner, (snapshot) => snapshot.pending);
   const isActive =
     status === "scanning" || status === "transitioning" || status === "paused";
+
+  useScannerEvents(scanner, (event) => {
+    switch (event.type) {
+      case "target.activated":
+        setAnnouncement(`Selected ${event.label}`);
+        break;
+      case "group.entered":
+        setAnnouncement(`Entered ${event.label}`);
+        break;
+      case "group.exited":
+        setAnnouncement(`Exited ${event.label}`);
+        break;
+    }
+  });
 
   const labels: Partial<Record<ScannerStatus, string>> = {
     scanning: "Scanning",
@@ -130,15 +147,23 @@ function RuntimeControls({ scanner }: { scanner: Scanner }) {
       gap="md"
       wrap="nowrap"
     >
+      <span
+        className={classes.liveRegion}
+        role="status"
+        aria-label="Scanner announcements"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {announcement}
+      </span>
       {status !== "idle" && (
         <Group
           className={classes.runtimeState}
           justify="flex-end"
           gap="xs"
           wrap="nowrap"
-          role="status"
+          data-scanner-status=""
           aria-label="Scanner status"
-          aria-live="polite"
         >
           <Badge
             variant="light"

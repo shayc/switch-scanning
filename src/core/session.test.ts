@@ -177,6 +177,12 @@ describe("scan session", () => {
     );
     expect(session.reconcile()).toEqual([
       {
+        type: "group-exited",
+        id: "row",
+        label: "Row",
+        reason: "reconcile",
+      },
+      {
         type: "landed",
         previous: { kind: "target", id: "a" },
         current: { kind: "target", id: "c" },

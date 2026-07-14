@@ -17,6 +17,8 @@ export type Candidate =
 interface ScopeFrame {
   /** `null` identifies the synthetic root scope; strings are always user IDs. */
   readonly groupId: string | null;
+  /** Retained so a removed group can still be identified by exit effects. */
+  readonly groupLabel: string | null;
   candidates: readonly Candidate[];
   index: number;
   pass: number;
@@ -38,7 +40,8 @@ export type SessionEffect =
       readonly type: "group-exited";
       readonly id: string;
       readonly label: string;
-      readonly reason: "selected-exit" | "back" | "loops-complete" | "empty";
+      readonly reason:
+        "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile";
     }
   | { readonly type: "root-exhausted" }
   | { readonly type: "root-empty" };
@@ -124,7 +127,9 @@ export class ScanSession {
       this.frames = [];
       return [{ type: "root-empty" }];
     }
-    this.frames = [{ groupId: null, candidates, index: 0, pass: 1 }];
+    this.frames = [
+      { groupId: null, groupLabel: null, candidates, index: 0, pass: 1 },
+    ];
     return this.land(null);
   }
 
@@ -134,7 +139,9 @@ export class ScanSession {
       this.frames = [];
       return [{ type: "root-empty" }];
     }
-    this.frames = [{ groupId: null, candidates, index: 0, pass: 1 }];
+    this.frames = [
+      { groupId: null, groupLabel: null, candidates, index: 0, pass: 1 },
+    ];
     return this.land(null);
   }
 
@@ -207,6 +214,7 @@ export class ScanSession {
     );
     rebuilt.push({
       groupId: null,
+      groupLabel: null,
       candidates: rootCandidates,
       index: 0,
       pass: this.frames[0]!.pass,
@@ -230,15 +238,31 @@ export class ScanSession {
       if (candidates.length === 0) break;
       rebuilt.push({
         groupId: frame.groupId,
+        groupLabel: node.label,
         candidates,
         index: 0,
         pass: frame.pass,
       });
     }
 
+    const exited = this.frames
+      .slice(rebuilt.length)
+      .reverse()
+      .flatMap((frame): SessionEffect[] =>
+        frame.groupId === null || frame.groupLabel === null
+          ? []
+          : [
+              {
+                type: "group-exited",
+                id: frame.groupId,
+                label: frame.groupLabel,
+                reason: "reconcile",
+              },
+            ],
+      );
     this.frames = rebuilt;
-    if (rootCandidates.length === 0) return [{ type: "root-empty" }];
-    return this.repairHighlight(previousHighlight);
+    if (rootCandidates.length === 0) return [...exited, { type: "root-empty" }];
+    return [...exited, ...this.repairHighlight(previousHighlight)];
   }
 
   private get currentFrame(): ScopeFrame | undefined {
@@ -293,7 +317,13 @@ export class ScanSession {
         ...this.land(previous),
       ];
     }
-    this.frames.push({ groupId, candidates, index: 0, pass: 1 });
+    this.frames.push({
+      groupId,
+      groupLabel: node.label,
+      candidates,
+      index: 0,
+      pass: 1,
+    });
     return [
       { type: "group-entered", id: node.id, label: node.label },
       ...this.land(previous),
@@ -301,7 +331,7 @@ export class ScanSession {
   }
 
   private leaveGroup(
-    reason: "selected-exit" | "back" | "loops-complete" | "empty",
+    reason: "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile",
   ): readonly SessionEffect[] {
     const frame = this.currentFrame;
     if (!frame || frame.groupId === null) return [];

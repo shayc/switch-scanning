@@ -407,16 +407,16 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     active.cancel = scheduler.schedule(delay, () => {
       if (transition !== active || status !== "transitioning") return;
       active.cancel = null;
-      finishTransition(true);
+      finishTransition();
     });
   }
 
-  function finishTransition(natural: boolean): void {
+  function finishTransition(): void {
     if (!transition) return;
     transition.cancel?.();
     transition = null;
     status = "scanning";
-    if (natural) emit({ type: "scan.transitionEnded" });
+    emit({ type: "scan.transitionEnded" });
     presentLogical(false);
   }
 
@@ -530,7 +530,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (transition) {
       status = "transitioning";
       const dueAt = Math.max(transition.fixedDueAt, transition.quietDueAt);
-      if (dueAt <= clock.now()) finishTransition(false);
+      if (dueAt <= clock.now()) finishTransition();
       else scheduleTransition(clock.now());
       return;
     }
@@ -724,8 +724,16 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }),
     restart: serialized(() => {
       if (disposed) return;
-      teardown();
-      status = "idle";
+      if (
+        status === "scanning" ||
+        status === "transitioning" ||
+        status === "paused"
+      ) {
+        stopInternal("command");
+      } else {
+        teardown();
+        status = "idle";
+      }
       startScan(false);
     }),
     next: serialized(() => {
@@ -885,7 +893,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
     if (previous.style.kind !== options.style.kind) {
       const wasPaused = status === "paused";
+      const hadTransition = transition !== null;
       dropTransition();
+      if (hadTransition) emit({ type: "scan.transitionEnded" });
       if (!wasPaused) status = "scanning";
       applySessionEffects(session.resetCurrentScope(), {
         present: !wasPaused,

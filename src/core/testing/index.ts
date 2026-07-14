@@ -51,6 +51,11 @@ export function createScannerFixture(
   };
 
   const attachment = scanner.attachHost(host);
+  if (!attachment.attached) {
+    throw new Error(
+      "[switch-scanning] createScannerFixture could not attach its host; the scanner already has a host or is disposed",
+    );
+  }
 
   const toRoot = (children: readonly ScanNode[]): ScanGroupNode => ({
     kind: "group",
