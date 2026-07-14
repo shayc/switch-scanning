@@ -81,6 +81,26 @@ describe("causal dwell selection", () => {
     expect(fixture.activations).toEqual([]);
     expect(scanner.getSnapshot().pending).toBeNull();
   });
+
+  it("does not preserve a paused dwell through tree reconciliation", () => {
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: singleSwitchStepScan({ dwellTimeMs: 100 }),
+      clock,
+    });
+    const fixture = createScannerFixture(scanner, TARGETS);
+    scanner.start();
+    scanner.next();
+    clock.advanceBy(40);
+    scanner.pause();
+
+    fixture.setNodes([...TARGETS]);
+    scanner.resume();
+    clock.advanceBy(1_000);
+
+    expect(fixture.activations).toEqual([]);
+    expect(scanner.getSnapshot().pending).toBeNull();
+  });
 });
 
 describe("selection transition coordinator", () => {

@@ -8,10 +8,13 @@ cues when presentation changes, and resumes after completion or speech errors.
 Resuming does not emit another highlight landing, so it cannot create a replay
 loop.
 
-Pass `pauseWhileSpeaking: false` for inverse scanning. Its held `scan` gesture
-is phaseful: pausing deliberately forgets held gestures, so pausing for a prompt
-would prevent the eventual release from selecting. Without the pause, choose an
-interval long enough for the prompt; a new landing cancels any stale cue.
+An armed single-step dwell survives this pause with its remaining time frozen,
+so the documented recipe works with "Step and wait". Pass
+`pauseWhileSpeaking: false` whenever the active interaction depends on a held
+or eventual-release gesture. Inverse scanning is the built-in example: pausing
+deliberately forgets held gestures, so the eventual release cannot select.
+Without the pause, choose an interval long enough for the prompt; a new landing
+cancels any stale cue.
 
 ```tsx
 function useAuditoryPrompts(

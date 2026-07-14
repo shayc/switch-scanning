@@ -60,8 +60,8 @@ export function EventLog({
     const synth = window.speechSynthesis;
     const token = ++generation.current;
     synth.cancel();
-    // Inverse scanning owns a phaseful held gesture. Pausing here would reset
-    // that gesture and make its eventual release unable to select.
+    // Dwell tokens survive a prompt pause. Inverse scanning is excluded because
+    // its selection still depends on the eventual release of a held gesture.
     if (
       styleKind !== "inverse" &&
       scanner.getSnapshot().status === "scanning"

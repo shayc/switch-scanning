@@ -72,15 +72,21 @@ export class ScanRegistry {
   private readonly groupElements = new Map<HTMLElement, string>();
 
   private scanner: Scanner | null = null;
+  private publishedScanner: Scanner | null = null;
+  private publishedTreeSignature: string | null = null;
   private dirty = false;
   private flushScheduled = false;
   private readonly warnOnce = createDiagnosticWarner();
 
   attach(scanner: Scanner): Detach {
     this.scanner = scanner;
+    this.publishedScanner = null;
     this.markDirty();
     return () => {
-      if (this.scanner === scanner) this.scanner = null;
+      if (this.scanner === scanner) {
+        this.scanner = null;
+        this.publishedScanner = null;
+      }
     };
   }
 
@@ -218,13 +224,27 @@ export class ScanRegistry {
   /** Rebuild and publish the tree synchronously. */
   flush(): void {
     this.dirty = false;
-    if (!this.scanner) return;
-    this.scanner.setTree(
-      compileRegistryTree(this.targets, this.groups, this.groupElements, {
+    const scanner = this.scanner;
+    if (!scanner) return;
+    const tree = compileRegistryTree(
+      this.targets,
+      this.groups,
+      this.groupElements,
+      {
         reportParentCycle: (cycle) => this.reportParentCycle(cycle),
         warn: (code, message) => this.warn(code, message),
-      }),
+      },
     );
+    const signature = JSON.stringify(tree);
+    if (
+      this.publishedScanner === scanner &&
+      this.publishedTreeSignature === signature
+    ) {
+      return;
+    }
+    scanner.setTree(tree);
+    this.publishedScanner = scanner;
+    this.publishedTreeSignature = signature;
   }
 
   private reportDuplicate(kind: string, id: string): void {

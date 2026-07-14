@@ -80,6 +80,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   let disposed = false;
   let hasPublishedTree = false;
   let mountStartPending = options.startOn === "mount";
+  let suspendedDwellRemaining: number | null = null;
   let status: ScannerStatus = "idle";
 
   const store = createScannerStore(() =>
@@ -418,6 +419,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   /** Tear down all live scanning machinery; callers set the resulting status. */
   function teardown(): void {
     dropTransition();
+    suspendedDwellRemaining = null;
     styleRuntime.halt();
     gestures.reset();
     session.clear();
@@ -444,28 +446,43 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }
   }
 
-  function startScan(armDwell: boolean): void {
-    if (disposed || !options.enabled) return;
+  function startScan(
+    armDwell: boolean,
+    emptyBehavior: "complete" | "defer" = "complete",
+  ): boolean {
+    if (disposed || !options.enabled) return false;
     dropTransition();
     styleRuntime.halt();
     const effects = session.start();
     if (effects.some((effect) => effect.type === "root-empty")) {
+      if (emptyBehavior === "defer") {
+        status = "idle";
+        setPresentation(null);
+        return false;
+      }
       status = "complete";
       setPresentation(null);
       emit({ type: "scan.completed", reason: "empty" });
-      return;
+      return true;
     }
     status = "scanning";
     emit({ type: "scan.started" });
     applySessionEffects(effects, { present: true, armDwell });
+    return true;
   }
 
   function maybeStartOnMount(): boolean {
-    if (!mountStartPending || options.startOn !== "mount" || status !== "idle")
+    if (
+      !mountStartPending ||
+      !hasPublishedTree ||
+      !options.enabled ||
+      options.startOn !== "mount" ||
+      status !== "idle"
+    )
       return false;
-    mountStartPending = false;
-    startScan(false);
-    return true;
+    const started = startScan(false, "defer");
+    if (started) mountStartPending = false;
+    return started;
   }
 
   function completeScan(reason: "loops" | "empty"): void {
@@ -483,7 +500,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function pauseInternal(): void {
     if (status !== "scanning" && status !== "transitioning") return;
     if (status === "transitioning") clearTransitionSchedule();
-    else styleRuntime.cancelDeadline();
+    else suspendedDwellRemaining = styleRuntime.suspendDeadline();
     status = "paused";
     // Forget held contacts so resume requires a fresh gesture, but retain each
     // accepted switch's fixed ignore-repeat window across the lifecycle edge.
@@ -502,7 +519,13 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
     status = "scanning";
-    presentLogical(false);
+    if (suspendedDwellRemaining !== null) {
+      const remainingMs = suspendedDwellRemaining;
+      suspendedDwellRemaining = null;
+      styleRuntime.resumeDwell(remainingMs);
+    } else {
+      presentLogical(false);
+    }
   }
 
   function handleSwitchAction(
@@ -614,6 +637,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     ) {
       return;
     }
+    // Reconciliation establishes a fresh non-dwell landing policy. A dwell
+    // frozen by pause is therefore invalidated just like a live dwell.
+    suspendedDwellRemaining = null;
     const hidden =
       status === "transitioning" || (status === "paused" && !!transition);
     const effects = session.reconcile();
@@ -782,10 +808,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
           // host can accept a selection, so no target is activated invisibly.
           setPresentation(session.currentPresentation);
         }
-        if (options.startOn === "mount") {
-          mountStartPending = true;
-          if (hasPublishedTree) maybeStartOnMount();
-        }
+        maybeStartOnMount();
       });
       return { attached, detach };
     },
@@ -814,6 +837,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   function applyOptions(normalized: NormalizedOptions): void {
     const previous = options;
     options = normalized;
+    if (previous.startOn !== "mount" && options.startOn === "mount") {
+      mountStartPending = true;
+    }
     styleRuntime.setStyle(options.style);
     session.setGroupExit(options.groupExit);
     gestures.setSwitches(options.switches);
@@ -836,6 +862,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       status !== "transitioning" &&
       status !== "paused"
     ) {
+      maybeStartOnMount();
       return;
     }
 

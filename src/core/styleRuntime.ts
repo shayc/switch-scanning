@@ -13,6 +13,10 @@ export interface StyleRuntime {
   setStyle(style: ScanStyle): void;
   landed(policy: LandingPolicy): void;
   cancelDeadline(): void;
+  /** Cancel the active deadline, returning a frozen dwell remainder if armed. */
+  suspendDeadline(): number | null;
+  /** Resume a dwell token previously returned by {@link suspendDeadline}. */
+  resumeDwell(remainingMs: number): void;
   halt(): void;
   scanPress(sourceKey: string, firstOfPass: boolean): void;
   scanRelease(sourceKey: string): ScanPhaseResult;
@@ -51,6 +55,15 @@ export function createStyleRuntime(deps: {
       pending = null;
     }
     deadline = null;
+  }
+
+  function suspendDeadline(): number | null {
+    const remainingMs =
+      pending?.kind === "dwell"
+        ? Math.max(0, pending.dueAt - deps.clock.now())
+        : null;
+    cancelDeadline();
+    return remainingMs;
   }
 
   function setDeadline(
@@ -133,6 +146,12 @@ export function createStyleRuntime(deps: {
       schedule(policy);
     },
     cancelDeadline,
+    suspendDeadline,
+    resumeDwell(remainingMs) {
+      cancelDeadline();
+      if (!deps.isScanning()) return;
+      setDeadline("dwell", remainingMs, deps.select);
+    },
     halt() {
       cancelDeadline();
       stopRepeat();

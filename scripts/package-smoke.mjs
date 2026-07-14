@@ -29,6 +29,8 @@ try {
     "dist/index.d.ts",
     "dist/core/index.js",
     "dist/core/index.d.ts",
+    "dist/core/testing/index.js",
+    "dist/core/testing/index.d.ts",
     "dist/react/index.js",
     "dist/react/index.d.ts",
     "dist/styles.css",
@@ -71,6 +73,27 @@ try {
     `,
   );
   execFileSync("node", [fixture], { cwd: temp, env, stdio: "inherit" });
+
+  const nodeMajor = Number.parseInt(process.versions.node.split(".")[0], 10);
+  if (nodeMajor >= 22) {
+    const requireFixture = join(temp, "require-consumer.cjs");
+    writeFileSync(
+      requireFixture,
+      `
+        const root = require("@shayc/switch-scanning");
+        if (typeof root.createScanner !== "function") throw new Error("root core require failed");
+        const core = require("@shayc/switch-scanning/core");
+        if (typeof core.createScanner !== "function") throw new Error("core require failed");
+        const testing = require("@shayc/switch-scanning/core/testing");
+        if (typeof testing.manualClock !== "function") throw new Error("testing require failed");
+      `,
+    );
+    execFileSync("node", [requireFixture], {
+      cwd: temp,
+      env,
+      stdio: "inherit",
+    });
+  }
 
   const typeFixture = join(temp, "core-consumer.ts");
   writeFileSync(

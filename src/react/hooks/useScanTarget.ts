@@ -1,10 +1,7 @@
 import { useCallback, useEffect, type Ref, type RefCallback } from "react";
 import { useScannerContext } from "../context.ts";
 import { useCommittedRef, useRegistrationRef } from "./refs.ts";
-import {
-  scanTargetStructuralSignature,
-  type ScanTargetOptions,
-} from "../registry.ts";
+import type { ScanTargetOptions } from "../registry.ts";
 
 /** Options for {@link useScanTarget}. */
 export interface UseScanTargetOptions extends ScanTargetOptions {
@@ -43,10 +40,9 @@ export function useScanTarget(
     options.ref,
   );
 
-  const structuralSignature = scanTargetStructuralSignature(options);
   useEffect(() => {
     registry.touchTarget();
-  }, [registry, structuralSignature]);
+  });
 
   return { props: { ref, "data-scan-target": "" } };
 }

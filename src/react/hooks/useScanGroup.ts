@@ -1,10 +1,7 @@
 import { useCallback, useEffect, type Ref, type RefCallback } from "react";
 import { useScannerContext } from "../context.ts";
 import { useCommittedRef, useRegistrationRef } from "./refs.ts";
-import {
-  scanGroupStructuralSignature,
-  type ScanGroupOptions,
-} from "../registry.ts";
+import type { ScanGroupOptions } from "../registry.ts";
 
 /** Options for {@link useScanGroup}. */
 export interface UseScanGroupOptions extends ScanGroupOptions {
@@ -41,10 +38,9 @@ export function useScanGroup(options: UseScanGroupOptions): ScanGroupBinding {
     options.ref,
   );
 
-  const structuralSignature = scanGroupStructuralSignature(options);
   useEffect(() => {
     registry.touchGroup();
-  }, [registry, structuralSignature]);
+  });
 
   return { props: { ref, "data-scan-group": "" } };
 }

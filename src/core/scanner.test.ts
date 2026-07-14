@@ -30,8 +30,8 @@ function build(
 ) {
   const clock = manualClock();
   const scanner = createScanner({ ...options, clock });
-  const fixture = createScannerFixture(scanner, nodes);
   const events = recordScannerEvents(scanner);
+  const fixture = createScannerFixture(scanner, nodes);
   return { clock, scanner, fixture, events };
 }
 
@@ -52,6 +52,97 @@ describe("start rules", () => {
       { kind: "target", id: "maybe", label: "Maybe" },
     ]);
     expect(scanner.getSnapshot().status).toBe("idle");
+  });
+
+  it("does not re-arm a consumed mount start during tree churn", () => {
+    const { scanner, fixture, events } = build(
+      { style: stepScan(), startOn: "mount" },
+      YES_NO,
+    );
+    expect(events.ofType("scan.started")).toHaveLength(1);
+
+    scanner.stop();
+    fixture.setNodes([YES_NO[1]!, YES_NO[0]!]);
+    fixture.setNodes(YES_NO);
+
+    expect(scanner.getSnapshot().status).toBe("idle");
+    expect(events.ofType("scan.started")).toHaveLength(1);
+  });
+
+  it("stays idle after activation-stop when the tree is republished", () => {
+    const { scanner, fixture, events } = build(
+      {
+        style: stepScan(),
+        startOn: "mount",
+        afterActivation: "stop",
+      },
+      YES_NO,
+    );
+
+    scanner.select();
+    expect(fixture.activations).toEqual(["yes"]);
+    expect(scanner.getSnapshot().status).toBe("idle");
+
+    fixture.setNodes([...YES_NO]);
+    expect(scanner.getSnapshot().status).toBe("idle");
+    expect(events.ofType("scan.started")).toHaveLength(1);
+  });
+
+  it("keeps a disabled mount start pending until enabled content arrives", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "mount",
+      enabled: false,
+    });
+    const events = recordScannerEvents(scanner);
+    scanner.attachHost({ activate: () => ({ activated: true }) });
+
+    scanner.setOptions({ style: stepScan(), startOn: "mount", enabled: true });
+    expect(scanner.getSnapshot().status).toBe("idle");
+    scanner.setTree(rootOf(YES_NO));
+
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: { kind: "target", id: "yes" },
+    });
+    expect(events.ofType("scan.started")).toHaveLength(1);
+  });
+
+  it("defers an empty mount tree and starts exactly once when content appears", () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "mount" });
+    const events = recordScannerEvents(scanner);
+    scanner.attachHost({ activate: () => ({ activated: true }) });
+
+    scanner.setTree(rootOf([]));
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "idle",
+      highlight: null,
+    });
+    expect(events.ofType("scan.completed")).toEqual([]);
+
+    scanner.setTree(rootOf(YES_NO));
+    scanner.setTree(rootOf([...YES_NO]));
+    expect(scanner.getSnapshot().status).toBe("scanning");
+    expect(events.ofType("scan.started")).toHaveLength(1);
+  });
+
+  it("starts when the first tree is published before the host attaches", () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "mount" });
+    const events = recordScannerEvents(scanner);
+
+    scanner.setTree(rootOf(YES_NO));
+    expect(scanner.getSnapshot().status).toBe("scanning");
+    expect(events.ofType("scan.started")).toHaveLength(1);
+
+    const activations: string[] = [];
+    scanner.attachHost({
+      activate: (id) => {
+        activations.push(id);
+        return { activated: true };
+      },
+    });
+    scanner.select();
+    expect(activations).toEqual(["yes"]);
   });
 
   it("first accepted switch while idle starts and consumes the action", () => {

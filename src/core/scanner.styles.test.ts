@@ -244,6 +244,53 @@ describe("single-switch step scanning", () => {
     clock.advanceBy(1);
     expect(fixture.activations).toEqual(["no"]);
   });
+
+  it("freezes an armed dwell while paused and resumes its remaining time", () => {
+    const { clock, scanner, fixture } = build(
+      { style: singleSwitchStepScan({ dwellTimeMs: 1000 }) },
+      YES_NO,
+    );
+    scanner.start();
+    scanner.next();
+    clock.advanceBy(300);
+
+    scanner.pause();
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "paused",
+      pending: null,
+    });
+    expect(clock.pending).toBe(0);
+
+    scanner.resume();
+    clock.advanceBy(699);
+    expect(fixture.activations).toEqual([]);
+    clock.advanceBy(1);
+    expect(fixture.activations).toEqual(["no"]);
+  });
+
+  it("supports the auditory pause-on-highlight recipe without losing dwell", () => {
+    const { clock, scanner, fixture } = build(
+      { style: singleSwitchStepScan({ dwellTimeMs: 1000 }) },
+      YES_NO,
+    );
+    scanner.observe((event) => {
+      if (event.type !== "highlight.changed" || event.current === null) return;
+      scanner.pause();
+    });
+    const finishSpeech = () => scanner.resume();
+
+    scanner.start();
+    expect(scanner.getSnapshot().status).toBe("paused");
+    finishSpeech();
+
+    scanner.next();
+    expect(scanner.getSnapshot().status).toBe("paused");
+    expect(clock.pending).toBe(0);
+
+    finishSpeech();
+    clock.advanceBy(1000);
+    expect(fixture.activations).toEqual(["no"]);
+  });
 });
 
 describe("inverse scanning", () => {

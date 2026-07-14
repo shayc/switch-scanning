@@ -1,6 +1,6 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { createRef, StrictMode, useEffect, type Ref } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createScanner, manualClock, type ManualClock } from "../core/index.ts";
 import { autoScan, stepScan } from "../core/index.ts";
 import {
@@ -187,6 +187,107 @@ describe("imperative driving", () => {
       kind: "target",
       id: "y",
     });
+  });
+});
+
+describe("keyed DOM reorder", () => {
+  it("updates target traversal order after keyed siblings move", async () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+
+    function Targets({ ids }: { ids: readonly string[] }) {
+      return ids.map((id) => <TargetButton key={id} id={id} label={id} />);
+    }
+
+    const app = (ids: readonly string[]) => (
+      <ScannerProvider scanner={scanner}>
+        <Targets ids={ids} />
+      </ScannerProvider>
+    );
+    const view = render(app(["a", "b"]));
+    await flushMicrotasks();
+    act(() => scanner.start());
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
+
+    view.rerender(app(["b", "a"]));
+    await flushMicrotasks();
+    act(() => scanner.restart());
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "b",
+    });
+    act(() => scanner.next());
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
+  });
+
+  it("updates group traversal order after keyed group elements move", async () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+
+    function Group({ id }: { id: string }) {
+      const group = useScanGroup({ id, label: id });
+      return (
+        <section {...group.props}>
+          <TargetButton id={`${id}-target`} label={`${id} target`} />
+        </section>
+      );
+    }
+
+    function Groups({ ids }: { ids: readonly string[] }) {
+      return ids.map((id) => <Group key={id} id={id} />);
+    }
+
+    const app = (ids: readonly string[]) => (
+      <ScannerProvider scanner={scanner}>
+        <Groups ids={ids} />
+      </ScannerProvider>
+    );
+    const view = render(app(["a", "b"]));
+    await flushMicrotasks();
+    act(() => scanner.start());
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "a",
+    });
+
+    view.rerender(app(["b", "a"]));
+    await flushMicrotasks();
+    act(() => scanner.restart());
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "b",
+    });
+    act(() => scanner.next());
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "group",
+      id: "a",
+    });
+  });
+
+  it("does not republish an unchanged tree across repeated renders", async () => {
+    const scanner = createScanner({ style: stepScan(), startOn: "command" });
+    const app = (_renderCount: number) => (
+      <ScannerProvider scanner={scanner}>
+        <div>
+          <TargetButton id="a" label="A" />
+          <TargetButton id="b" label="B" />
+        </div>
+      </ScannerProvider>
+    );
+    const view = render(app(0));
+    await flushMicrotasks();
+    const setTree = vi.spyOn(scanner, "setTree");
+
+    for (let renderCount = 1; renderCount <= 5; renderCount += 1) {
+      view.rerender(app(renderCount));
+      await flushMicrotasks();
+    }
+
+    expect(setTree).not.toHaveBeenCalled();
   });
 });
 
@@ -439,7 +540,7 @@ describe("Strict Mode", () => {
     });
   });
 
-  it("reapplies mount startup after the extra attachment cycle", async () => {
+  it("does not re-arm mount startup on the extra attachment cycle", async () => {
     const clock = manualClock();
     let scanner!: ReturnType<typeof useScanner>;
 
@@ -465,9 +566,6 @@ describe("Strict Mode", () => {
       </StrictMode>,
     );
     await flushMicrotasks();
-    expect(scanner.getSnapshot()).toMatchObject({
-      status: "scanning",
-      highlight: { kind: "target", id: "x" },
-    });
+    expect(scanner.getSnapshot()).toMatchObject({ status: "idle" });
   });
 });

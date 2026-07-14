@@ -15,11 +15,11 @@ import { useCommittedRef } from "./refs.ts";
  * lifetime, forwarding complete option changes through `setOptions`. Options
  * are compared structurally, so callers do not need to memoize them.
  *
- * Lifecycle: on unmount the scanner is stopped; it is never disposed. Stopping
- * keeps it recoverable so StrictMode's simulated unmount/remount re-arms cleanly
- * (a `ScannerProvider` re-attaches the host and, for `startOn: "mount"`,
- * re-fires the mount start). Consumers that skip the provider still get their
- * `setTimeout` chain torn down when the component leaves the tree.
+ * Lifecycle: on unmount the scanner is stopped; it is never disposed. This
+ * keeps the object recoverable across StrictMode's simulated unmount/remount
+ * without allowing host attachment to re-arm a consumed `startOn: "mount"`
+ * token. Consumers that skip the provider still get their `setTimeout` chain
+ * torn down when the component leaves the tree.
  */
 export function useScanner(options: ScannerOptions): Scanner {
   const ref = useRef<Scanner | null>(null);

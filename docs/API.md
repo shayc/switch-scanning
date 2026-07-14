@@ -6,6 +6,11 @@
 - `switches`: declared logical switches. Physical adapters call
   `scanner.input.press/release/disconnect` with these IDs.
 - `startOn`: `"switch"` (default), `"mount"`, or `"command"`.
+  A mount start is a one-shot request for the first eligible moment: the
+  scanner must be enabled and idle with a published tree containing at least
+  one candidate. An initially empty tree stays `idle` without emitting
+  `scan.completed`; the request remains pending until content is published.
+  Attaching or replacing a host does not re-arm a consumed mount start.
 - `afterActivation`: `"restart"` (default), `"continue"`, `"repeat"`, or
   `"stop"`.
 - `groupExit`: `"after"` (default), `"before"`, or `"back-only"`.
