@@ -153,7 +153,7 @@ test("scanning methods expose accurate method-specific setup copy", async ({
   );
 });
 
-test("wide layouts keep a compact live event inspector open on the right", async ({
+test("wide layouts keep the event inspector below the preview, collapsed until opened", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
@@ -170,10 +170,11 @@ test("wide layouts keep a compact live event inspector open on the right", async
 
   expect(previewBox).not.toBeNull();
   expect(inspectorBox).not.toBeNull();
-  expect(inspectorBox!.x).toBeGreaterThan(previewBox!.x + previewBox!.width);
-  await expect(details).toHaveAttribute("open", "");
+  expect(inspectorBox!.y).toBeGreaterThan(previewBox!.y);
+  await expect(details).not.toHaveAttribute("open", "");
 
   await page.getByRole("button", { name: "Start scanning" }).click();
+  await page.getByText("Inspect events", { exact: true }).click();
   await expect(inspector.locator("[data-event]").first()).toBeVisible();
   await expect(inspector.locator("[data-event]").first()).toContainText(
     "highlight.changed",

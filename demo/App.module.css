@@ -39,23 +39,6 @@
   }
 }
 
-@media (min-width: 90rem) {
-  .appHeader,
-  .workbench {
-    max-width: 112rem;
-  }
-
-  .workbench {
-    grid-template-columns:
-      minmax(18.5rem, 20.5rem) minmax(34rem, 1fr)
-      minmax(17rem, 19rem);
-  }
-
-  .previewColumn {
-    display: contents;
-  }
-}
-
 @media (max-width: 52rem) {
   .workbench {
     grid-template-columns: minmax(0, 1fr);

@@ -53,15 +53,9 @@ export function PreviewPanel({
         p="md"
         data-scanner-controls=""
       >
-        <Stack gap={0} flex={1}>
-          <Title order={2} size="h4" id="preview-heading">
-            Phrase board
-          </Title>
-          <Text size="xs" c="dimmed">
-            {meta.shortLabel} <span aria-hidden="true">·</span>{" "}
-            {meta.switchCount}
-          </Text>
-        </Stack>
+        <Title order={2} size="h4" id="preview-heading" flex={1}>
+          Phrase board
+        </Title>
         <RuntimeControls scanner={scanner} />
       </Group>
 

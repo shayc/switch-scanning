@@ -10,7 +10,6 @@ import {
   Tabs,
   Text,
 } from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
 import {
   useScannerEvents,
   useScannerSnapshot,
@@ -28,7 +27,6 @@ interface LoggedEvent {
 }
 
 const MAX_EVENTS = 50;
-const WIDE_INSPECTOR_QUERY = "(min-width: 90rem)";
 
 /**
  * The documented "events → feedback" pattern: a single listener drives both the
@@ -45,7 +43,6 @@ export function EventLog({
 }) {
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const [view, setView] = useState<"events" | "state">("events");
-  const wideInspector = useMediaQuery(WIDE_INSPECTOR_QUERY);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const nextId = useRef(0);
   const generation = useRef(0);
@@ -163,14 +160,8 @@ export function EventLog({
       <details
         role="group"
         aria-label="Inspect events"
-        open={wideInspector || inspectorOpen}
-        onToggle={(event) => {
-          if (wideInspector && !event.currentTarget.open) {
-            event.currentTarget.open = true;
-            return;
-          }
-          setInspectorOpen(event.currentTarget.open);
-        }}
+        open={inspectorOpen}
+        onToggle={(event) => setInspectorOpen(event.currentTarget.open)}
       >
         <Group component="summary" justify="space-between" p="md" wrap="nowrap">
           <Text component="strong" size="sm">

@@ -43,13 +43,6 @@
   }
 }
 
-@media (min-width: 90rem) {
-  .previewPanel {
-    grid-column: 2;
-    grid-row: 1;
-  }
-}
-
 @media (max-width: 52rem) {
   .runtimeControls {
     align-items: center;

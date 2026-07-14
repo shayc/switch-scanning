@@ -51,53 +51,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (min-width: 90rem) {
-  .diagnosticsPanel {
-    position: sticky;
-    grid-column: 3;
-    grid-row: 1;
-    top: 1rem;
-    max-height: calc(100dvh - 2rem);
-  }
-
-  .diagnosticsPanel details {
-    display: flex;
-    max-height: calc(100dvh - 2rem);
-    flex-direction: column;
-  }
-
-  .diagnosticsPanel summary {
-    flex: 0 0 auto;
-    min-height: 3rem;
-  }
-
-  .diagnosticsPanel summary::marker {
-    content: "";
-  }
-
-  .diagnosticsPanel .consoleBody {
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .diagnosticsPanel .eventList {
-    max-height: calc(100dvh - 8.5rem);
-    gap: 0.25rem;
-  }
-
-  .diagnosticsPanel .eventList li {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.05rem;
-    padding: 0.38rem 0.48rem;
-  }
-
-  .diagnosticsPanel .eventList code {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
 @media (max-width: 40rem) {
   .eventList li {
     grid-template-columns: 1fr;
