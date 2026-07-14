@@ -187,7 +187,6 @@ export function App() {
           <EventLog scanner={scanner} speech={speech} styleKind={styleKind} />
         </div>
         <ControlsPanel
-          scanner={scanner}
           styleKind={styleKind}
           onStyleKind={setStyleKind}
           timing={timing}

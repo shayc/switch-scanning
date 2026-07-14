@@ -9,7 +9,7 @@ export function DurationField({
   minMs,
   maxMs,
   range,
-  disabled,
+  disabled = false,
   onChange,
 }: {
   label: string;
@@ -18,7 +18,7 @@ export function DurationField({
   minMs: number;
   maxMs?: number;
   range?: boolean;
-  disabled: boolean;
+  disabled?: boolean;
   onChange: (valueMs: number) => void;
 }) {
   const inputId = useId();

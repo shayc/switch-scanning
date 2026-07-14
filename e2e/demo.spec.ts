@@ -52,7 +52,7 @@ test("timing controls reject values below their configured minimum", async ({
   ).toBeVisible();
   await expect(
     page.getByRole("radio", { name: "Automatic", exact: true }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   expect(pageErrors).toEqual([]);
 });
 

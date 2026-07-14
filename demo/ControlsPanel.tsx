@@ -1,6 +1,5 @@
 import {
   Accordion,
-  Alert,
   Divider,
   Fieldset,
   Group,
@@ -12,14 +11,12 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { useScannerSnapshot, type Scanner } from "@shayc/switch-scanning/react";
 import type { ScanStyleKind, Timing } from "./App.tsx";
+import classes from "./ControlsPanel.module.css";
 import { DurationField } from "./DurationField.tsx";
 import { STYLE_META, STYLE_ORDER } from "./styleMeta.ts";
-import classes from "./ControlsPanel.module.css";
 
 interface ControlsPanelProps {
-  scanner: Scanner;
   styleKind: ScanStyleKind;
   onStyleKind: (kind: ScanStyleKind) => void;
   timing: Timing;
@@ -34,9 +31,12 @@ interface ControlsPanelProps {
   onThanksDisabled: (on: boolean) => void;
 }
 
-/** Configuration controls are deliberately not part of the scan tree. */
+/**
+ * Configuration controls are deliberately not part of the scan tree, and stay
+ * editable while a preview runs: the scanner reconfigures live through
+ * `setOptions`, so changes take effect without stopping first.
+ */
 export function ControlsPanel({
-  scanner,
   styleKind,
   onStyleKind,
   timing,
@@ -50,9 +50,6 @@ export function ControlsPanel({
   thanksDisabled,
   onThanksDisabled,
 }: ControlsPanelProps) {
-  const status = useScannerSnapshot(scanner, (snapshot) => snapshot.status);
-  const canConfigure = status === "idle" || status === "complete";
-
   return (
     <Paper
       component="aside"
@@ -68,23 +65,12 @@ export function ControlsPanel({
         Setup
       </Title>
 
-      {!canConfigure && (
-        <Alert mt="sm" role="status">
-          Stop the preview to change its setup.
-        </Alert>
-      )}
-
       <Fieldset
         className={classes.fieldGroup}
         variant="unstyled"
         legend="Scanning method"
-        disabled={!canConfigure}
       >
-        <Radio.Group
-          value={styleKind}
-          onChange={onStyleKind}
-          disabled={!canConfigure}
-        >
+        <Radio.Group value={styleKind} onChange={onStyleKind}>
           <Stack gap={4}>
             {STYLE_ORDER.map((kind) => {
               const option = STYLE_META[kind];
@@ -94,7 +80,6 @@ export function ControlsPanel({
                   value={kind}
                   className={classes.presetOption}
                   p="xs"
-                  disabled={!canConfigure}
                   aria-label={option.label}
                   aria-describedby={`scan-style-${kind}-description`}
                 >
@@ -134,7 +119,6 @@ export function ControlsPanel({
               ? "Movement"
               : "Pace"
         }
-        disabled={!canConfigure}
       >
         <Stack gap="xs">
           {(styleKind === "auto" || styleKind === "inverse") && (
@@ -149,7 +133,6 @@ export function ControlsPanel({
               minMs={100}
               maxMs={4000}
               range
-              disabled={!canConfigure}
               onChange={(intervalMs) => onTiming({ intervalMs })}
             />
           )}
@@ -161,7 +144,6 @@ export function ControlsPanel({
               minMs={100}
               maxMs={4000}
               range
-              disabled={!canConfigure}
               onChange={(dwellTimeMs) => onTiming({ dwellTimeMs })}
             />
           )}
@@ -186,11 +168,7 @@ export function ControlsPanel({
           <Accordion.Control>More options</Accordion.Control>
           <Accordion.Panel>
             <Stack gap="md">
-              <Fieldset
-                variant="unstyled"
-                legend="Touch input"
-                disabled={!canConfigure}
-              >
+              <Fieldset variant="unstyled" legend="Touch input">
                 <Switch
                   className={classes.fullWidthSwitch}
                   size="sm"
@@ -238,15 +216,10 @@ export function ControlsPanel({
 
               <Divider />
 
-              <Fieldset
-                variant="unstyled"
-                legend="Keyboard mode"
-                disabled={!canConfigure}
-              >
+              <Fieldset variant="unstyled" legend="Keyboard mode">
                 <Radio.Group
                   value={keyboardOwnership}
                   onChange={onKeyboardOwnership}
-                  disabled={!canConfigure}
                 >
                   <Stack gap="xs">
                     <Radio
@@ -269,11 +242,7 @@ export function ControlsPanel({
 
               <Divider />
 
-              <Fieldset
-                variant="unstyled"
-                legend="Advanced timing"
-                disabled={!canConfigure}
-              >
+              <Fieldset variant="unstyled" legend="Advanced timing">
                 <Stack gap="sm">
                   {(styleKind === "auto" || styleKind === "inverse") && (
                     <NumberInput
@@ -300,7 +269,6 @@ export function ControlsPanel({
                       description="Minimum pause before automatic scanning continues."
                       valueMs={timing.transitionTimeMs}
                       minMs={0}
-                      disabled={!canConfigure}
                       onChange={(transitionTimeMs) =>
                         onTiming({ transitionTimeMs })
                       }
@@ -312,7 +280,6 @@ export function ControlsPanel({
                       description="Makes the start of each pass easier to notice."
                       valueMs={timing.firstItemPauseMs}
                       minMs={0}
-                      disabled={!canConfigure}
                       onChange={(firstItemPauseMs) =>
                         onTiming({ firstItemPauseMs })
                       }
@@ -325,7 +292,6 @@ export function ControlsPanel({
                         description="Delay before a held switch moves again."
                         valueMs={timing.repeatDelayMs}
                         minMs={0}
-                        disabled={!canConfigure}
                         onChange={(repeatDelayMs) =>
                           onTiming({ repeatDelayMs })
                         }
@@ -335,7 +301,6 @@ export function ControlsPanel({
                         description="Pace while the Move switch remains held."
                         valueMs={timing.repeatIntervalMs}
                         minMs={100}
-                        disabled={!canConfigure}
                         onChange={(repeatIntervalMs) =>
                           onTiming({ repeatIntervalMs })
                         }
@@ -347,7 +312,6 @@ export function ControlsPanel({
                     description="Ignores rapid repeats immediately after selection."
                     valueMs={timing.selectionDelayMs}
                     minMs={0}
-                    disabled={!canConfigure}
                     onChange={(selectionDelayMs) =>
                       onTiming({ selectionDelayMs })
                     }
