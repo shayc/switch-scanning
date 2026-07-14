@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Badge, Button, Paper, Tabs } from "@mantine/core";
+import {
+  Badge,
+  Box,
+  Button,
+  Center,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Tabs,
+  Text,
+} from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
   useScannerEvents,
@@ -158,17 +169,17 @@ export function EventLog({
           setInspectorOpen(event.currentTarget.open);
         }}
       >
-        <summary>
-          <span className="console-summary">
-            <strong>Inspect events</strong>
-          </span>
+        <Group component="summary" justify="space-between" p="md" wrap="nowrap">
+          <Text component="strong" size="sm">
+            Inspect events
+          </Text>
           {events.length > 0 && (
             <Badge className="event-count" variant="light" color="gray">
               {events.length} {events.length === 1 ? "event" : "events"}
             </Badge>
           )}
-        </summary>
-        <div className="console-body">
+        </Group>
+        <Box className="console-body" p="md">
           <Tabs
             className="console-tabs"
             value={view}
@@ -177,7 +188,7 @@ export function EventLog({
             }}
             variant="pills"
           >
-            <div className="console-toolbar">
+            <Group justify="space-between" mb="sm" wrap="nowrap">
               <Tabs.List aria-label="Console view">
                 <Tabs.Tab value="events">Events</Tabs.Tab>
                 <Tabs.Tab value="state">State</Tabs.Tab>
@@ -194,14 +205,20 @@ export function EventLog({
                   Clear events
                 </Button>
               )}
-            </div>
+            </Group>
 
             <Tabs.Panel value="events">
               {events.length === 0 ? (
-                <div className="console-empty">
-                  <strong>No events yet</strong>
-                  <span>Start the preview or press a mapped switch.</span>
-                </div>
+                <Center mih={112}>
+                  <Stack gap={0} align="center">
+                    <Text fw={600} size="sm">
+                      No events yet
+                    </Text>
+                    <Text c="dimmed" size="sm" ta="center">
+                      Start the preview or press a mapped switch.
+                    </Text>
+                  </Stack>
+                </Center>
               ) : (
                 <ol className="event-list">
                   {events.map((event) => (
@@ -217,7 +234,7 @@ export function EventLog({
               <StatusLine scanner={scanner} />
             </Tabs.Panel>
           </Tabs>
-        </div>
+        </Box>
       </details>
     </Paper>
   );
@@ -235,28 +252,54 @@ function StatusLine({ scanner }: { scanner: Scanner }) {
   const pending = useScannerSnapshot(scanner, (snapshot) => snapshot.pending);
 
   return (
-    <dl className="status">
-      <div>
-        <dt>Status</dt>
-        <dd data-status={status}>{status}</dd>
-      </div>
-      <div>
-        <dt>Position</dt>
-        <dd>{position ? `${position.index + 1}/${position.count}` : "—"}</dd>
-      </div>
-      <div>
-        <dt>Timer</dt>
-        <dd>{pending?.kind ?? "none"}</dd>
-      </div>
-      <div>
-        <dt>Scope</dt>
-        <dd>{path === "" ? "root" : path}</dd>
-      </div>
-      <div>
-        <dt>Pass index</dt>
-        <dd>{loop}</dd>
-      </div>
-    </dl>
+    <SimpleGrid
+      component="dl"
+      className="status"
+      cols={{ base: 2, sm: 5, xl: 1 }}
+      spacing="sm"
+      p="sm"
+    >
+      <Stack gap={0}>
+        <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
+          Status
+        </Text>
+        <Text component="dd" size="sm" fw={600} data-status={status}>
+          {status}
+        </Text>
+      </Stack>
+      <Stack gap={0}>
+        <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
+          Position
+        </Text>
+        <Text component="dd" size="sm" fw={600}>
+          {position ? `${position.index + 1}/${position.count}` : "—"}
+        </Text>
+      </Stack>
+      <Stack gap={0}>
+        <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
+          Timer
+        </Text>
+        <Text component="dd" size="sm" fw={600}>
+          {pending?.kind ?? "none"}
+        </Text>
+      </Stack>
+      <Stack gap={0}>
+        <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
+          Scope
+        </Text>
+        <Text component="dd" size="sm" fw={600}>
+          {path === "" ? "root" : path}
+        </Text>
+      </Stack>
+      <Stack gap={0}>
+        <Text component="dt" size="xs" c="dimmed" tt="uppercase" fw={700}>
+          Pass index
+        </Text>
+        <Text component="dd" size="sm" fw={600}>
+          {loop}
+        </Text>
+      </Stack>
+    </SimpleGrid>
   );
 }
 

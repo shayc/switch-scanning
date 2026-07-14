@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useScanGroup, useScanTarget } from "@shayc/switch-scanning";
+import { Button, Paper, SimpleGrid, Stack, Text } from "@mantine/core";
 
 interface Phrase {
   id: string;
@@ -56,18 +57,23 @@ export function PhraseBoard({ thanksDisabled }: { thanksDisabled: boolean }) {
   const clear = () => setMessage([]);
 
   return (
-    <section className="board-panel" aria-label="Phrase board content">
-      <output className="message-bar">
+    <Paper
+      component="section"
+      className="board-panel"
+      p={{ base: "sm", sm: "lg" }}
+      aria-label="Phrase board content"
+    >
+      <Paper component="output" className="message-bar" withBorder p="md">
         {message.length === 0 ? (
-          <span className="message-placeholder">
+          <Text component="span" c="dimmed">
             Selected phrases appear here…
-          </span>
+          </Text>
         ) : (
           message.join(" ")
         )}
-      </output>
+      </Paper>
 
-      <div className="board">
+      <Stack gap="sm" mt="md">
         {ROWS.map((row) => (
           <RowGroup
             key={row.id}
@@ -77,8 +83,8 @@ export function PhraseBoard({ thanksDisabled }: { thanksDisabled: boolean }) {
           />
         ))}
         <ClearKey onClear={clear} />
-      </div>
-    </section>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -100,7 +106,7 @@ function RowGroup({
     exitLabel: "Back to rows",
   });
   return (
-    <div {...group.props} className="board-row">
+    <SimpleGrid {...group.props} cols={3} spacing="sm">
       {row.phrases.map((phrase) => (
         <PhraseKey
           key={phrase.id}
@@ -109,7 +115,7 @@ function RowGroup({
           onSelect={onSelect}
         />
       ))}
-    </div>
+    </SimpleGrid>
   );
 }
 
@@ -126,22 +132,30 @@ function PhraseKey({
   // the control (native activation), keeping the two channels aligned.
   const target = useScanTarget({ id: phrase.id, label: phrase.text, disabled });
   return (
-    <button
+    <Button
       {...target.props}
       className="key"
+      variant="default"
+      fullWidth
       disabled={disabled}
       onClick={() => onSelect(phrase.text)}
     >
       {phrase.text}
-    </button>
+    </Button>
   );
 }
 
 function ClearKey({ onClear }: { onClear: () => void }) {
   const target = useScanTarget({ id: "clear", label: "Clear" });
   return (
-    <button {...target.props} className="key key--clear" onClick={onClear}>
+    <Button
+      {...target.props}
+      className="key key--clear"
+      variant="default"
+      fullWidth
+      onClick={onClear}
+    >
       Clear
-    </button>
+    </Button>
   );
 }

@@ -49,7 +49,7 @@ test("timing controls reject values below their configured minimum", async ({
     page.getByRole("button", { name: "Pause scanning" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("radio", { name: "Automatic scanning", exact: true }),
+    page.getByRole("radio", { name: "Automatic", exact: true }),
   ).toBeDisabled();
   expect(pageErrors).toEqual([]);
 });
@@ -68,13 +68,11 @@ test("control architecture stays responsive and exposes only relevant run action
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Setup" })).toBeVisible();
   await expect(
-    page.getByRole("group", { name: "Scanning preset" }),
+    page.getByRole("group", { name: "Scanning method" }),
   ).toBeVisible();
   await expect(page.getByRole("group", { name: "Pace" })).toBeVisible();
-  const moreOptions = page.locator("details").filter({
-    hasText: "More options",
-  });
-  await expect(moreOptions).not.toHaveAttribute("open", "");
+  const moreOptions = page.getByRole("button", { name: "More options" });
+  await expect(moreOptions).toHaveAttribute("aria-expanded", "false");
   await expect(
     page.getByRole("switch", { name: "Show touch controls" }),
   ).not.toBeVisible();
@@ -107,6 +105,43 @@ test("control architecture stays responsive and exposes only relevant run action
   await expect(
     page.getByRole("button", { name: "Start scanning" }),
   ).toBeVisible();
+});
+
+test("scanning methods expose accurate method-specific setup copy", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await expect(
+    page.getByText(
+      "The highlight moves automatically. Press the switch to select.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("group", { name: "Pace" })).toContainText(
+    "How long the highlight stays on each item before advancing.",
+  );
+
+  await page
+    .getByRole("radio", { name: "Move and select", exact: true })
+    .click();
+  await expect(page.getByRole("group", { name: "Movement" })).toContainText(
+    "Keep advancing while the Move switch is held.",
+  );
+
+  await page.getByRole("radio", { name: "Step and wait", exact: true }).click();
+  await expect(
+    page.getByRole("group", { name: "Selection timing" }),
+  ).toContainText(
+    "After you move, how long the highlight remains on an item before it is selected.",
+  );
+
+  await page
+    .getByRole("radio", { name: "Hold and release", exact: true })
+    .click();
+  await expect(page.getByRole("group", { name: "Pace" })).toContainText(
+    "How long each item stays highlighted while the switch is held.",
+  );
 });
 
 test("wide layouts keep a compact live event inspector open on the right", async ({
@@ -174,7 +209,7 @@ test("auditory prompts preserve the held inverse-scan release", async ({
     });
   });
   await page.goto("/");
-  await page.getByRole("radio", { name: "Inverse scanning" }).click();
+  await page.getByRole("radio", { name: "Hold and release" }).click();
   await page.getByText("More options", { exact: true }).click();
   await page
     .getByRole("switch", { name: "Speak highlighted and selected items" })
@@ -200,10 +235,10 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("radio", { name: "Two-switch step" }).click();
+  await page.getByRole("radio", { name: "Move and select" }).click();
   await page.getByText("More options", { exact: true }).click();
   await page.getByRole("switch", { name: "Show touch controls" }).check();
-  const surface = page.getByRole("button", { name: "Next", exact: true });
+  const surface = page.getByRole("button", { name: "Move", exact: true });
   await expect(
     page.getByRole("button", { name: "Select", exact: true }),
   ).toBeVisible();
@@ -371,13 +406,13 @@ test("mobile touch switch remains reachable while scan events accumulate", async
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  await page.getByRole("radio", { name: "Two-switch step" }).click();
+  await page.getByRole("radio", { name: "Move and select" }).click();
   await page.getByText("More options", { exact: true }).click();
   await page.getByRole("switch", { name: "Show touch controls" }).check();
   await page
     .getByRole("radio", { name: "Use the keyboard as a dedicated switch" })
     .check();
-  const surface = page.getByRole("button", { name: "Next", exact: true });
+  const surface = page.getByRole("button", { name: "Move", exact: true });
   await page.getByRole("button", { name: "Start scanning" }).click();
 
   for (let index = 0; index < 8; index += 1) {
@@ -459,6 +494,20 @@ test("reference demo has no automatically detectable accessibility violations", 
   page,
 }) => {
   await page.goto("/");
-  const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations).toEqual([]);
+  await page.getByText("More options", { exact: true }).click();
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+
+    for (const method of [
+      "Automatic",
+      "Move and select",
+      "Step and wait",
+      "Hold and release",
+    ]) {
+      await page.getByRole("radio", { name: method, exact: true }).click();
+      const results = await new AxeBuilder({ page }).analyze();
+      expect(results.violations, `${colorScheme}: ${method}`).toEqual([]);
+    }
+  }
 });

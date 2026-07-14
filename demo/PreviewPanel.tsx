@@ -1,10 +1,21 @@
 import {
+  Badge,
+  Box,
+  Button,
+  Group,
+  Kbd,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import {
   usePointerSwitch,
   useScannerSnapshot,
   type Scanner,
   type ScannerStatus,
 } from "@shayc/switch-scanning";
-import { Badge, Button, Kbd, Paper } from "@mantine/core";
 import type { ScanStyleKind } from "./App.tsx";
 import { STYLE_META } from "./ControlsPanel.tsx";
 import { PhraseBoard } from "./PhraseBoard.tsx";
@@ -33,29 +44,46 @@ export function PreviewPanel({
       radius="md"
       aria-labelledby="preview-heading"
     >
-      <header className="preview-toolbar" data-scanner-controls="">
-        <div className="preview-title">
-          <h2 id="preview-heading">Phrase board</h2>
-          <p>
+      <Group
+        component="header"
+        className="preview-toolbar"
+        justify="space-between"
+        wrap="nowrap"
+        p="md"
+        data-scanner-controls=""
+      >
+        <Stack gap={0} flex={1}>
+          <Title order={2} size="h4" id="preview-heading">
+            Phrase board
+          </Title>
+          <Text size="xs" c="dimmed">
             {meta.shortLabel} <span aria-hidden="true">·</span>{" "}
             {meta.switchCount}
-          </p>
-        </div>
+          </Text>
+        </Stack>
         <RuntimeControls scanner={scanner} />
-      </header>
+      </Group>
 
-      <div className="binding-strip" aria-label="Active switch bindings">
+      <Group
+        className="binding-strip"
+        gap="md"
+        px="md"
+        py="xs"
+        aria-label="Active switch bindings"
+      >
         {meta.keys.map((binding) => (
-          <span key={binding.action}>
-            <strong>{binding.action}</strong>
+          <Group key={binding.action} gap="xs" wrap="nowrap">
+            <Text size="xs" fw={600}>
+              {binding.action}
+            </Text>
             <Kbd>{binding.key}</Kbd>
-          </span>
+          </Group>
         ))}
-      </div>
+      </Group>
 
-      <div className="preview-canvas">
+      <Box className="preview-canvas">
         <PhraseBoard thanksDisabled={thanksDisabled} />
-      </div>
+      </Box>
 
       {pointerSwitch && (
         <PointerControls scanner={scanner} styleKind={styleKind} />
@@ -101,27 +129,41 @@ function RuntimeControls({ scanner }: { scanner: Scanner }) {
   }
 
   return (
-    <div className="runtime-controls">
+    <Group
+      className="runtime-controls"
+      justify="flex-end"
+      gap="md"
+      wrap="nowrap"
+    >
       {status !== "idle" && (
-        <div className="runtime-state" role="status" aria-live="polite">
+        <Group
+          className="runtime-state"
+          justify="flex-end"
+          gap="xs"
+          wrap="nowrap"
+          role="status"
+          aria-live="polite"
+        >
           <Badge
             variant="light"
             size="sm"
-            color={
-              status === "complete"
-                ? "teal"
-                : status === "paused"
-                  ? "yellow"
-                  : "demoBlue"
-            }
+            {...(status === "complete"
+              ? { color: "teal" }
+              : status === "paused"
+                ? { color: "yellow" }
+                : {})}
           >
             {labels[status]}
           </Badge>
-          {detail && <small>{detail}</small>}
-        </div>
+          {detail && (
+            <Text component="small" size="xs" c="dimmed" truncate="end">
+              {detail}
+            </Text>
+          )}
+        </Group>
       )}
-      <div className="run-actions">
-        <Button type="button" size="sm" h={44} onClick={primaryAction.run}>
+      <Group gap="xs" wrap="nowrap">
+        <Button type="button" onClick={primaryAction.run}>
           {primaryAction.label}
         </Button>
         {isActive && (
@@ -129,15 +171,13 @@ function RuntimeControls({ scanner }: { scanner: Scanner }) {
             type="button"
             variant="subtle"
             color="gray"
-            size="sm"
-            h={44}
             onClick={() => scanner.stop()}
           >
             Stop scanning
           </Button>
         )}
-      </div>
-    </div>
+      </Group>
+    </Group>
   );
 }
 
@@ -160,11 +200,11 @@ function PointerControls({
       },
     ],
     step: [
-      { id: "next", label: "Next", hint: "Move the highlight" },
-      { id: "select", label: "Select", hint: "Activate the highlighted item" },
+      { id: "next", label: "Move", hint: "Advance the highlight" },
+      { id: "select", label: "Select", hint: "Choose the highlighted item" },
     ],
     singleStep: [
-      { id: "next", label: "Next", hint: "Move, then wait to select" },
+      { id: "next", label: "Move", hint: "Advance, then wait to select" },
     ],
     inverse: [{ id: "hold", label: "Hold to scan", hint: "Release to select" }],
   };
@@ -175,11 +215,15 @@ function PointerControls({
       aria-label="Touch controls"
       data-scanner-controls=""
     >
-      <div className="pointer-heading">
-        <strong>Touch controls</strong>
-        <span>Touch or pen input</span>
-      </div>
-      <div className="pointer-grid">
+      <Group className="pointer-heading" justify="space-between" mb="xs">
+        <Text size="sm" fw={600}>
+          Touch controls
+        </Text>
+        <Text size="xs" c="dimmed">
+          Touch or pen input
+        </Text>
+      </Group>
+      <SimpleGrid cols={styleKind === "step" ? 2 : 1} spacing="sm">
         {definitions[styleKind].map((definition) => (
           <PointerSurface
             key={definition.id}
@@ -189,7 +233,7 @@ function PointerControls({
             hint={definition.hint}
           />
         ))}
-      </div>
+      </SimpleGrid>
     </section>
   );
 }
@@ -207,14 +251,21 @@ function PointerSurface({
 }) {
   const binding = usePointerSwitch(scanner, { switchId });
   return (
-    <button
+    <Button
       {...binding.props}
       className="pointer-switch"
       type="button"
+      fullWidth
       aria-label={label}
     >
-      <strong>{label}</strong>
-      <span>{hint}</span>
-    </button>
+      <Stack gap={0}>
+        <Text component="strong" inherit>
+          {label}
+        </Text>
+        <Text component="small" size="xs" inherit>
+          {hint}
+        </Text>
+      </Stack>
+    </Button>
   );
 }

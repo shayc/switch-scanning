@@ -1,16 +1,17 @@
-import { useMemo, useState } from "react";
+import { Anchor, Group, ThemeIcon, Title } from "@mantine/core";
 import {
-  ScannerProvider,
-  useKeyboardSwitches,
-  useScanner,
   autoScan,
   inverseScan,
+  ScannerProvider,
   singleSwitchStepScan,
   stepScan,
+  useKeyboardSwitches,
+  useScanner,
   type KeyboardSwitchBindings,
   type ScanStyle,
   type SwitchDefinition,
 } from "@shayc/switch-scanning";
+import { useMemo, useState } from "react";
 import { ControlsPanel } from "./ControlsPanel.tsx";
 import { EventLog } from "./EventLog.tsx";
 import { PreviewPanel } from "./PreviewPanel.tsx";
@@ -152,22 +153,28 @@ export function App() {
 
   return (
     <ScannerProvider scanner={scanner}>
-      <header className="app-header">
-        <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">
-            S
-          </span>
-          <div>
-            <h1>Switch scanning</h1>
-          </div>
-        </div>
-        <a
+      <Group
+        component="header"
+        className="app-header"
+        justify="space-between"
+        wrap="nowrap"
+      >
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon aria-hidden="true">S</ThemeIcon>
+          <Title order={1} size="h6">
+            Switch scanning
+          </Title>
+        </Group>
+        <Anchor
           className="source-link"
+          c="dimmed"
           href="https://github.com/shayc/switch-scanning"
+          size="xs"
         >
-          View source <span aria-hidden="true">↗</span>
-        </a>
-      </header>
+          <span className="source-label">View source</span>{" "}
+          <span aria-hidden="true">↗</span>
+        </Anchor>
+      </Group>
       <main className="workbench">
         <div className="preview-column">
           <PreviewPanel
