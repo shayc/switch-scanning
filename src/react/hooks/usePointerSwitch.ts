@@ -54,6 +54,13 @@ export function usePointerSwitch(
     pressedKey.current = null;
   }, [keyboardSourceId, scanner, sourceId]);
 
+  // Blur / tab-hidden are environment suspensions: drop held contacts and
+  // invalidate an armed dwell so it cannot fire when the user returns.
+  const suspendEnvironment = useCallback((): void => {
+    disconnectAll();
+    scanner.input.suspend();
+  }, [disconnectAll, scanner]);
+
   const register = useCallback(
     (element: HTMLElement) => {
       const ownerDocument = element.ownerDocument;
@@ -117,6 +124,9 @@ export function usePointerSwitch(
         event.code === "Space" || event.code === "Enter";
       const onKeyDown = (event: KeyboardEvent): void => {
         if (optionsRef.current.enabled === false || !isSwitchKey(event)) return;
+        // Do not claim modifier chords (Cmd/Ctrl/Alt + key) so this surface's
+        // bare Space/Enter fallback cannot swallow OS/browser shortcuts.
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
         event.preventDefault();
         if (event.repeat || pressedKey.current !== null) return;
         const switchId = optionsRef.current.switchId;
@@ -131,7 +141,7 @@ export function usePointerSwitch(
         scanner.input.release(pressed.switchId, keyboardSourceId);
       };
       const onVisibility = (): void => {
-        if (ownerDocument.visibilityState === "hidden") disconnectAll();
+        if (ownerDocument.visibilityState === "hidden") suspendEnvironment();
       };
 
       element.addEventListener("pointerdown", onPointerDown);
@@ -141,7 +151,7 @@ export function usePointerSwitch(
       element.addEventListener("click", onClick, true);
       element.addEventListener("keydown", onKeyDown);
       element.addEventListener("keyup", onKeyUp);
-      ownerWindow?.addEventListener("blur", disconnectAll);
+      ownerWindow?.addEventListener("blur", suspendEnvironment);
       ownerDocument.addEventListener("visibilitychange", onVisibility);
 
       return () => {
@@ -152,12 +162,19 @@ export function usePointerSwitch(
         element.removeEventListener("click", onClick, true);
         element.removeEventListener("keydown", onKeyDown);
         element.removeEventListener("keyup", onKeyUp);
-        ownerWindow?.removeEventListener("blur", disconnectAll);
+        ownerWindow?.removeEventListener("blur", suspendEnvironment);
         ownerDocument.removeEventListener("visibilitychange", onVisibility);
         disconnectAll();
       };
     },
-    [disconnectAll, keyboardSourceId, scanner, sourceId, optionsRef],
+    [
+      disconnectAll,
+      suspendEnvironment,
+      keyboardSourceId,
+      scanner,
+      sourceId,
+      optionsRef,
+    ],
   );
 
   useEffect(() => {

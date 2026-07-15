@@ -674,6 +674,27 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }
   }
 
+  function suspendEnvironment(): void {
+    // Environment suspension (window blur, tab hidden, device locked) drops
+    // every held contact, exactly like a full disconnect.
+    gestures.disconnect(undefined);
+    // It also invalidates an armed single-switch dwell unless the style opts
+    // out: retain the highlight, consume the arming token, and require a fresh
+    // navigation before dwell can select again. This closes the gap where a
+    // user navigates to an item, backgrounds the page, and returns much later
+    // to a stale auto-selection. Covers both a live dwell and one frozen by an
+    // earlier pause.
+    if (
+      options.style.kind === "singleStep" &&
+      options.style.suspensionPolicy !== "continue"
+    ) {
+      if (status === "scanning" && styleRuntime.pending?.kind === "dwell") {
+        styleRuntime.cancelDeadline();
+      }
+      suspendedDwellRemaining = null;
+    }
+  }
+
   const input: ScannerInputPort = {
     press: serialized((switchId: string, sourceId?: string) => {
       if (!disposed && options.enabled) gestures.press(switchId, sourceId);
@@ -683,6 +704,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }),
     disconnect: serialized((sourceId?: string) => {
       if (!disposed) gestures.disconnect(sourceId);
+    }),
+    suspend: serialized(() => {
+      if (!disposed) suspendEnvironment();
     }),
   };
 

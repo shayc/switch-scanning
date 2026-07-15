@@ -17,10 +17,18 @@ export interface KeyboardSwitchesOptions {
 
 /**
  * Operate declared logical switches from the keyboard. Uses `KeyboardEvent.code`,
- * owns accepted events during capture, ignores browser auto-repeat, and lets the
+ * claims mapped events during capture, ignores browser auto-repeat, and lets the
  * deterministic scheduler implement move repeat. Blur, visibility loss, and
  * unmount disconnect their stable source IDs so a lost key-up cannot leave a
- * switch stuck down.
+ * switch stuck down; blur and visibility loss additionally suspend the scanner
+ * so a stale dwell cannot fire on return.
+ *
+ * Ownership is two-staged (see SPEC §6): a mapped keydown is *claimed* — its
+ * default prevented and propagation stopped in the capture phase — before the
+ * input engine decides whether the eventual gesture is *accepted*. A source
+ * disconnected while still physically held stays quarantined in `held` until a
+ * real key-up clears it; repeated `keydown`s for a still-held key are claimed
+ * but never re-open a fresh press.
  */
 export function useKeyboardSwitches(
   scanner: Scanner,
@@ -45,12 +53,14 @@ export function useKeyboardSwitches(
         : (target as HTMLElement).ownerDocument;
     const ownerWindow = ownerDocument.defaultView;
 
-    // Remember the binding accepted on keydown. Bindings may change before
+    // Remember the switch claimed on keydown. Bindings may change before
     // keyup, but the logical switch that opened the gesture must be released.
+    // An entry survives a synthetic disconnect (`connected: false`) so a still
+    // physically-held key is quarantined until its real key-up.
     const held = new Map<
       string,
-      | { accepted: true; connected: boolean; switchId: string }
-      | { accepted: false }
+      | { claimed: true; connected: boolean; switchId: string }
+      | { claimed: false }
     >();
     const sourceId = (code: string): string => `key:${code}`;
 
@@ -59,27 +69,37 @@ export function useKeyboardSwitches(
       if (switchId === undefined) return;
       const existing = held.get(event.code);
       if (existing) {
-        if (existing.accepted) own(event);
+        // A still-held key (including auto-repeat after a synthetic disconnect)
+        // stays claimed but never re-opens a fresh press.
+        if (existing.claimed) own(event);
         return;
       }
       if (!enabledRef.current || event.repeat) return;
 
-      const accepted = shouldHandleRef.current?.(event) ?? true;
-      if (!accepted) {
-        held.set(event.code, { accepted: false });
+      if (!claims(event)) {
+        held.set(event.code, { claimed: false });
         return;
       }
 
       own(event);
-      held.set(event.code, { accepted: true, connected: true, switchId });
+      held.set(event.code, { claimed: true, connected: true, switchId });
       scanner.input.press(switchId, sourceId(event.code));
+    };
+
+    const claims = (event: KeyboardEvent): boolean => {
+      const decide = shouldHandleRef.current;
+      if (decide) return decide(event);
+      // Default ownership excludes modifier chords so a bare-key binding (e.g.
+      // Space) does not swallow an OS/browser shortcut (Cmd/Ctrl/Alt + key).
+      // Hosts that intend to bind a chord opt in through `shouldHandle`.
+      return !(event.ctrlKey || event.metaKey || event.altKey);
     };
 
     const onKeyUp = (event: KeyboardEvent): void => {
       const decision = held.get(event.code);
       if (!decision) return;
       held.delete(event.code);
-      if (!decision.accepted) return;
+      if (!decision.claimed) return;
       own(event);
       if (decision.connected) {
         scanner.input.release(decision.switchId, sourceId(event.code));
@@ -88,7 +108,7 @@ export function useKeyboardSwitches(
 
     const disconnectAll = (): void => {
       for (const [code, decision] of held) {
-        if (decision.accepted && decision.connected) {
+        if (decision.claimed && decision.connected) {
           scanner.input.disconnect(sourceId(code));
           decision.connected = false;
         }
@@ -96,9 +116,16 @@ export function useKeyboardSwitches(
     };
     disconnectAllRef.current = disconnectAll;
 
+    // Blur / tab-hidden are environment suspensions: drop held contacts and
+    // invalidate an armed dwell so it cannot fire when the user returns.
+    const onEnvironmentSuspend = (): void => {
+      disconnectAll();
+      scanner.input.suspend();
+    };
+
     const onVisibility = (): void => {
       if (ownerDocument.visibilityState === "hidden") {
-        disconnectAll();
+        onEnvironmentSuspend();
       }
     };
 
@@ -106,7 +133,7 @@ export function useKeyboardSwitches(
     target.addEventListener("keyup", onKeyUp as EventListener, true);
     if (target !== ownerDocument)
       ownerDocument.addEventListener("keyup", onKeyUp as EventListener, true);
-    ownerWindow?.addEventListener("blur", disconnectAll);
+    ownerWindow?.addEventListener("blur", onEnvironmentSuspend);
     ownerDocument.addEventListener("visibilitychange", onVisibility);
 
     return () => {
@@ -118,7 +145,7 @@ export function useKeyboardSwitches(
           onKeyUp as EventListener,
           true,
         );
-      ownerWindow?.removeEventListener("blur", disconnectAll);
+      ownerWindow?.removeEventListener("blur", onEnvironmentSuspend);
       ownerDocument.removeEventListener("visibilitychange", onVisibility);
       if (disconnectAllRef.current === disconnectAll) {
         disconnectAllRef.current = null;

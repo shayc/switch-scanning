@@ -101,6 +101,77 @@ describe("causal dwell selection", () => {
     expect(fixture.activations).toEqual([]);
     expect(scanner.getSnapshot().pending).toBeNull();
   });
+
+  it("disarms an armed dwell on environment suspension while retaining the highlight", () => {
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: singleSwitchStepScan({ dwellTimeMs: 100 }),
+      switches: { next: { action: "next" } },
+      clock,
+    });
+    const fixture = createScannerFixture(scanner, TARGETS);
+
+    scanner.start();
+    scanner.next();
+    clock.advanceBy(40);
+    scanner.input.suspend();
+
+    // The dwell is disarmed and the highlight stays put.
+    expect(scanner.getSnapshot()).toMatchObject({
+      status: "scanning",
+      highlight: { kind: "target", id: "no" },
+      pending: null,
+    });
+    clock.advanceBy(1_000);
+    expect(fixture.activations).toEqual([]);
+
+    // A fresh navigation rearms; the dwell then selects normally.
+    scanner.next();
+    clock.advanceBy(100);
+    expect(fixture.activations).toEqual(["yes"]);
+  });
+
+  it("also disarms a paused dwell on suspension", () => {
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: singleSwitchStepScan({ dwellTimeMs: 100 }),
+      switches: { next: { action: "next" } },
+      clock,
+    });
+    const fixture = createScannerFixture(scanner, TARGETS);
+
+    scanner.start();
+    scanner.next();
+    clock.advanceBy(40);
+    scanner.pause();
+    scanner.input.suspend();
+    scanner.resume();
+    clock.advanceBy(1_000);
+
+    expect(fixture.activations).toEqual([]);
+    expect(scanner.getSnapshot().pending).toBeNull();
+  });
+
+  it('keeps the pre-2026 behavior under suspensionPolicy "continue"', () => {
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: singleSwitchStepScan({
+        dwellTimeMs: 100,
+        suspensionPolicy: "continue",
+      }),
+      switches: { next: { action: "next" } },
+      clock,
+    });
+    const fixture = createScannerFixture(scanner, TARGETS);
+
+    scanner.start();
+    scanner.next();
+    clock.advanceBy(40);
+    scanner.input.suspend();
+    clock.advanceBy(60);
+
+    expect(fixture.activations).toEqual(["no"]);
+  });
 });
 
 describe("selection transition coordinator", () => {

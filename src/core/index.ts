@@ -15,6 +15,7 @@ export type {
   StepScanRepeat,
   SingleSwitchStepScanStyle,
   SingleSwitchStepScanOptions,
+  DwellSuspensionPolicy,
   InverseScanStyle,
   InverseScanOptions,
   ScanStyle,
