@@ -22,11 +22,7 @@ interface ScopeFrame {
 }
 
 export type ExitReason =
-  | "selected-exit"
-  | "back"
-  | "loops-complete"
-  | "empty"
-  | "reconcile";
+  "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile";
 
 export type SessionEffect =
   | {

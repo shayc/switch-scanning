@@ -241,7 +241,7 @@ describe("serialized transitions", () => {
     });
     expect(clock.pending).toBe(1);
     expect(reported).toHaveBeenCalledWith(
-      "[switch-scanning] scanner listener failed",
+      "[switch-scanning] scanner observer failed",
       expect.objectContaining({ message: "listener failed" }),
     );
     reported.mockRestore();

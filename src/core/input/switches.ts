@@ -159,7 +159,11 @@ export function normalizeSwitch(
     if (!isDiscreteAction(holdCandidate.action)) {
       fail(at("hold.action must be a discrete action"));
     }
-    const holdAfterMs = readNumber(holdCandidate, "afterMs", at("hold.afterMs"));
+    const holdAfterMs = readNumber(
+      holdCandidate,
+      "afterMs",
+      at("hold.afterMs"),
+    );
     assertPositive(holdAfterMs, at("hold.afterMs"));
     const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, at);
     if (holdDurationMs >= holdAfterMs) {

@@ -45,7 +45,11 @@ export function normalizeOptions(
   );
 
   const groupExit = raw.groupExit ?? "after";
-  assertOneOf(groupExit, ["after", "before", "back-only"] as const, "groupExit");
+  assertOneOf(
+    groupExit,
+    ["after", "before", "back-only"] as const,
+    "groupExit",
+  );
   if (groupExit === "back-only" && !hasBackAction(switches)) {
     fail(
       'groupExit "back-only" requires a declared switch mapped to "back"; add one or use groupExit "before"/"after"',

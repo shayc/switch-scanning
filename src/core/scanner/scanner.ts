@@ -214,9 +214,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
   function isLive(): boolean {
     return (
-      status === "scanning" ||
-      status === "transitioning" ||
-      status === "paused"
+      status === "scanning" || status === "transitioning" || status === "paused"
     );
   }
 
