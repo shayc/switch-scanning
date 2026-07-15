@@ -9,6 +9,10 @@ function defaultInfrastructure(): Clock & Scheduler {
   return sharedInfrastructure;
 }
 
+/**
+ * Resolves the clock/scheduler pair: both default together, a custom scheduler
+ * requires a paired clock, and a lone clock must itself implement Scheduler.
+ */
 export function resolveInfrastructure(options: ScannerOptions): {
   clock: Clock;
   scheduler: Scheduler;
