@@ -1,12 +1,26 @@
 /**
- * Shared validation primitives for the option/style/switch boundaries. Every
- * failure surfaces as a `RangeError` tagged with the library name so hosts can
- * distinguish configuration mistakes from runtime faults.
+ * Shared validation primitives for the option/style/switch boundaries. Range
+ * failures surface as a `RangeError` and type failures as a `TypeError`, each
+ * tagged with the library name so hosts can distinguish configuration mistakes
+ * from runtime faults.
  */
 
 /** Throw a tagged `RangeError`. Never returns. */
 export function fail(message: string): never {
   throw new RangeError(`[switch-scanning] ${message}`);
+}
+
+/** Throw a tagged `TypeError`. Never returns. */
+function failType(message: string): never {
+  throw new TypeError(`[switch-scanning] ${message}`);
+}
+
+/** Quote and join literals into a human list: `"a", "b", or "c"`. */
+function orList(values: readonly string[]): string {
+  const quoted = values.map((value) => `"${value}"`);
+  if (quoted.length <= 1) return quoted.join("");
+  if (quoted.length === 2) return `${quoted[0]} or ${quoted[1]}`;
+  return `${quoted.slice(0, -1).join(", ")}, or ${quoted[quoted.length - 1]}`;
 }
 
 /** Assert a finite number >= 0. */
@@ -19,7 +33,7 @@ export function assertNonNegative(value: number, name: string): void {
 /** Assert a finite number > 0. */
 export function assertPositive(value: number, name: string): void {
   if (!Number.isFinite(value) || value <= 0) {
-    fail(`${name} must be a finite number greater than 0 (received ${value})`);
+    fail(`${name} must be a finite number > 0 (received ${value})`);
   }
 }
 
@@ -40,18 +54,8 @@ export function assertBoolean(
   name: string,
 ): asserts value is boolean {
   if (typeof value !== "boolean") {
-    throw new TypeError(
-      `[switch-scanning] ${name} must be a boolean (received ${String(value)})`,
-    );
+    failType(`${name} must be a boolean (received ${String(value)})`);
   }
-}
-
-/** Quote and join literals into a human list: `"a", "b", or "c"`. */
-function orList(values: readonly string[]): string {
-  const quoted = values.map((value) => `"${value}"`);
-  if (quoted.length <= 1) return quoted.join("");
-  if (quoted.length === 2) return `${quoted[0]} or ${quoted[1]}`;
-  return `${quoted.slice(0, -1).join(", ")}, or ${quoted[quoted.length - 1]}`;
 }
 
 /** Read a required numeric field, failing if it is absent or not a number. */
