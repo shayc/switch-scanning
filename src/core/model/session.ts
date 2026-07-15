@@ -24,6 +24,9 @@ interface ScopeFrame {
   pass: number;
 }
 
+export type ExitReason =
+  | "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile";
+
 export type SessionEffect =
   | {
       readonly type: "landed";
@@ -40,8 +43,7 @@ export type SessionEffect =
       readonly type: "group-exited";
       readonly id: string;
       readonly label: string;
-      readonly reason:
-        "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile";
+      readonly reason: ExitReason;
     }
   | { readonly type: "root-exhausted" }
   | { readonly type: "root-empty" };
@@ -122,15 +124,7 @@ export class ScanSession {
   }
 
   start(): readonly SessionEffect[] {
-    const candidates = buildCandidates(this.tree.root, true, this.groupExit);
-    if (candidates.length === 0) {
-      this.frames = [];
-      return [{ type: "root-empty" }];
-    }
-    this.frames = [
-      { groupId: null, groupLabel: null, candidates, index: 0, pass: 1 },
-    ];
-    return this.land(null);
+    return this.resetToRoot();
   }
 
   resetToRoot(): readonly SessionEffect[] {
@@ -330,9 +324,7 @@ export class ScanSession {
     ];
   }
 
-  private leaveGroup(
-    reason: "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile",
-  ): readonly SessionEffect[] {
+  private leaveGroup(reason: ExitReason): readonly SessionEffect[] {
     const frame = this.currentFrame;
     if (!frame || frame.groupId === null) return [];
     const node = this.tree.byId.get(frame.groupId);
