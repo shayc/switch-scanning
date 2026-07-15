@@ -45,7 +45,15 @@ import {
   type NormalizedOptions,
 } from "./normalizeOptions.ts";
 import { resolveInfrastructure } from "./scannerInfrastructure.ts";
+import { assertScannerRuntimeInvariants } from "./scannerInvariants.ts";
 import { createScannerStore } from "./scannerStore.ts";
+import {
+  createSelectionTransitionTiming,
+  isSelectionTransitionDue,
+  resetSelectionTransitionQuietDueAt,
+  selectionTransitionDueAt,
+  type SelectionTransitionTiming,
+} from "./selectionTransition.ts";
 
 type Presentation = {
   highlight: NonNullable<Highlight>;
@@ -57,11 +65,8 @@ function presentationEquals(a: Presentation, b: Presentation): boolean {
   return highlightEquals(a.highlight, b.highlight) && a.label === b.label;
 }
 
-interface ActiveTransition {
-  fixedDueAt: number;
+interface ActiveTransition extends SelectionTransitionTiming {
   quietDueAt: number;
-  quietDurationMs: number;
-  resetOnInput: boolean;
   pending: PendingTiming | null;
   cancel: CancelScheduled | null;
 }
@@ -116,6 +121,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         effectivePending(),
       ),
     clock,
+    assertRuntimeInvariants,
   );
   const { runTransition, serialized, emit, reportBoundaryError } = store;
   const warnDiagnostic = createDiagnosticWarner();
@@ -154,6 +160,19 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       );
     }
     return transitionPending ?? stylePending;
+  }
+
+  function assertRuntimeInvariants(): void {
+    if (!isDevelopment()) return;
+    assertScannerRuntimeInvariants({
+      status,
+      sessionDepth: session.depth,
+      hasPresentation: presentation !== null,
+      transition,
+      stylePending: styleRuntime.pending,
+      suspendedDwellRemaining,
+      styleKind: options.style.kind,
+    });
   }
 
   const sink: GestureSink = {
@@ -412,11 +431,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     emit({ type: "scan.stopped", reason: "after-activation" });
   }
 
-  /** The transition's effective deadline: the later of its fixed and quiet due times. */
-  function transitionDueAt(t: ActiveTransition): number {
-    return Math.max(t.fixedDueAt, t.quietDueAt);
-  }
-
   function beginSelectionTransition(): void {
     if (status !== "scanning") return;
     // Selection always ends held movement, even when no visible transition is
@@ -426,20 +440,20 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     const quietDurationMs = options.selectionDelay.durationMs;
     const fixedDurationMs =
       options.style.kind === "auto" ? options.style.transitionTimeMs : 0;
-    const dueAt = now + Math.max(quietDurationMs, fixedDurationMs);
+    const timing = createSelectionTransitionTiming({
+      now,
+      fixedDurationMs,
+      quietDurationMs,
+      resetOnInput: options.selectionDelay.resetOnInput,
+    });
 
-    // Both durations are >= 0, so dueAt < now is impossible; this fires only
-    // when no delay is configured and presentation resumes synchronously.
-    if (dueAt <= now) {
+    if (!timing) {
       presentLogical(false);
       return;
     }
 
     transition = {
-      fixedDueAt: now + fixedDurationMs,
-      quietDueAt: now + quietDurationMs,
-      quietDurationMs,
-      resetOnInput: options.selectionDelay.resetOnInput,
+      ...timing,
       pending: null,
       cancel: null,
     };
@@ -453,7 +467,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     const active = transition;
     if (!active) return;
     active.cancel?.();
-    const dueAt = transitionDueAt(active);
+    const dueAt = selectionTransitionDueAt(active);
     const delay = Math.max(0, dueAt - clock.now());
     active.pending = { kind: "transition", startedAt, dueAt };
     active.cancel = scheduler.schedule(delay, () => {
@@ -507,9 +521,9 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }
 
     const now = clock.now();
-    const previousDueAt = transitionDueAt(active);
-    active.quietDueAt = now + active.quietDurationMs;
-    if (transitionDueAt(active) !== previousDueAt) {
+    const previousDueAt = selectionTransitionDueAt(active);
+    active.quietDueAt = resetSelectionTransitionQuietDueAt(active, now);
+    if (selectionTransitionDueAt(active) !== previousDueAt) {
       scheduleTransition(now);
     }
   }
@@ -581,8 +595,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     emit({ type: "scan.resumed" });
     if (transition) {
       status = "transitioning";
-      const dueAt = transitionDueAt(transition);
-      if (dueAt <= clock.now()) finishTransition();
+      if (isSelectionTransitionDue(transition, clock.now())) finishTransition();
       else scheduleTransition(clock.now());
       return;
     }
@@ -943,6 +956,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       const wasPaused = status === "paused";
       const hadTransition = transition !== null;
       dropTransition();
+      suspendedDwellRemaining = null;
       if (hadTransition) emit({ type: "scan.transitionEnded" });
       if (!wasPaused) status = "scanning";
       applySessionEffects(session.resetCurrentScope(), {

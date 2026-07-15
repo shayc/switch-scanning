@@ -152,6 +152,26 @@ describe("causal dwell selection", () => {
     expect(scanner.getSnapshot().pending).toBeNull();
   });
 
+  it("does not resume a paused dwell after changing to another style", () => {
+    const clock = manualClock();
+    const scanner = createScanner({
+      style: singleSwitchStepScan({ dwellTimeMs: 100 }),
+      clock,
+    });
+    const fixture = createScannerFixture(scanner, TARGETS);
+
+    scanner.start();
+    scanner.next();
+    clock.advanceBy(40);
+    scanner.pause();
+    scanner.setOptions({ style: stepScan() });
+    scanner.resume();
+    clock.advanceBy(1_000);
+
+    expect(scanner.getSnapshot().pending).toBeNull();
+    expect(fixture.activations).toEqual([]);
+  });
+
   it('keeps the pre-2026 behavior under suspensionPolicy "continue"', () => {
     const clock = manualClock();
     const scanner = createScanner({

@@ -27,6 +27,7 @@ export interface ScannerStore {
 export function createScannerStore(
   buildSnapshot: () => ScannerSnapshot,
   clock: Clock,
+  assertInvariants?: () => void,
 ): ScannerStore {
   const subscribers = new Set<() => void>();
   const observers = new Set<(event: ScannerEvent) => void>();
@@ -87,6 +88,7 @@ export function createScannerStore(
       while (pendingTransitions.length > 0) {
         const transition = pendingTransitions.shift()!;
         transition();
+        assertInvariants?.();
         publishChanges();
       }
     } finally {
