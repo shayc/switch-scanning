@@ -346,7 +346,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     const target = node && node.kind === "target" ? node : null;
     const label = target?.label ?? id;
 
-    if (!target || target.disabled === true) {
+    if (!target || target.disabled) {
       diagnostic("activation-missing-target", `cannot activate target "${id}"`);
       emit({
         type: "target.activationFailed",
@@ -819,6 +819,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       if (disposed || !requireScanning("back")) return;
       backCommand();
     }),
+    // Synchronous, non-serialized accessors and lifecycle wiring below.
     getSnapshot() {
       return store.getSnapshot();
     },

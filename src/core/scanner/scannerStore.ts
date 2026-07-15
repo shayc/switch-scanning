@@ -52,28 +52,29 @@ export function createScannerStore(
     }
   }
 
+  function notify<T>(
+    targets: Set<(arg: T) => void>,
+    arg: T,
+    boundary: string,
+  ): void {
+    for (const target of [...targets]) {
+      try {
+        target(arg);
+      } catch (error) {
+        reportBoundaryError(error, boundary);
+      }
+    }
+  }
+
   function publishChanges(): void {
     const next = buildSnapshot();
     if (!snapshotEquals(next, cachedSnapshot)) {
       cachedSnapshot = next;
-      for (const subscriber of [...subscribers]) {
-        try {
-          subscriber();
-        } catch (error) {
-          reportBoundaryError(error, "listener");
-        }
-      }
+      notify(subscribers, undefined, "listener");
     }
 
-    const events = pendingEvents.splice(0);
-    for (const event of events) {
-      for (const observer of [...observers]) {
-        try {
-          observer(event);
-        } catch (error) {
-          reportBoundaryError(error, "listener");
-        }
-      }
+    for (const event of pendingEvents.splice(0)) {
+      notify(observers, event, "observer");
     }
   }
 
