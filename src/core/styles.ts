@@ -29,10 +29,20 @@ export interface StepScanStyle {
   readonly repeat: false | StepScanRepeat;
 }
 
+/**
+ * What an armed dwell does when the input environment is suspended (tab hidden,
+ * window blurred, device locked) between arming and firing. `"disarm"` is the
+ * safe default: the highlight is retained, the arming token is consumed, and a
+ * fresh navigation is required before dwell can select again. `"continue"`
+ * keeps the pre-2026 behavior of letting a pending dwell fire regardless.
+ */
+export type DwellSuspensionPolicy = "disarm" | "continue";
+
 /** Single-switch style: press advances; dwelling on an item selects it. */
 export interface SingleSwitchStepScanStyle {
   readonly kind: "singleStep";
   readonly dwellTimeMs: number;
+  readonly suspensionPolicy: DwellSuspensionPolicy;
 }
 
 /** Hold-to-scan style: the highlight advances while a switch is held and selects on release. */
@@ -63,6 +73,8 @@ export interface StepScanOptions {
 /** Options for {@link singleSwitchStepScan}. */
 export interface SingleSwitchStepScanOptions {
   dwellTimeMs: number;
+  /** How an armed dwell reacts to environment suspension. Defaults to `"disarm"`. */
+  suspensionPolicy?: DwellSuspensionPolicy;
 }
 
 /** Options for {@link inverseScan}. */
@@ -85,6 +97,16 @@ function assertPositive(value: number, name: string): void {
 function assertNonNegative(value: number, name: string): void {
   if (!Number.isFinite(value) || value < 0) {
     fail(`${name} must be a finite number >= 0 (received ${value})`);
+  }
+}
+
+function assertSuspensionPolicy(
+  value: unknown,
+): asserts value is DwellSuspensionPolicy {
+  if (value !== "disarm" && value !== "continue") {
+    fail(
+      `suspensionPolicy must be "disarm" or "continue" (received ${String(value)})`,
+    );
   }
 }
 
@@ -136,9 +158,12 @@ export function singleSwitchStepScan(
   options: SingleSwitchStepScanOptions,
 ): SingleSwitchStepScanStyle {
   assertPositive(options.dwellTimeMs, "dwellTimeMs");
+  const suspensionPolicy = options.suspensionPolicy ?? "disarm";
+  assertSuspensionPolicy(suspensionPolicy);
   return Object.freeze({
     kind: "singleStep",
     dwellTimeMs: options.dwellTimeMs,
+    suspensionPolicy,
   });
 }
 
@@ -189,6 +214,7 @@ export function assertScanStyle(style: unknown): asserts style is ScanStyle {
     }
     case "singleStep":
       assertPositive(candidate.dwellTimeMs as number, "dwellTimeMs");
+      assertSuspensionPolicy(candidate.suspensionPolicy ?? "disarm");
       return;
     case "inverse":
       assertPositive(candidate.intervalMs as number, "intervalMs");

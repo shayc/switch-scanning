@@ -182,6 +182,13 @@ export interface ScannerInputPort {
   release(switchId: string, sourceId?: string): void;
   /** Disconnect one physical source, or every active source when omitted. */
   disconnect(sourceId?: string): void;
+  /**
+   * Signal that the input environment was suspended (window blur, tab hidden,
+   * device locked). Drops every held contact like a full {@link disconnect} and
+   * additionally invalidates an armed single-switch dwell per the style's
+   * {@link DwellSuspensionPolicy}, so a stale dwell cannot fire on return.
+   */
+  suspend(): void;
 }
 
 /** The scanning runtime: commands, state, subscriptions, and host wiring. */
