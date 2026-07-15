@@ -9,10 +9,7 @@ import type {
 } from "../types.ts";
 
 /** A single position the highlight can occupy inside one scan scope. */
-export type Candidate =
-  | { readonly kind: "group"; readonly id: string }
-  | { readonly kind: "target"; readonly id: string }
-  | { readonly kind: "exit"; readonly groupId: string };
+export type Candidate = NonNullable<Highlight>;
 
 interface ScopeFrame {
   /** `null` identifies the synthetic root scope; strings are always user IDs. */
@@ -86,8 +83,7 @@ export class ScanSession {
   }
 
   get currentHighlight(): Highlight {
-    const candidate = this.currentCandidate;
-    return candidate ? candidateToHighlight(candidate) : null;
+    return this.currentCandidate ?? null;
   }
 
   get firstOfPass(): boolean {
@@ -101,7 +97,7 @@ export class ScanSession {
     const candidate = this.currentCandidate;
     return candidate
       ? {
-          highlight: candidateToHighlight(candidate),
+          highlight: candidate,
           label: this.labelFor(candidate),
         }
       : null;
@@ -222,16 +218,13 @@ export class ScanSession {
       const frame = this.frames[i]!;
       if (frame.groupId === null) break;
       const parent = rebuilt[rebuilt.length - 1]!;
-      const stillPresent = parent.candidates.some(
+      const index = parent.candidates.findIndex(
         (candidate) =>
           candidate.kind === "group" && candidate.id === frame.groupId,
       );
       const node = this.tree.byId.get(frame.groupId);
-      if (!stillPresent || !node || node.kind !== "group") break;
-      parent.index = parent.candidates.findIndex(
-        (candidate) =>
-          candidate.kind === "group" && candidate.id === frame.groupId,
-      );
+      if (index === -1 || !node || node.kind !== "group") break;
+      parent.index = index;
       const candidates = buildCandidates(node, false, this.groupExit);
       if (candidates.length === 0) break;
       rebuilt.push({
@@ -287,7 +280,7 @@ export class ScanSession {
       {
         type: "landed",
         previous,
-        current: candidateToHighlight(candidate),
+        current: candidate,
         label: this.labelFor(candidate),
       },
     ];
@@ -352,7 +345,7 @@ export class ScanSession {
     if (!frame) return [{ type: "root-empty" }];
     if (previous) {
       const index = frame.candidates.findIndex((candidate) =>
-        highlightEquals(candidateToHighlight(candidate), previous),
+        highlightEquals(candidate, previous),
       );
       if (index !== -1) {
         if (index !== frame.index) {
@@ -395,12 +388,6 @@ function buildCandidates(
     else candidates.push(exit);
   }
   return candidates;
-}
-
-function candidateToHighlight(candidate: Candidate): NonNullable<Highlight> {
-  return candidate.kind === "exit"
-    ? { kind: "exit", groupId: candidate.groupId }
-    : { kind: candidate.kind, id: candidate.id };
 }
 
 export function highlightEquals(a: Highlight, b: Highlight): boolean {
