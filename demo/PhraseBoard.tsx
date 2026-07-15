@@ -165,7 +165,11 @@ function BackspaceKey({
   onBackspace: () => void;
   disabled: boolean;
 }) {
-  const target = useScanTarget({ id: "backspace", label: "Backspace", disabled });
+  const target = useScanTarget({
+    id: "backspace",
+    label: "Backspace",
+    disabled,
+  });
   return (
     <Button
       {...target.props}
