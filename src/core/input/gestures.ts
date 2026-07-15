@@ -116,12 +116,30 @@ export function createGestureEngine(deps: {
   // or a definition change). The release action is never performed.
   function cancelSource(state: SourceState): void {
     clearDeadline(state);
-    sink.contactCancelled(contextOf(state));
+    const ctx = contextOf(state);
+    sink.contactCancelled(ctx);
     if (state.scanAccepted) {
-      sink.scanCancel(contextOf(state));
+      sink.scanCancel(ctx);
     } else if (state.heldDiscrete) {
-      sink.pressReleased(contextOf(state));
+      sink.pressReleased(ctx);
     }
+  }
+
+  // Fire now when there is no hold threshold, else after the source stays held
+  // for `delayMs`. Clears the pending deadline as the scheduled fire runs.
+  function afterHold(
+    state: SourceState,
+    delayMs: number,
+    fire: () => void,
+  ): void {
+    if (delayMs <= 0) {
+      fire();
+      return;
+    }
+    state.deadline = scheduler.schedule(delayMs, () => {
+      state.deadline = null;
+      fire();
+    });
   }
 
   function press(switchId: string, sourceId: string | undefined): void {
@@ -156,31 +174,16 @@ export function createGestureEngine(deps: {
           // Wait for release to evaluate hold duration.
           return;
         }
-        if (def.holdDurationMs <= 0) {
-          acceptDiscretePress(state);
-        } else {
-          state.deadline = scheduler.schedule(def.holdDurationMs, () => {
-            state.deadline = null;
-            acceptDiscretePress(state);
-          });
-        }
+        afterHold(state, def.holdDurationMs, () => acceptDiscretePress(state));
         return;
       }
       case "scan": {
-        if (def.holdDurationMs <= 0) {
-          acceptScanPress(state);
-        } else {
-          state.deadline = scheduler.schedule(def.holdDurationMs, () => {
-            state.deadline = null;
-            acceptScanPress(state);
-          });
-        }
+        afterHold(state, def.holdDurationMs, () => acceptScanPress(state));
         return;
       }
       case "tapHold": {
         state.deadline = scheduler.schedule(def.holdAfterMs, () => {
           state.deadline = null;
-          if (def.type !== "tapHold") return;
           if (tryAccept(state.switchId, def)) {
             state.holdFired = true;
             state.heldDiscrete = true;
