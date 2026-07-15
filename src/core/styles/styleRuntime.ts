@@ -49,6 +49,14 @@ export function createStyleRuntime(deps: {
   let pending: PendingTiming | null = null;
   const activeScanSources = new Set<string>();
 
+  function endScanSource(sourceKey: string): ScanPhaseResult {
+    if (!activeScanSources.has(sourceKey)) return "missing";
+    activeScanSources.delete(sourceKey);
+    if (activeScanSources.size > 0) return "open";
+    cancelDeadline();
+    return "closed";
+  }
+
   function cancelDeadline(): void {
     if (deadline) {
       deadline();
@@ -163,18 +171,10 @@ export function createStyleRuntime(deps: {
       if (!wasHeld) schedule({ firstOfPass, armDwell: false });
     },
     scanRelease(sourceKey) {
-      if (!activeScanSources.has(sourceKey)) return "missing";
-      activeScanSources.delete(sourceKey);
-      if (activeScanSources.size > 0) return "open";
-      cancelDeadline();
-      return "closed";
+      return endScanSource(sourceKey);
     },
     scanCancel(sourceKey) {
-      if (!activeScanSources.has(sourceKey)) return "missing";
-      activeScanSources.delete(sourceKey);
-      if (activeScanSources.size > 0) return "open";
-      cancelDeadline();
-      return "closed";
+      return endScanSource(sourceKey);
     },
     maybeStartRepeat(direction, heldPress, sourceKey) {
       if (style.kind !== "step" || style.repeat === false) return;
