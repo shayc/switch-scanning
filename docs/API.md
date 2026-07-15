@@ -28,9 +28,20 @@
 scheduler remain fixed for the scanner's lifetime. Validation is synchronous
 at the call site even when a valid update is queued behind event delivery.
 
-`autoScan` additionally accepts `transitionTimeMs`, a fixed wait before
-automatic movement resumes after selection. The scanner waits for the later
-of transition time and selection-delay quiet time.
+Style constructors validate eagerly and take per-style options:
+
+- `autoScan`: `intervalMs`, `loops` (a positive integer or `"infinite"`),
+  optional `firstItemPauseMs`, and optional `transitionTimeMs` — a fixed wait
+  before automatic movement resumes after selection. The scanner waits for
+  the later of transition time and selection-delay quiet time.
+- `stepScan`: optional `repeat: { delayMs, intervalMs }` auto-repeats steps
+  while a switch is held; defaults to no repeat.
+- `singleSwitchStepScan`: `dwellTimeMs`, plus `suspensionPolicy` governing an
+  armed dwell when the input environment is suspended between arming and
+  firing — `"disarm"` (default) retains the highlight but requires a fresh
+  navigation before dwell can select again; `"continue"` lets the pending
+  dwell fire regardless.
+- `inverseScan`: `intervalMs`, `loops`, and optional `firstItemPauseMs`.
 
 ## Commands and physical input
 
@@ -74,22 +85,35 @@ Lifecycle events are `scan.started`, `scan.paused`, `scan.resumed`,
 style kind both close an in-flight transition with `scan.transitionEnded`.
 Terminal cancellation paths such as stop and disable do not also emit it.
 
+`scan.completed` carries reason `loops` or `empty`; `scan.stopped` carries
+reason `command`, `disabled`, or `after-activation`.
+
 `highlight.changed` is the single presentation stream. Discriminate on
-`current === null`; `label` is present only for a non-null landing. Group and
-target events report hierarchy and activation attempts/results. Diagnostics
-report recoverable integration errors. `group.exited` uses reason `reconcile`
-when a live tree change removes or invalidates an entered scope.
+`current === null`; `label` is present only for a non-null landing.
+
+`group.entered` and `group.exited` report hierarchy movement. `group.exited`
+carries reason `selected-exit`, `back`, `loops-complete`, `empty`, or
+`reconcile`; `reconcile` means a live tree change removed or invalidated an
+entered scope. Each activation attempt emits `target.activationRequested`,
+resolved by `target.activated` or `target.activationFailed` with a
+host-supplied `reason`. `diagnostic` events report recoverable integration
+errors with a stable `code`.
 
 `scanner.input.disconnect(sourceId)` cancels a physical source without treating
 it as a normal release. Omit `sourceId` to disconnect every active source.
+`scanner.input.suspend()` signals that the input environment was suspended
+(window blur, hidden tab, device lock): it drops every held contact like a
+full disconnect and additionally invalidates an armed single-switch dwell per
+the style's `suspensionPolicy`, so a stale dwell cannot fire on return.
 
 ## React bindings
 
 - `ScannerProvider` attaches the DOM host and registry.
 - `useScanTarget` and `useScanGroup` decorate existing elements without
   wrappers. Both targets and groups use `parentId` for portals or other
-  non-contained composition; use `sequence` when
-  DOM order is not scan order. Unknown explicit parents stay at the root and
+  non-contained composition; groups additionally accept `sequence` when DOM
+  order is not scan order (targets follow their parent group's ordering).
+  Unknown explicit parents stay at the root and
   produce a development diagnostic. `__root__` is reserved for the registry's
   synthetic root and cannot be used as a target or group ID.
   `ScanTargetOptions.activate` overrides the default DOM host's native
