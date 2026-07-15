@@ -11,6 +11,34 @@ were reviewed in mid-2026, but UI labels and product behavior can drift; the
 normative `SS-*` requirements are the library contract, while the product
 survey is supporting context.
 
+**Version.** Spec revision **0.1.0 (draft)**, tracking package `0.1.0`. The
+`SS-*` requirement identifiers are a stable contract: two independent
+implementations claiming conformance to a given revision MUST resolve the
+behaviors identically. Substantive changes to a requirement's meaning bump the
+revision and are recorded in [§16](#16-document-history). Editorial changes
+(wording, cross-references, added evidence) do not.
+
+## Key terms
+
+Defined precisely in [§6](#6-runtime-semantics); collected here because §5
+requirements reference them before that section. "Accept," "select," and
+"activate" are **not** interchangeable.
+
+- **Physical contact / recognized gesture / dispatched action / applied
+  transition** — the four input-pipeline stages a raw signal passes through
+  ([§6](#6-runtime-semantics)). Repeat suppression opens at _recognition_; the
+  scanner may still decline to _dispatch_.
+- **Claimed** — an adapter-owned event (default-prevented, propagation-stopped,
+  capture phase) because it maps to a declared switch — decided _before_, and
+  independent of, gesture recognition.
+- **Arming token** — the single-use permission created by a trusted navigation
+  that allows one dwell selection (SS-13). Consumed by the selection or by
+  suspension; never minted by internal landings.
+- **Selection transition** — the post-selection quiet/fixed window during which
+  `status: "transitioning"` and input is blocked ([§6](#6-runtime-semantics)).
+- **Scope frame** — one entered group's traversal state (index + pass counter);
+  `loops` is counted per frame.
+
 ---
 
 ## 1. What switch scanning is
@@ -40,6 +68,10 @@ one useful rule (elimination and hybrid methods sit outside this binary):
 | Inverse / directed   | 1        | yes    | Hold to advance; release (or separate press) selects     |
 | Single-switch step   | 1        | yes    | Press advances; dwelling/holding selects after a timeout |
 | Two-switch step      | 2        | **no** | One switch advances, a second selects                    |
+
+_Timed?_ marks any style with a response-time window. Note the window differs
+by style: automatic/inverse time the **advance**, while single-switch step
+times the **dwell** after a press. Only two-switch step has neither.
 
 **Two-switch step scanning is the baseline mode with no response-time
 window.** Input stabilization and repeat filters may still use time, but the
@@ -229,6 +261,40 @@ Step Scanning both measure dwell only after a press — so the initiating press
 arms. The no-rearm rule for internal landings is a conservative library safety
 policy that keeps pure inaction from cascading into repeated activation._
 
+_Arming-token lifecycle._ The prose above encodes a two-state machine over a
+single-use token. Every event either **mints** the token (a trusted
+navigation), **consumes** it (a selection or a disarming suspension), or is a
+**no-op** — and only the mint transitions can enable the _next_ dwell
+selection:
+
+| Event                                                              | Token effect  | Can dwell then select? |
+| ------------------------------------------------------------------ | ------------- | ---------------------- |
+| Accepted `next`/`previous` from a declared switch                  | **mint**      | yes                    |
+| Public `next()` / `previous()` command                             | **mint**      | yes                    |
+| Switch gesture that starts scanning under `startOn: "switch"`      | **mint**      | yes                    |
+| Dwell selection fires                                              | **consume**   | no (until re-armed)    |
+| `suspend()` under `suspensionPolicy: "disarm"` (default)           | **consume**   | no (until re-armed)    |
+| `suspend()` under `suspensionPolicy: "continue"`                   | no-op         | yes (pending dwell fires) |
+| Command/mount `start`, `resume`, `back`, group entry               | no-op         | only if already armed  |
+| Activation success/failure, tree reconciliation, option changes    | no-op         | only if already armed  |
+
+```mermaid
+stateDiagram-v2
+    [*] --> Disarmed
+    Disarmed --> Armed: trusted navigation — mint
+    Armed --> Armed: trusted navigation — re-mint
+    Armed --> Disarmed: dwell selection fires — consume
+    Armed --> Disarmed: suspend under disarm policy — consume
+    Armed --> Armed: internal landing — no replacement token
+    Disarmed --> Disarmed: internal landing — no token minted, cannot select
+```
+
+Internal landings are `start` / `resume` / `back` / group entry / activation
+success or failure / reconciliation / option changes — none mint a token.
+
+The `scanner.invariants.test.ts` invariant "selections ≤ arming commands" is
+exactly the statement that consumes never exceed mints ([§7](#7-conformance)).
+
 **SS-14 (focus-independent highlight).** The scan cursor is presentation
 state: highlighting MUST NOT move DOM focus, change tab order, or alter
 native/ARIA semantics. The default host writes `data-*` attributes only.
@@ -410,6 +476,27 @@ highlighted candidate:
 6. When the window elapses, `scan.transitionEnded` fires and the highlight is
    re-presented at the resumed position.
 
+```mermaid
+flowchart TD
+    S["accepted select on highlighted candidate"] --> C["cancel pending style deadline"]
+    C --> R{"resolve candidate"}
+    R -->|target| A1["target.activationRequested"]
+    A1 --> A2["host activate()"]
+    A2 --> A3{"result"}
+    A3 -->|success| OK["target.activated"] --> AP["afterActivation policy: reposition / group.* / scan.stopped"]
+    A3 -->|failure| F["target.activationFailed"]
+    R -->|group or exit| G["group.entered / group.exited"]
+    AP --> T{"still scanning and window configured?"}
+    F --> T
+    G --> T
+    T -->|no| E["remain stopped or scanning — no transition"]
+    T -->|yes| TS["scan.transitionStarted — highlight hides"] --> W["wait max of transitionTimeMs and selectionDelay quiet window"] --> TE["scan.transitionEnded — highlight re-presented"]
+```
+
+Note the transition begins on activation **failure** too (a real press earned
+its debounce), but `afterActivation` runs only on success; the "still scanning"
+gate is what a stop from `afterActivation` opens.
+
 ### Live tree changes
 
 - Reconciliation runs synchronously inside the serialized command queue;
@@ -445,7 +532,7 @@ a reader can run (`npm test`, `npm run test:e2e`). Paths are relative to
 | SS-10 | Implemented | event/snapshot assertions throughout `core/scanner.*.test.ts`; `e2e/demo.spec.ts` (announcements, event inspector)                                                 |
 | SS-11 | Implemented | `e2e/demo.spec.ts` (forced-colors visibility; dark-background contrast)                                                                                            |
 | SS-12 | Implemented | `core/scanner.invariants.test.ts` (declared-switch escape invariant); `core/scanner.safety.test.ts` (back-only validation)                                         |
-| SS-13 | Implemented | `core/scanner.safety.test.ts` (causal dwell selection; suspension disarm + `"continue"` opt-out); `core/scanner.invariants.test.ts` (selections ≤ arming commands) |
+| SS-13 | Implemented (residual: [§13](#13-gap-analysis) gap 6) | `core/scanner.safety.test.ts` (causal dwell selection; suspension disarm + `"continue"` opt-out); `core/scanner.invariants.test.ts` (selections ≤ arming commands) |
 | SS-14 | Implemented | `react/domHost.test.ts` (attribute-only presentation); by construction, `react/domHost.ts` performs no focus or tab-order writes                                   |
 
 ## 8. Standards conformance
@@ -687,3 +774,15 @@ React: `useScannerSnapshot(selector, equality?)` and
 `dispose()`. `ScannerOptions` also carries `switches`, `startOn`,
 `afterActivation`, `groupExit`, `enabled`, and `selectionDelay`
 ([§4](#4-canonical-settings-vocabulary)).
+
+---
+
+## 16. Document history
+
+Revisions of the normative contract. A revision bumps only on a **substantive**
+change to an `SS-*` requirement's meaning or the runtime semantics in
+[§6](#6-runtime-semantics); editorial passes do not.
+
+| Revision       | Summary                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| 0.1.0 (draft)  | Initial published contract: SS-1…SS-14, runtime semantics, conformance mapping, and API surface. |
