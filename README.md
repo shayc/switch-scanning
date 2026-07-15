@@ -7,7 +7,7 @@ Add **switch scanning** to your web app: a highlight moves through your existing
 controls, and users select the highlighted item with one or two switches — a
 keyboard key, adaptive switch, touch surface, or any other reliable input.
 
-Switch scanning is how people with significant motor disabilities operate AAC
+Switch scanning is how people with significant motor disabilities operate
 communication boards, on-screen keyboards, kiosks, and games. This library
 provides the scanning engine; your controls, layout, and actions stay yours.
 
@@ -16,9 +16,9 @@ four scan styles, row–column scanning, and a touch-switch surface.
 
 ## Why this library
 
-- **All four standard scan styles** — automatic, two-switch step,
-  single-switch step with dwell, and inverse, the same modes found in Apple
-  Switch Control, TD Snap, and Grid 3.
+- **Four established scan styles** — automatic, two-switch step,
+  single-switch step with dwell, and inverse scanning, covering the interaction
+  patterns switch users already know from AAC and switch-access tools.
 - **Works with your existing markup** — hooks decorate the elements you already
   render: no wrappers and no layout shifts. Selecting a target activates its
   existing action, so pointer, keyboard, screen reader, and scanner share one
@@ -71,8 +71,7 @@ function PhraseBoard({ phrases }) {
 
 function PhraseButton({ phrase }) {
   const target = useScanTarget({ id: phrase.id, label: phrase.text });
-  // speak() stands in for your app's existing action — the scanner
-  // activates the button's own onClick, nothing scanner-specific.
+  // The scanner activates this existing onClick.
   return (
     <button {...target.props} onClick={() => speak(phrase.text)}>
       {phrase.text}
