@@ -50,6 +50,13 @@ interface ScheduledEntry {
   callback: (() => void) | null;
 }
 
+/** A cancelled entry is tombstoned (callback nulled), not removed in place. */
+const isLive = (entry: ScheduledEntry): boolean => entry.callback !== null;
+
+/** Orders entries by deadline, breaking ties by insertion order. */
+const isEarlier = (a: ScheduledEntry, b: ScheduledEntry): boolean =>
+  a.deadline < b.deadline || (a.deadline === b.deadline && a.seq < b.seq);
+
 /** A {@link Clock} and {@link Scheduler} whose virtual time is advanced by hand. */
 export interface ManualClock extends Clock, Scheduler {
   /** Advance virtual time by `ms`, firing every callback that comes due. */
@@ -83,14 +90,10 @@ export function manualClock(startAt = 0): ManualClock {
       let nextIndex = -1;
       for (let i = 0; i < entries.length; i += 1) {
         const entry = entries[i];
-        if (entry === undefined || entry.callback === null) continue;
+        if (entry === undefined || !isLive(entry)) continue;
         if (entry.deadline > time) continue;
-        const best = nextIndex === -1 ? undefined : entries[nextIndex];
-        if (
-          best === undefined ||
-          entry.deadline < best.deadline ||
-          (entry.deadline === best.deadline && entry.seq < best.seq)
-        ) {
+        const best = nextIndex === -1 ? undefined : entries[nextIndex]!;
+        if (best === undefined || isEarlier(entry, best)) {
           nextIndex = i;
         }
       }
@@ -101,7 +104,7 @@ export function manualClock(startAt = 0): ManualClock {
       entry.callback?.();
     }
     current = time;
-    entries = entries.filter((entry) => entry.callback !== null);
+    entries = entries.filter(isLive);
   }
 
   return {
@@ -131,15 +134,13 @@ export function manualClock(startAt = 0): ManualClock {
     },
     flush() {
       // Fire everything by pushing the deadline to the furthest pending entry.
-      const maxDeadline = entries.reduce(
-        (max, entry) =>
-          entry.callback !== null ? Math.max(max, entry.deadline) : max,
-        current,
-      );
+      const maxDeadline = entries
+        .filter(isLive)
+        .reduce((max, entry) => Math.max(max, entry.deadline), current);
       drainUntil(maxDeadline);
     },
     get pending() {
-      return entries.filter((entry) => entry.callback !== null).length;
+      return entries.filter(isLive).length;
     },
   };
 }
