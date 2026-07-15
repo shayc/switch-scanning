@@ -315,17 +315,20 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     return null;
   }
 
+  /** Advance the cursor, applying the style's loop limit. */
+  function stepForward(): readonly SessionEffect[] {
+    return session.stepForward(resolveLoopLimit());
+  }
+
   function onAdvanceTick(): void {
     if (status !== "scanning") return;
-    applySessionEffects(session.stepForward(resolveLoopLimit()), PRESENT);
+    applySessionEffects(stepForward(), PRESENT);
   }
 
   function onRepeatTick(direction: "next" | "previous"): void {
     if (status !== "scanning") return;
     applySessionEffects(
-      direction === "next"
-        ? session.stepForward(resolveLoopLimit())
-        : session.stepBackward(),
+      direction === "next" ? stepForward() : session.stepBackward(),
       PRESENT,
     );
   }
@@ -397,7 +400,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         applySessionEffects(session.resetToRoot(), SILENT);
         break;
       case "continue":
-        applySessionEffects(session.stepForward(resolveLoopLimit()), SILENT);
+        applySessionEffects(stepForward(), SILENT);
         break;
       case "repeat":
         break;
@@ -413,6 +416,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     emit({ type: "scan.stopped", reason: "after-activation" });
   }
 
+  /** The transition's effective deadline: the later of its fixed and quiet due times. */
+  function transitionDueAt(t: ActiveTransition): number {
+    return Math.max(t.fixedDueAt, t.quietDueAt);
+  }
+
   function beginSelectionTransition(): void {
     if (status !== "scanning") return;
     // Selection always ends held movement, even when no visible transition is
@@ -424,6 +432,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       options.style.kind === "auto" ? options.style.transitionTimeMs : 0;
     const dueAt = now + Math.max(quietDurationMs, fixedDurationMs);
 
+    // Both durations are >= 0, so dueAt < now is impossible; this fires only
+    // when no delay is configured and presentation resumes synchronously.
     if (dueAt <= now) {
       presentLogical(false);
       return;
@@ -434,7 +444,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       quietDueAt: now + quietDurationMs,
       quietDurationMs,
       resetOnInput: options.selectionDelay.resetOnInput,
-      effectiveDueAt: dueAt,
+      effectiveDueAt: dueAt, // finalized by scheduleTransition below
       pending: null,
       cancel: null,
     };
@@ -448,7 +458,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     const active = transition;
     if (!active) return;
     active.cancel?.();
-    const dueAt = Math.max(active.fixedDueAt, active.quietDueAt);
+    const dueAt = transitionDueAt(active);
     active.effectiveDueAt = dueAt;
     const delay = Math.max(0, dueAt - clock.now());
     active.pending = { kind: "transition", startedAt, dueAt };
@@ -476,7 +486,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function dropTransition(): void {
-    clearTransitionSchedule();
+    transition?.cancel?.();
     transition = null;
   }
 
@@ -577,7 +587,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     emit({ type: "scan.resumed" });
     if (transition) {
       status = "transitioning";
-      const dueAt = Math.max(transition.fixedDueAt, transition.quietDueAt);
+      const dueAt = transitionDueAt(transition);
       if (dueAt <= clock.now()) finishTransition();
       else scheduleTransition(clock.now());
       return;
@@ -624,10 +634,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
 
     switch (action) {
       case "next":
-        applySessionEffects(
-          session.stepForward(resolveLoopLimit()),
-          PRESENT_ARMED,
-        );
+        applySessionEffects(stepForward(), PRESENT_ARMED);
         styleRuntime.maybeStartRepeat("next", heldPress, context.sourceKey);
         break;
       case "previous":
@@ -795,10 +802,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }),
     next: serialized(() => {
       if (disposed || !requireScanning("next")) return;
-      applySessionEffects(
-        session.stepForward(resolveLoopLimit()),
-        PRESENT_ARMED,
-      );
+      applySessionEffects(stepForward(), PRESENT_ARMED);
     }),
     previous: serialized(() => {
       if (disposed || !requireScanning("previous")) return;
