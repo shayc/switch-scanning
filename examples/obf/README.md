@@ -2,8 +2,7 @@
 
 [`adapter.ts`](./adapter.ts) maps an Open Board Format grid into explicit scan
 rows. Render each row's `targets` in its `sequence` order and pass that same
-sequence to `useScanGroup`; this keeps DOM, visual, and scan order aligned in
-LTR and RTL layouts.
+sequence to `useScanGroup`; this keeps DOM, visual, and scan order aligned.
 
 [`ObfBoardExample.tsx`](./ObfBoardExample.tsx) is an executable,
 public-API-only React integration; its test navigates through `load_board` and

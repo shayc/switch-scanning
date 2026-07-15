@@ -1,4 +1,4 @@
-import type { ScanGroupNode, ScanTargetNode } from "@shayc/switch-scanning";
+import type { ScanTargetNode } from "@shayc/switch-scanning";
 
 export interface ObfButton {
   id: string;
@@ -96,19 +96,11 @@ export function activateObfButton(
   return false;
 }
 
-/**
- * Generate row groups with identical DOM, visual, and scan order. RTL is an
- * explicit sequence reversal, never a CSS-only `row-reverse`.
- */
-export function buildObfScanRows(
-  board: ObfBoard,
-  direction: "ltr" | "rtl" = directionForLocale(board.locale),
-): readonly ObfScanRow[] {
+/** Generate row groups with identical DOM, visual, and scan order. */
+export function buildObfScanRows(board: ObfBoard): readonly ObfScanRow[] {
   const buttons = buttonLookup(board);
   return board.grid.order.flatMap((sourceRow, rowIndex) => {
-    const ordered =
-      direction === "rtl" ? [...sourceRow].reverse() : [...sourceRow];
-    const cells = ordered
+    const cells = sourceRow
       .map((id) => classifyObfCell(id, buttons))
       .filter(
         (cell): cell is Extract<ObfCell, { kind: "button" }> =>
@@ -129,30 +121,4 @@ export function buildObfScanRows(
       },
     ];
   });
-}
-
-export function buildObfScanTree(
-  board: ObfBoard,
-  direction?: "ltr" | "rtl",
-): ScanGroupNode {
-  const rows = buildObfScanRows(board, direction);
-  return {
-    kind: "group",
-    id: `obf:${board.id}`,
-    label: board.name ?? board.id,
-    children: rows.map((row) => ({
-      kind: "group",
-      id: row.id,
-      label: row.label,
-      children: row.targets,
-    })),
-  };
-}
-
-export function directionForLocale(locale: string | undefined): "ltr" | "rtl" {
-  if (!locale) return "ltr";
-  const language = locale.toLowerCase().split(/[-_]/, 1)[0];
-  return language && ["ar", "fa", "he", "ur"].includes(language)
-    ? "rtl"
-    : "ltr";
 }

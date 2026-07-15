@@ -39,7 +39,7 @@ export function ObfBoardExample({
   };
 
   return (
-    <section aria-label={board.name ?? board.id} dir={directionForRows(board)}>
+    <section aria-label={board.name ?? board.id}>
       {rows.map((row) => (
         <ObfRow
           key={row.id}
@@ -92,12 +92,4 @@ function ObfKey({
       {button.label ?? button.vocalization ?? button.id}
     </button>
   );
-}
-
-function directionForRows(board: ObfBoard): "ltr" | "rtl" {
-  return ["ar", "fa", "he", "ur"].includes(
-    board.locale?.toLowerCase().split(/[-_]/, 1)[0] ?? "",
-  )
-    ? "rtl"
-    : "ltr";
 }

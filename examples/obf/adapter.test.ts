@@ -10,7 +10,6 @@ import {
 
 const BOARD: ObfBoard = {
   id: "home",
-  locale: "he-IL",
   buttons: [
     { id: "hello", label: "Hello", vocalization: "Hi" },
     { id: "sound", label: "Bell", sound_id: "bell" },
@@ -59,11 +58,11 @@ describe("OBF adapter", () => {
     expect(performAction).toHaveBeenCalledWith(":clear", BOARD.buttons[3]);
   });
 
-  it("omits null, empty, and disabled cells and reverses RTL explicitly", () => {
+  it("omits null, empty, and disabled cells", () => {
     const rows = buildObfScanRows(BOARD);
     expect(rows.map((row) => row.sequence)).toEqual([
-      ["sound", "hello"],
-      ["clear", "next"],
+      ["hello", "sound"],
+      ["next", "clear"],
     ]);
     expect(rows[0]!.targets.map((target) => target.id)).toEqual(
       rows[0]!.sequence,
