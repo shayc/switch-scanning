@@ -425,3 +425,42 @@ describe("time infrastructure", () => {
     );
   });
 });
+
+describe("event timestamps", () => {
+  it("stamps every event with the injected clock's time at emission", () => {
+    const { clock, scanner, events } = build(
+      { style: autoScan({ intervalMs: 100, loops: "infinite" }) },
+      YES_NO,
+    );
+
+    clock.advanceBy(5);
+    scanner.start();
+    expect(events.ofType("scan.started")).toMatchObject([{ at: 5 }]);
+    expect(events.ofType("highlight.changed")).toMatchObject([{ at: 5 }]);
+
+    clock.advanceBy(100);
+    expect(events.ofType("highlight.changed").at(-1)).toMatchObject({
+      current: { kind: "target", id: "no" },
+      at: 105,
+    });
+  });
+
+  it("stamps at emission even when a transition follows the selection", () => {
+    const { clock, scanner, events } = build(
+      {
+        style: autoScan({ intervalMs: 100, loops: "infinite" }),
+        selectionDelay: { durationMs: 50 },
+      },
+      YES_NO,
+    );
+
+    scanner.start();
+    clock.advanceBy(30);
+    scanner.select();
+    expect(events.ofType("target.activated")).toMatchObject([{ at: 30 }]);
+    expect(events.ofType("scan.transitionStarted")).toMatchObject([{ at: 30 }]);
+
+    clock.advanceBy(50);
+    expect(events.ofType("scan.transitionEnded")).toMatchObject([{ at: 80 }]);
+  });
+});

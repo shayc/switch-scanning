@@ -126,11 +126,14 @@ describe("tree identity", () => {
       { kind: "target", id: "duplicate", label: "Second" },
     ]);
 
-    expect(events.ofType("diagnostic")).toContainEqual({
-      type: "diagnostic",
-      code: "duplicate-id",
-      message: 'duplicate scan node id "duplicate"; keeping the previous tree',
-    });
+    expect(events.ofType("diagnostic")).toContainEqual(
+      expect.objectContaining({
+        type: "diagnostic",
+        code: "duplicate-id",
+        message:
+          'duplicate scan node id "duplicate"; keeping the previous tree',
+      }),
+    );
     expect(scanner.getSnapshot().highlight).toEqual({
       kind: "target",
       id: "yes",

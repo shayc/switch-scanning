@@ -266,7 +266,7 @@ describe("option and lifecycle edges", () => {
 
     fixture.setNodes([{ kind: "target", id: "other", label: "Other" }]);
 
-    expect(events.ofType("group.exited")).toEqual([
+    expect(events.ofType("group.exited")).toMatchObject([
       { type: "group.exited", id: "row", label: "Row", reason: "reconcile" },
     ]);
   });

@@ -32,12 +32,14 @@ describe("tree, repeat, and diagnostic stabilization", () => {
       kind: "target",
       id: "a",
     });
-    expect(events).toContainEqual({
-      type: "diagnostic",
-      code: "duplicate-id",
-      message:
-        'duplicate scan node id "actual-root"; keeping the previous tree',
-    });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "diagnostic",
+        code: "duplicate-id",
+        message:
+          'duplicate scan node id "actual-root"; keeping the previous tree',
+      }),
+    );
   });
 
   it("repeats previous with the same step timing as next", () => {

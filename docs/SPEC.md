@@ -154,7 +154,8 @@ exit or `back` widens scope again.
 **SS-10 (observable highlight).** Every highlight change, selection,
 activation, and lifecycle transition MUST be observable (events/snapshots) so
 hosts can implement auditory prompts, progress indicators, zoom, and analytics
-without engine changes.
+without engine changes. Every event is stamped with the injected clock's time
+at emission (`at`), so reaction-time measurement needs no host clock access.
 
 **SS-11 (visible highlight).** Default highlight styling MUST remain visible
 in forced-colors / high-contrast modes; hosts MUST be able to restyle it
@@ -318,6 +319,7 @@ recognition.
   Deadlines are single-shot: after missed deadlines (background throttling,
   suspension), each pending timer fires at most once and the next deadline is
   scheduled from the actual fire time — never a catch-up burst (SS-16).
+  Snapshot `pending` times and every event's `at` stamp use this same clock.
 - **Dwell suspension (SS-17).** An armed dwell does not survive environment
   suspension under the default policy. `suspend()` — raised by hosts, and by
   the bundled adapters on window blur and visibility loss — cancels the

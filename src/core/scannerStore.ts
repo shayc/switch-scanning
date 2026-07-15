@@ -1,12 +1,18 @@
+import type { Clock } from "./clock.ts";
 import { snapshotEquals } from "./session.ts";
-import type { ScannerEvent, ScannerSnapshot, Unsubscribe } from "./types.ts";
+import type {
+  ScannerEvent,
+  ScannerEventBody,
+  ScannerSnapshot,
+  Unsubscribe,
+} from "./types.ts";
 
 export interface ScannerStore {
   runTransition: (work: () => void) => void;
   serialized: <Args extends unknown[]>(
     work: (...args: Args) => void,
   ) => (...args: Args) => void;
-  emit: (event: ScannerEvent) => void;
+  emit: (event: ScannerEventBody) => void;
   getSnapshot: () => ScannerSnapshot;
   subscribe: (onChange: () => void) => Unsubscribe;
   observe: (listener: (event: ScannerEvent) => void) => Unsubscribe;
@@ -20,6 +26,7 @@ export interface ScannerStore {
  */
 export function createScannerStore(
   buildSnapshot: () => ScannerSnapshot,
+  clock: Clock,
 ): ScannerStore {
   const subscribers = new Set<() => void>();
   const observers = new Set<(event: ScannerEvent) => void>();
@@ -96,7 +103,9 @@ export function createScannerStore(
     runTransition,
     serialized,
     emit(event) {
-      pendingEvents.push(event);
+      // Stamped at enqueue time: events describe when the thing happened,
+      // even though delivery is deferred until the transition publishes.
+      pendingEvents.push({ ...event, at: clock.now() });
     },
     getSnapshot() {
       return cachedSnapshot;

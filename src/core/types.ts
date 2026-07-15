@@ -71,8 +71,11 @@ export type ScannerDiagnosticCode =
   | "second-host-attach"
   | "use-after-dispose";
 
-/** A notification emitted through {@link Scanner.observe}. */
-export type ScannerEvent =
+/**
+ * The payload of a scanner notification, before the store stamps `at`.
+ * Emitting code constructs these; observers always receive {@link ScannerEvent}.
+ */
+export type ScannerEventBody =
   | { type: "scan.started" }
   | { type: "scan.paused" }
   | { type: "scan.resumed" }
@@ -83,7 +86,7 @@ export type ScannerEvent =
       type: "scan.stopped";
       reason: "command" | "disabled" | "after-activation" | "error";
     }
-  | HighlightChangedEvent
+  | HighlightChangedEventBody
   | { type: "group.entered"; id: string; label: string }
   | {
       type: "group.exited";
@@ -103,7 +106,7 @@ export type ScannerEvent =
   | { type: "diagnostic"; code: ScannerDiagnosticCode; message: string };
 
 /** One event for both highlight moves and clears; `current === null` marks a clear (and omits `label`). */
-export type HighlightChangedEvent =
+export type HighlightChangedEventBody =
   | {
       type: "highlight.changed";
       previous: Highlight;
@@ -115,6 +118,18 @@ export type HighlightChangedEvent =
       previous: NonNullable<Highlight>;
       current: null;
     };
+
+/**
+ * A notification emitted through {@link Scanner.observe}. `at` is the
+ * injected clock's time when the event was produced; like snapshot `pending`
+ * times, it is meaningful only relative to other values from the same clock.
+ */
+export type ScannerEvent = ScannerEventBody & { readonly at: number };
+
+/** An observed highlight move or clear, stamped with the clock time. */
+export type HighlightChangedEvent = HighlightChangedEventBody & {
+  readonly at: number;
+};
 
 /** Outcome of a host activation attempt. */
 export type ActivationResult =

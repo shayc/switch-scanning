@@ -79,6 +79,11 @@ replacement host restores any visible active cursor before accepting input.
 
 ## Events
 
+Every event carries `at`: the injected clock's time when the event was
+produced, on the same time base as snapshot `pending` times. Observers can
+measure user reaction times (highlight landing to activation) without owning
+the clock.
+
 Lifecycle events are `scan.started`, `scan.paused`, `scan.resumed`,
 `scan.transitionStarted`, `scan.transitionEnded`, `scan.completed`, and
 `scan.stopped`. Resuming after a transition deadline and changing to a different

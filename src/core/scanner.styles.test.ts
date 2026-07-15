@@ -89,7 +89,7 @@ describe("automatic scanning", () => {
     clock.advanceBy(100);
     expect(scanner.getSnapshot().status).toBe("complete");
     expect(scanner.getSnapshot().highlight).toBeNull();
-    expect(events.ofType("scan.completed")).toEqual([
+    expect(events.ofType("scan.completed")).toMatchObject([
       { type: "scan.completed", reason: "loops" },
     ]);
   });
@@ -101,7 +101,7 @@ describe("automatic scanning", () => {
     );
     scanner.start();
     expect(scanner.getSnapshot().status).toBe("complete");
-    expect(events.ofType("scan.completed")).toEqual([
+    expect(events.ofType("scan.completed")).toMatchObject([
       { type: "scan.completed", reason: "empty" },
     ]);
   });
@@ -142,7 +142,7 @@ describe("post-activation policy", () => {
     scanner.start();
     scanner.select();
     expect(scanner.getSnapshot().status).toBe("idle");
-    expect(events.ofType("scan.stopped")).toEqual([
+    expect(events.ofType("scan.stopped")).toMatchObject([
       { type: "scan.stopped", reason: "after-activation" },
     ]);
   });
@@ -181,7 +181,7 @@ describe("post-activation policy", () => {
       highlight: null,
       position: null,
     });
-    expect(events.ofType("scan.completed")).toEqual([
+    expect(events.ofType("scan.completed")).toMatchObject([
       { type: "scan.completed", reason: "empty" },
     ]);
   });

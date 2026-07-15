@@ -97,12 +97,14 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   let suspendedDwellRemaining: number | null = null;
   let status: ScannerStatus = "idle";
 
-  const store = createScannerStore(() =>
-    session.snapshot(
-      status,
-      presentation?.highlight ?? null,
-      effectivePending(),
-    ),
+  const store = createScannerStore(
+    () =>
+      session.snapshot(
+        status,
+        presentation?.highlight ?? null,
+        effectivePending(),
+      ),
+    clock,
   );
   const { runTransition, serialized, emit, reportBoundaryError } = store;
   const warnDiagnostic = createDiagnosticWarner();
