@@ -1,6 +1,34 @@
+import { resolve } from "node:path";
 import { coverageConfigDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    // Vitest does not apply TypeScript's `paths` mappings. Resolve package
+    // self-imports to source so tests also work in a fresh checkout without
+    // a pre-existing dist/ directory.
+    alias: [
+      {
+        find: "@shayc/switch-scanning/styles.css",
+        replacement: resolve(__dirname, "src/styles.css"),
+      },
+      {
+        find: "@shayc/switch-scanning/react",
+        replacement: resolve(__dirname, "src/react/index.ts"),
+      },
+      {
+        find: "@shayc/switch-scanning/core/testing",
+        replacement: resolve(__dirname, "src/core/testing/index.ts"),
+      },
+      {
+        find: "@shayc/switch-scanning/core",
+        replacement: resolve(__dirname, "src/core/index.ts"),
+      },
+      {
+        find: /^@shayc\/switch-scanning$/,
+        replacement: resolve(__dirname, "src/index.ts"),
+      },
+    ],
+  },
   test: {
     environment: "jsdom",
     globals: true,
