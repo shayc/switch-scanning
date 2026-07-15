@@ -1,11 +1,13 @@
 # @shayc/switch-scanning
 
-Add **switch scanning** to your web app: a moving highlight steps through your
-existing buttons, and users select the highlighted one with one or two
-switches (a key, a big-button switch, a touch surface — any single reliable
-action).
+[![CI](https://github.com/shayc/switch-scanning/actions/workflows/ci.yml/badge.svg)](https://github.com/shayc/switch-scanning/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Switch scanning is how people with severe motor disabilities operate AAC
+Add **switch scanning** to your web app: a highlight moves through your existing
+controls, and users select the highlighted item with one or two switches — a
+keyboard key, adaptive switch, touch surface, or any other reliable input.
+
+Switch scanning is how people with significant motor disabilities operate AAC
 communication boards, on-screen keyboards, kiosks, and games. This library
 provides the scanning engine; your controls, layout, and actions stay yours.
 
@@ -15,24 +17,29 @@ four scan styles, row–column scanning, and a touch-switch surface.
 ## Why this library
 
 - **All four standard scan styles** — automatic, two-switch step,
-  single-switch step (dwell), and inverse; the same modes as Apple Switch
-  Control, TD Snap, and Grid 3.
-- **Zero markup changes** — hooks decorate the elements you already render; no
-  wrappers, no layout shifts, no stolen focus.
-- **Native activation** — selecting a target clicks your real button, so
-  pointer, keyboard, screen reader, and scanner share one code path.
-- **Row–column and group scanning** — nest groups to shape traversal; every
-  group is guaranteed an exit (no dead ends).
-- **Real-hardware safe** — tremor filtering, repeat suppression, tap-vs-hold
-  gestures, and stuck-switch protection on window blur.
-- **Framework-agnostic core + React bindings** — React 18/19 optional;
-  highlight movement causes zero React rerenders.
-- **Deterministic and testable** — inject a manual clock and simulate entire
-  scan sessions without a browser or timeouts.
-- **Accessible by default** — highlight styling works in forced-colors mode
-  and never touches DOM focus, tab order, or ARIA.
+  single-switch step with dwell, and inverse, the same modes found in Apple
+  Switch Control, TD Snap, and Grid 3.
+- **Works with your existing markup** — hooks decorate the elements you already
+  render: no wrappers and no layout shifts. Selecting a target activates its
+  existing action, so pointer, keyboard, screen reader, and scanner share one
+  code path.
+- **Row–column and group scanning** — nest groups to shape traversal. Every
+  group includes an Exit item, preventing dead ends.
+- **Safe with real hardware** — tremor filtering, repeat suppression,
+  tap-versus-hold gestures, and stuck-switch protection when the window loses
+  focus.
+- **Framework-agnostic core, optional React bindings** — fully typed,
+  dependency-free, and compatible with React 18 and 19. Highlight movement does
+  not rerender your component tree.
+- **Accessible and testable by design** — forced-colors-safe highlighting
+  without changing DOM focus, tab order, or ARIA. A manual clock makes complete
+  scan sessions deterministic in tests.
 
 ## Quick start
+
+```sh
+npm install @shayc/switch-scanning
+```
 
 A phrase board scanned automatically, with Space as the switch:
 
@@ -64,6 +71,8 @@ function PhraseBoard({ phrases }) {
 
 function PhraseButton({ phrase }) {
   const target = useScanTarget({ id: phrase.id, label: phrase.text });
+  // speak() stands in for your app's existing action — the scanner
+  // activates the button's own onClick, nothing scanner-specific.
   return (
     <button {...target.props} onClick={() => speak(phrase.text)}>
       {phrase.text}
@@ -72,36 +81,34 @@ function PhraseButton({ phrase }) {
 }
 ```
 
-The highlight steps through the buttons every 1.2 s; pressing Space activates
-the highlighted button's own `onClick`.
+The highlight moves every 1.2 seconds. Pressing Space activates the highlighted
+button's existing `onClick`.
 
-## Install
+## Packages
 
-```sh
-npm install @shayc/switch-scanning
-```
+| Import                                | Contents                                    |
+| ------------------------------------- | ------------------------------------------- |
+| `@shayc/switch-scanning`              | Framework-agnostic engine, styles, switches |
+| `@shayc/switch-scanning/react`        | React bindings and core re-exports          |
+| `@shayc/switch-scanning/styles.css`   | Optional forced-colors-aware highlight CSS  |
+| `@shayc/switch-scanning/core/testing` | Manual clock, fixtures, and recorders       |
 
-| Import                                 | Contents                                    |
-| -------------------------------------- | ------------------------------------------- |
-| `@shayc/switch-scanning`               | Framework-agnostic engine, styles, switches |
-| `@shayc/switch-scanning/react`         | React bindings (re-exports the core)        |
-| `@shayc/switch-scanning/styles.css`    | Optional forced-colors-aware highlight CSS  |
-| `@shayc/switch-scanning/core/testing`  | Manual clock, fixtures, recorders           |
-
-React is an optional peer dependency (v18 or v19); the core has none.
+React is an optional peer dependency supporting versions 18 and 19. The core has
+no runtime dependencies.
 
 ## Scan styles
 
-| Style                                        | Switches | How it works                            |
-| -------------------------------------------- | -------- | --------------------------------------- |
-| `autoScan({ intervalMs, loops })`            | 1        | Timer advances; press selects           |
-| `stepScan()`                                 | 2        | One switch advances, the other selects  |
-| `singleSwitchStepScan({ dwellTimeMs })`      | 1        | Press advances; holding still selects   |
-| `inverseScan({ intervalMs, loops })`         | 1        | Hold to advance; release selects        |
+| Style                                   | Switches | How it works                           |
+| --------------------------------------- | -------- | -------------------------------------- |
+| `autoScan({ intervalMs, loops })`       | 1        | Timer advances; press selects          |
+| `stepScan()`                            | 2        | One switch advances; the other selects |
+| `singleSwitchStepScan({ dwellTimeMs })` | 1        | Press advances; pause to select        |
+| `inverseScan({ intervalMs, loops })`    | 1        | Hold to advance; release selects       |
 
-Timing values are required where they define the access method — there is no
-universal scan speed. One switch can also do tap-to-advance / hold-to-select
-as a switch gesture:
+Timing values are required where they define the access method. There is no
+universal scan speed.
+
+A single switch can also use tap-to-advance and hold-to-select:
 
 ```tsx
 const scanner = useScanner({
@@ -115,8 +122,9 @@ useKeyboardSwitches(scanner, { Space: "primary" });
 
 ## Row–column scanning
 
-Rows are groups. `useScanGroup` decorates an element you already own —
-selecting the row scans its items; every group gets a virtual exit.
+Rows are groups. `useScanGroup` decorates an element you already own. Selecting
+a row enters it and scans its items; a virtual Exit item returns to the parent
+group.
 
 ```tsx
 function KeyboardRow({ row, index }) {
@@ -133,24 +141,25 @@ function KeyboardRow({ row, index }) {
 
 ## Switch input
 
-Most commercial USB/Bluetooth switch interfaces present as keyboards —
-`useKeyboardSwitches` covers them. For a dedicated on-screen touch switch:
+Most commercial USB and Bluetooth switch interfaces present as keyboards, so
+`useKeyboardSwitches` covers them directly. For a dedicated on-screen touch
+switch:
 
 ```tsx
 const touch = usePointerSwitch(scanner, { switchId: "select" });
 return <button {...touch.props}>Press here</button>;
 ```
 
-For any other hardware, drive `scanner.input.press("select")` /
+For custom hardware or adapters, drive `scanner.input.press("select")` /
 `.release("select")` directly.
 
 ## Testing without a browser
 
 ```ts
-import { createScanner, autoScan } from "@shayc/switch-scanning";
+import { autoScan, createScanner } from "@shayc/switch-scanning";
 import {
-  manualClock,
   createScannerFixture,
+  manualClock,
 } from "@shayc/switch-scanning/core/testing";
 
 const clock = manualClock();
@@ -172,28 +181,29 @@ expect(fixture.activations).toEqual(["no"]);
 
 ## Documentation
 
-- **[API reference](docs/API.md)** — all options, events, snapshots, hooks,
-  and CSS custom properties.
-- **[Specification](docs/SPEC.md)** — what switch scanning is, the settings
-  vocabulary across AAC products, and the normative behavioral requirements
-  this library is tested against.
+- **[API reference](docs/API.md)** — options, events, snapshots, hooks, and CSS
+  custom properties.
+- **[Specification](docs/SPEC.md)** — the switch-scanning domain, vocabulary
+  used across AAC products, and the normative behavior this library is tested
+  against.
 - **[OBF adapter example](examples/obf/README.md)** — scanning an Open Board
-  Format (AAC) board.
+  Format AAC board.
 
 ## Scope
 
-The library owns scanning — nothing else. Speech, settings UI and persistence,
-styling beyond the default highlight, and your application actions stay in
-your app. It complements, and must not replace, OS-level Switch Control /
-Switch Access: keep your native HTML, focus, and ARIA intact. Choosing timing
-presets suitable for real users still requires evaluation with switch users
-and AAC practitioners.
+The library owns scanning — nothing else. Speech, settings UI, persistence,
+application actions, and styling beyond the default highlight remain in your app.
+
+It complements, and must not replace, OS-level Switch Control and Switch Access:
+keep native HTML, focus behavior, and ARIA intact. Choosing timing presets
+suitable for real users still requires evaluation with switch users and AAC
+practitioners.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). `npm install && npm run dev` serves the
+playground locally; `npm test` runs the deterministic suite.
 
 ## License
 
 MIT
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). `npm install && npm run dev` serves
-the playground locally; `npm test` runs the deterministic suite.
