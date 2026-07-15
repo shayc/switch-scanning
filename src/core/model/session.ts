@@ -25,7 +25,11 @@ interface ScopeFrame {
 }
 
 export type ExitReason =
-  | "selected-exit" | "back" | "loops-complete" | "empty" | "reconcile";
+  | "selected-exit"
+  | "back"
+  | "loops-complete"
+  | "empty"
+  | "reconcile";
 
 export type SessionEffect =
   | {
@@ -112,8 +116,8 @@ export class ScanSession {
     return {
       status,
       highlight,
-      path: this.frames.flatMap((item) =>
-        item.groupId === null ? [] : [item.groupId],
+      path: this.frames.flatMap((frame) =>
+        frame.groupId === null ? [] : [frame.groupId],
       ),
       pass: frame ? frame.pass : 0,
       position: frame
