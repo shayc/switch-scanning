@@ -1,5 +1,10 @@
 import type { CancelScheduled, Clock, Scheduler } from "../clock.ts";
-import type { DiscreteAction, NormalizedSwitch } from "./switches.ts";
+import type {
+  DiscreteAction,
+  NormalizedSwitch,
+  PressRecognition,
+  SwitchAction,
+} from "./switches.ts";
 
 /**
  * The gesture engine turns raw press/release signals for `(switchId, sourceId)`
@@ -10,7 +15,13 @@ import type { DiscreteAction, NormalizedSwitch } from "./switches.ts";
  */
 export interface GestureSink {
   /** A new declared source contact began, before stabilization. */
-  pressStarted(ctx: GestureContext): void;
+  pressStarted(ctx: GestureContext & { recognition: PressRecognition }): void;
+  /** A still-held press crossed a nonzero recognition threshold. */
+  holdRecognized(action: SwitchAction, ctx: GestureContext): void;
+  /** Any tracked contact ended with a normal release. */
+  contactReleased(ctx: GestureContext & { heldMs: number }): void;
+  /** Any tracked contact was dropped without a release (disconnect, cancel). */
+  contactCancelled(ctx: GestureContext): void;
   /** A discrete action was recognized. `heldPress` means a press is still down. */
   discreteAction(
     action: DiscreteAction,
@@ -30,6 +41,8 @@ export interface GestureSink {
 
 export interface GestureContext {
   readonly switchId: string;
+  /** The resolved physical source (defaults to the switch ID). */
+  readonly sourceId: string;
   readonly sourceKey: string;
   /** Scanner lifecycle eligibility captured once at raw press. */
   readonly startedIn: GestureStartState;
@@ -123,7 +136,7 @@ export function createGestureEngine(deps: {
       startedIn: deps.getStartState(),
     };
     sources.set(sourceKey, state);
-    sink.pressStarted(contextOf(state));
+    sink.pressStarted({ ...contextOf(state), recognition: recognitionOf(def) });
 
     switch (def.type) {
       case "discrete": {
@@ -159,6 +172,7 @@ export function createGestureEngine(deps: {
           if (tryAccept(state.switchId, def)) {
             state.holdFired = true;
             state.heldDiscrete = true;
+            sink.holdRecognized(def.holdAction, contextOf(state));
             sink.discreteAction(def.holdAction, {
               ...contextOf(state),
               heldPress: true,
@@ -178,6 +192,9 @@ export function createGestureEngine(deps: {
     if (def.type !== "discrete") return;
     if (!tryAccept(state.switchId, def)) return;
     state.heldDiscrete = true;
+    if (def.holdDurationMs > 0) {
+      sink.holdRecognized(def.action, contextOf(state));
+    }
     sink.discreteAction(def.action, {
       ...contextOf(state),
       heldPress: true,
@@ -189,6 +206,9 @@ export function createGestureEngine(deps: {
     if (def.type !== "scan") return;
     if (!tryAccept(state.switchId, def)) return;
     state.scanAccepted = true;
+    if (def.holdDurationMs > 0) {
+      sink.holdRecognized("scan", contextOf(state));
+    }
     sink.scanPress(contextOf(state));
   }
 
@@ -203,6 +223,8 @@ export function createGestureEngine(deps: {
     const def = state.def;
     const now = clock.now();
     const heldFor = now - state.pressedAt;
+    // Physical contact ends before any gesture the release completes.
+    sink.contactReleased({ ...contextOf(state), heldMs: heldFor });
 
     switch (def.type) {
       case "discrete": {
@@ -245,6 +267,7 @@ export function createGestureEngine(deps: {
       if (sourceId !== undefined && state.sourceId !== sourceId) continue;
       sources.delete(key);
       clearDeadline(state);
+      sink.contactCancelled(contextOf(state));
       if (state.scanAccepted) {
         sink.scanCancel(contextOf(state));
       } else if (state.heldDiscrete) {
@@ -263,6 +286,7 @@ export function createGestureEngine(deps: {
       } else {
         sources.delete(key);
         clearDeadline(state);
+        sink.contactCancelled(contextOf(state));
         if (state.scanAccepted) {
           sink.scanCancel(contextOf(state));
         } else if (state.heldDiscrete) {
@@ -276,6 +300,7 @@ export function createGestureEngine(deps: {
   function cancelActive(): void {
     for (const state of sources.values()) {
       clearDeadline(state);
+      sink.contactCancelled(contextOf(state));
       if (state.scanAccepted) {
         sink.scanCancel(contextOf(state));
       } else if (state.heldDiscrete) {
@@ -302,9 +327,38 @@ export function createGestureEngine(deps: {
 function contextOf(state: SourceState): GestureContext {
   return {
     switchId: state.switchId,
+    sourceId: state.sourceId,
     sourceKey: state.sourceKey,
     startedIn: state.startedIn,
   };
+}
+
+/** Describe how a fresh press will be decided, for progress feedback. */
+function recognitionOf(def: NormalizedSwitch): PressRecognition {
+  switch (def.type) {
+    case "tapHold":
+      return {
+        kind: "tapHold",
+        holdAfterMs: def.holdAfterMs,
+        tapAction: def.tap,
+        holdAction: def.holdAction,
+      };
+    case "discrete":
+      if (def.performOn === "release") {
+        return {
+          kind: "hold",
+          holdDurationMs: def.holdDurationMs,
+          action: def.action,
+        };
+      }
+      return def.holdDurationMs > 0
+        ? { kind: "stabilize", holdDurationMs: def.holdDurationMs }
+        : { kind: "immediate" };
+    case "scan":
+      return def.holdDurationMs > 0
+        ? { kind: "stabilize", holdDurationMs: def.holdDurationMs }
+        : { kind: "immediate" };
+  }
 }
 
 function switchDefinitionsEqual(

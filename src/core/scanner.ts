@@ -146,7 +146,38 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   const sink: GestureSink = {
-    pressStarted: onRawPressStarted,
+    pressStarted: (context) => {
+      emit({
+        type: "input.pressed",
+        switchId: context.switchId,
+        sourceId: context.sourceId,
+        recognition: context.recognition,
+      });
+      onRawPressStarted(context);
+    },
+    holdRecognized: (action, context) => {
+      emit({
+        type: "input.holdRecognized",
+        switchId: context.switchId,
+        sourceId: context.sourceId,
+        action,
+      });
+    },
+    contactReleased: (context) => {
+      emit({
+        type: "input.released",
+        switchId: context.switchId,
+        sourceId: context.sourceId,
+        heldMs: context.heldMs,
+      });
+    },
+    contactCancelled: (context) => {
+      emit({
+        type: "input.cancelled",
+        switchId: context.switchId,
+        sourceId: context.sourceId,
+      });
+    },
     discreteAction: (action, context) =>
       handleSwitchAction(action, context.heldPress, context),
     pressReleased: (context) => {

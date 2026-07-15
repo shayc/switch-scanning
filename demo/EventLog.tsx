@@ -228,6 +228,14 @@ function describe(event: ScannerEvent): string {
       return `activated ${event.label}`;
     case "target.activationFailed":
       return `failed ${event.label} (${event.reason})`;
+    case "input.pressed":
+      return `pressed ${event.switchId} (${event.recognition.kind})`;
+    case "input.holdRecognized":
+      return `hold recognized on ${event.switchId} (${event.action})`;
+    case "input.released":
+      return `released ${event.switchId} after ${Math.round(event.heldMs)}ms`;
+    case "input.cancelled":
+      return `cancelled ${event.switchId}`;
     case "diagnostic":
       return `${event.code}: ${event.message}`;
   }

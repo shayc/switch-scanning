@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { manualClock } from "../clock.ts";
 import { createScanner } from "../scanner.ts";
 import { autoScan, inverseScan, stepScan } from "../styles.ts";
-import { createScannerFixture } from "../testing/index.ts";
+import { createScannerFixture, recordScannerEvents } from "../testing/index.ts";
 import type { ScannerOptions, ScanNode } from "../types.ts";
 
 const YES_NO: ScanNode[] = [
@@ -507,5 +507,209 @@ describe("definition replacement", () => {
     });
     clock.advanceBy(100);
     expect(fixture.activations).toEqual(["yes"]);
+  });
+});
+
+describe("input-phase events", () => {
+  const TAP_HOLD: Omit<ScannerOptions, "clock"> = {
+    style: stepScan(),
+    switches: {
+      primary: { tap: "next", hold: { afterMs: 700, action: "select" } },
+    },
+  };
+
+  it("describes the pending recognition on input.pressed", () => {
+    const { scanner } = build({
+      style: stepScan(),
+      switches: {
+        tapHold: { tap: "next", hold: { afterMs: 700, action: "select" } },
+        onRelease: {
+          action: "select",
+          performOn: "release",
+          holdDurationMs: 100,
+        },
+        stabilized: { action: "next", holdDurationMs: 80 },
+        instant: { action: "next" },
+      },
+    });
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+
+    for (const switchId of ["tapHold", "onRelease", "stabilized", "instant"]) {
+      scanner.input.press(switchId);
+      scanner.input.disconnect(switchId);
+    }
+
+    expect(
+      events.ofType("input.pressed").map((event) => event.recognition),
+    ).toEqual([
+      {
+        kind: "tapHold",
+        holdAfterMs: 700,
+        tapAction: "next",
+        holdAction: "select",
+      },
+      { kind: "hold", holdDurationMs: 100, action: "select" },
+      { kind: "stabilize", holdDurationMs: 80 },
+      { kind: "immediate" },
+    ]);
+  });
+
+  it("reports heldMs on release and ignores duplicate presses", () => {
+    const { clock, scanner } = build(TAP_HOLD);
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+
+    scanner.input.press("primary");
+    scanner.input.press("primary");
+    clock.advanceBy(150);
+    scanner.input.release("primary");
+
+    expect(events.ofType("input.pressed")).toHaveLength(1);
+    expect(events.ofType("input.released")).toMatchObject([
+      { switchId: "primary", sourceId: "primary", heldMs: 150, at: 150 },
+    ]);
+  });
+
+  it("cancels held contacts on disconnect, suspend, pause, and redefinition", () => {
+    const { scanner } = build(TAP_HOLD);
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+
+    scanner.input.press("primary", "wired");
+    scanner.input.disconnect("wired");
+
+    scanner.input.press("primary");
+    scanner.input.suspend();
+
+    scanner.input.press("primary");
+    scanner.pause();
+    scanner.resume();
+
+    scanner.input.press("primary");
+    scanner.setOptions({
+      style: stepScan(),
+      switches: { primary: { action: "select" } },
+    });
+
+    expect(events.ofType("input.cancelled")).toHaveLength(4);
+    expect(events.ofType("input.released")).toHaveLength(0);
+  });
+
+  it("reports hold recognition while the contact is still down", () => {
+    const { clock, scanner, fixture } = build(TAP_HOLD);
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+
+    scanner.input.press("primary");
+    clock.advanceBy(700);
+    expect(events.ofType("input.holdRecognized")).toMatchObject([
+      { switchId: "primary", action: "select", at: 700 },
+    ]);
+    expect(fixture.activations).toEqual(["yes"]);
+
+    clock.advanceBy(300);
+    scanner.input.release("primary");
+    expect(events.ofType("input.released")).toMatchObject([{ heldMs: 1000 }]);
+    // The hold consumed the gesture: no tap fires on release.
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "yes",
+    });
+  });
+
+  it("reports stabilized discrete and scan acceptance as hold recognition", () => {
+    const { clock, scanner } = build({
+      style: inverseScan({ intervalMs: 100, loops: "infinite" }),
+      switches: {
+        go: { action: "scan", holdDurationMs: 120 },
+        step: { action: "next", holdDurationMs: 80 },
+      },
+    });
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+
+    scanner.input.press("step");
+    clock.advanceBy(80);
+    scanner.input.release("step");
+    scanner.input.press("go");
+    clock.advanceBy(120);
+    scanner.input.disconnect("go");
+
+    expect(
+      events.ofType("input.holdRecognized").map((event) => event.action),
+    ).toEqual(["next", "scan"]);
+  });
+
+  it("does not report a repeat-blocked hold as recognized", () => {
+    const { clock, scanner } = build({
+      style: stepScan(),
+      switches: {
+        primary: {
+          tap: "next",
+          hold: { afterMs: 700, action: "select" },
+          ignoreRepeatMs: 5000,
+        },
+      },
+    });
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+
+    scanner.input.press("primary");
+    clock.advanceBy(100);
+    scanner.input.release("primary"); // accepted tap consumes the repeat window
+    scanner.input.press("primary");
+    clock.advanceBy(700); // hold threshold crossed, blocked by ignoreRepeatMs
+    scanner.input.release("primary");
+
+    expect(events.ofType("input.holdRecognized")).toHaveLength(0);
+    expect(events.ofType("input.pressed")).toHaveLength(2);
+    expect(events.ofType("input.released")).toHaveLength(2);
+  });
+
+  it("emits nothing for unknown switches or while disabled", () => {
+    const { scanner } = build(TAP_HOLD);
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+
+    scanner.input.press("mystery");
+    scanner.input.release("mystery");
+    expect(events.ofType("input.pressed")).toHaveLength(0);
+    expect(events.ofType("diagnostic")).toMatchObject([
+      { code: "unknown-switch-binding" },
+    ]);
+
+    scanner.setOptions({ ...TAP_HOLD, enabled: false });
+    events.clear();
+    scanner.input.press("primary");
+    scanner.input.release("primary");
+    expect(events.events).toEqual([]);
+  });
+
+  it("orders input events ahead of the selection they complete", () => {
+    const { clock, scanner } = build({
+      style: stepScan(),
+      switches: {
+        step: { action: "next" },
+        sel: { action: "select", performOn: "release", holdDurationMs: 100 },
+      },
+    });
+    const events = recordScannerEvents(scanner);
+    scanner.start();
+    scanner.input.press("step");
+    scanner.input.release("step");
+    events.clear();
+
+    scanner.input.press("sel");
+    clock.advanceBy(150);
+    scanner.input.release("sel");
+
+    expect(events.events.map((event) => event.type)).toEqual([
+      "input.pressed",
+      "input.released",
+      "target.activationRequested",
+      "target.activated",
+      "highlight.changed",
+    ]);
   });
 });

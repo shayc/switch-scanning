@@ -1,6 +1,10 @@
 import type { Clock, Scheduler } from "./clock.ts";
 import type { ScanStyle } from "./styles.ts";
-import type { SwitchDefinition } from "./input/switches.ts";
+import type {
+  PressRecognition,
+  SwitchAction,
+  SwitchDefinition,
+} from "./input/switches.ts";
 
 /** A node in the scan tree: a group or a target. */
 export type ScanNode = ScanGroupNode | ScanTargetNode;
@@ -102,6 +106,25 @@ export type ScannerEventBody =
       id: string;
       label: string;
       reason: string;
+    }
+  | {
+      type: "input.pressed";
+      switchId: string;
+      sourceId: string;
+      recognition: PressRecognition;
+    }
+  | {
+      type: "input.released";
+      switchId: string;
+      sourceId: string;
+      heldMs: number;
+    }
+  | { type: "input.cancelled"; switchId: string; sourceId: string }
+  | {
+      type: "input.holdRecognized";
+      switchId: string;
+      sourceId: string;
+      action: SwitchAction;
     }
   | { type: "diagnostic"; code: ScannerDiagnosticCode; message: string };
 

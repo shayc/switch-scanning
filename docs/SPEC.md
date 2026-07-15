@@ -156,6 +156,9 @@ activation, and lifecycle transition MUST be observable (events/snapshots) so
 hosts can implement auditory prompts, progress indicators, zoom, and analytics
 without engine changes. Every event is stamped with the injected clock's time
 at emission (`at`), so reaction-time measurement needs no host clock access.
+Physical contact phases on declared switches are observable too
+(`input.pressed` / `input.holdRecognized` / `input.released` /
+`input.cancelled`), so hold-progress feedback needs no host gesture timing.
 
 **SS-11 (visible highlight).** Default highlight styling MUST remain visible
 in forced-colors / high-contrast modes; hosts MUST be able to restyle it
@@ -299,11 +302,17 @@ Pause semantics, exactly:
 A raw device signal becomes a scan effect in four stages:
 
 1. **Physical contact** — a raw `press`/`release` (or synthetic disconnect)
-   for one `(switch, source)` pair, before any stabilization.
+   for one `(switch, source)` pair, before any stabilization. Observable as
+   `input.pressed` (carrying a `recognition` descriptor of how the press will
+   be decided, so hosts can render hold/stabilization progress),
+   `input.released` (with `heldMs`), and `input.cancelled` (disconnect,
+   suspension, pause, or a definition change dropping the contact).
 2. **Recognized gesture** — a contact that passed stabilization
    (`holdDurationMs`, tap-vs-hold) and the repeat filter (`ignoreRepeatMs`).
    Recognition opens the repeat-suppression window **whether or not** the next
-   stage runs.
+   stage runs. Crossing a nonzero threshold while still held is observable as
+   `input.holdRecognized`, so progress feedback can latch at the moment the
+   gesture is decided; a repeat-blocked hold is not recognized and emits none.
 3. **Dispatched action** — the semantic action the gesture maps to. The
    scanner may still ignore it based on lifecycle state captured at press.
 4. **Applied transition** — the scanner mutates traversal/timing state and
@@ -444,7 +453,7 @@ relative to `src/`. The switch-hardware protocol in
 | SS-7  | Implemented                                 | `core/input/gestures.test.ts` (performOn press/release)                                                                                                                                                        |
 | SS-8  | Implemented                                 | `core/session.test.ts` (traversal, reconciliation, exhaustion); `core/session.integration.test.ts`                                                                                                             |
 | SS-9  | Implemented                                 | `core/session.integration.test.ts` (groups and exits)                                                                                                                                                          |
-| SS-10 | Implemented                                 | event/snapshot assertions across `core/scanner.*.test.ts`; `e2e/demo.spec.ts`                                                                                                                                  |
+| SS-10 | Implemented                                 | event/snapshot assertions across `core/scanner.*.test.ts`; `core/input/gestures.test.ts` (input-phase events); `e2e/demo.spec.ts`                                                                              |
 | SS-11 | Implemented                                 | `e2e/demo.spec.ts` (forced-colors visibility; dark-background contrast)                                                                                                                                        |
 | SS-12 | Implemented                                 | `core/scanner.invariants.test.ts` (declared-switch escape); `core/scanner.safety.test.ts` (back-only validation)                                                                                               |
 | SS-13 | Implemented (residual: [§9](#9-gaps) gap 6) | `core/scanner.safety.test.ts` (causal dwell; suspension policies); `core/scanner.invariants.test.ts` (selections ≤ arming commands)                                                                            |

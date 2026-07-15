@@ -96,6 +96,16 @@ reason `command`, `disabled`, or `after-activation`.
 `highlight.changed` is the single presentation stream. Discriminate on
 `current === null`; `label` is present only for a non-null landing.
 
+Physical contact on declared switches is observable through `input.pressed`,
+`input.released` (with `heldMs`), and `input.cancelled` (disconnect,
+suspension, pause, or a switch-definition change dropping the contact).
+`input.pressed` carries a `recognition` descriptor — `immediate`, `stabilize`
+(`holdDurationMs`), `hold` (decides on release), or `tapHold` (`holdAfterMs`)
+— so hosts can animate hold or stabilization progress without re-implementing
+gesture timing. `input.holdRecognized` fires when a still-held press crosses
+its nonzero threshold, marking the moment progress feedback should latch.
+Commands are not physical input and emit none of these.
+
 `group.entered` and `group.exited` report hierarchy movement. `group.exited`
 carries reason `selected-exit`, `back`, `loops-complete`, `empty`, or
 `reconcile`; `reconcile` means a live tree change removed or invalidated an

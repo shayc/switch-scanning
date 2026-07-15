@@ -30,6 +30,7 @@ export type {
   DiscreteAction,
   ScanAction,
   SwitchAction,
+  PressRecognition,
 } from "./input/switches.ts";
 
 export type {

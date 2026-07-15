@@ -44,6 +44,30 @@ export interface TapHoldSwitchDefinition {
 export type SwitchDefinition =
   DiscreteSwitchDefinition | ScanSwitchDefinition | TapHoldSwitchDefinition;
 
+/**
+ * How a just-started press will be decided, carried on `input.pressed` so
+ * hosts can animate hold or stabilization progress without re-implementing
+ * gesture timing.
+ */
+export type PressRecognition =
+  /** The press was accepted the moment contact began. */
+  | { readonly kind: "immediate" }
+  /** The press is accepted after remaining held for `holdDurationMs`. */
+  | { readonly kind: "stabilize"; readonly holdDurationMs: number }
+  /** The action fires on release, if held at least `holdDurationMs`. */
+  | {
+      readonly kind: "hold";
+      readonly holdDurationMs: number;
+      readonly action: DiscreteAction;
+    }
+  /** Release before `holdAfterMs` taps; holding past it fires `holdAction`. */
+  | {
+      readonly kind: "tapHold";
+      readonly holdAfterMs: number;
+      readonly tapAction: DiscreteAction;
+      readonly holdAction: DiscreteAction;
+    };
+
 export type NormalizedSwitch =
   | {
       readonly type: "discrete";
