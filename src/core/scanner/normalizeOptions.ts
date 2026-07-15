@@ -1,5 +1,10 @@
 import { normalizeSwitches, type NormalizedSwitch } from "../input/switches.ts";
-import { assertNonNegative, fail } from "../shared/validate.ts";
+import {
+  assertBoolean,
+  assertNonNegative,
+  assertOneOf,
+  fail,
+} from "../shared/validate.ts";
 import { assertScanStyle, type ScanStyle } from "../styles/styles.ts";
 import type {
   AfterActivation,
@@ -28,56 +33,32 @@ export function normalizeOptions(
 ): NormalizedOptions {
   assertScanStyle(raw.style);
   const switches = normalizeSwitches(raw.switches);
+
+  const startOn = raw.startOn ?? "switch";
+  assertOneOf(startOn, ["switch", "mount", "command"] as const, "startOn");
+
+  const afterActivation = raw.afterActivation ?? "restart";
+  assertOneOf(
+    afterActivation,
+    ["restart", "continue", "repeat", "stop"] as const,
+    "afterActivation",
+  );
+
   const groupExit = raw.groupExit ?? "after";
-  if (
-    groupExit !== "after" &&
-    groupExit !== "before" &&
-    groupExit !== "back-only"
-  ) {
-    fail(
-      `groupExit must be "after", "before", or "back-only" (received ${String(groupExit)})`,
-    );
-  }
+  assertOneOf(groupExit, ["after", "before", "back-only"] as const, "groupExit");
   if (groupExit === "back-only" && !hasBackAction(switches)) {
     fail(
       'groupExit "back-only" requires a declared switch mapped to "back"; add one or use groupExit "before"/"after"',
     );
   }
 
+  const enabled = raw.enabled ?? true;
+  assertBoolean(enabled, "enabled");
+
   const durationMs = raw.selectionDelay?.durationMs ?? 0;
   assertNonNegative(durationMs, "selectionDelay.durationMs");
   const resetOnInput = raw.selectionDelay?.resetOnInput ?? true;
-  if (typeof resetOnInput !== "boolean") {
-    throw new TypeError(
-      `[switch-scanning] selectionDelay.resetOnInput must be a boolean (received ${String(resetOnInput)})`,
-    );
-  }
-
-  const startOn = raw.startOn ?? "switch";
-  if (startOn !== "switch" && startOn !== "mount" && startOn !== "command") {
-    fail(
-      `startOn must be "switch", "mount", or "command" (received ${String(startOn)})`,
-    );
-  }
-
-  const afterActivation = raw.afterActivation ?? "restart";
-  if (
-    afterActivation !== "restart" &&
-    afterActivation !== "continue" &&
-    afterActivation !== "repeat" &&
-    afterActivation !== "stop"
-  ) {
-    fail(
-      `afterActivation must be "restart", "continue", "repeat", or "stop" (received ${String(afterActivation)})`,
-    );
-  }
-
-  const enabled = raw.enabled ?? true;
-  if (typeof enabled !== "boolean") {
-    throw new TypeError(
-      `[switch-scanning] enabled must be a boolean (received ${String(enabled)})`,
-    );
-  }
+  assertBoolean(resetOnInput, "selectionDelay.resetOnInput");
 
   return {
     style: raw.style,
