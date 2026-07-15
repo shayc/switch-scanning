@@ -50,12 +50,12 @@ therefore a first-class mode here, not a fallback.
 
 ## 2. Scan styles
 
-| This library           | Behavior                                                   | Elsewhere                                                    |
-| ---------------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
-| `autoScan`             | Timer advances; `select` switch picks                      | Apple "Auto Scanning"; TD Snap "1 Switch Autoscan"           |
-| `stepScan`             | `next` advances, `select` picks; nontimed                  | Apple "Manual Scanning"; TD Snap "2 Switch Step Scan"        |
+| This library           | Behavior                                                   | Elsewhere                                                          |
+| ---------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `autoScan`             | Timer advances; `select` switch picks                      | Apple "Auto Scanning"; TD Snap "1 Switch Autoscan"                 |
+| `stepScan`             | `next` advances, `select` picks; nontimed                  | Apple "Manual Scanning"; TD Snap "2 Switch Step Scan"              |
 | `singleSwitchStepScan` | Press advances; dwell (no input) for `dwellTimeMs` selects | Apple "Single Switch Step Scanning"; TD Snap "1 Switch Dwell Scan" |
-| `inverseScan`          | Hold advances; release selects                             | Proloquo2Go "Inverse Scanning"; Grid 3 "Hold to advance"     |
+| `inverseScan`          | Hold advances; release selects                             | Proloquo2Go "Inverse Scanning"; Grid 3 "Hold to advance"           |
 
 Variants documented elsewhere:
 
@@ -87,25 +87,25 @@ host-controlled.
 
 The same controls recur across every surveyed product under different names:
 
-| Parameter                     | Meaning                                                                     | Elsewhere (representative)                          | Here                                         |
-| ----------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------- |
-| Scan interval                 | Time the highlight rests on each item                                       | Apple "Auto Scanning Time"; TD Snap "Speed"         | `intervalMs`                                 |
-| First-item pause              | Extra dwell on the first item of each pass                                  | Apple "Pause on First Item"                         | `firstItemPauseMs`                           |
-| Loops / passes                | Auto-scan cycles before stopping                                            | TD Snap "Number of Passes"; Apple "Loops"           | `loops`                                      |
-| Minimum press duration        | Presses shorter than this are ignored (tremor filter)                       | Apple "Hold Duration"; Grid 3 "ignore presses shorter than" | `holdDurationMs`                     |
-| Per-switch repeat suppression | After an accepted gesture, further activations ignored for a fixed window   | Android "Ignore repeated presses (Debounce)"        | `ignoreRepeatMs`                             |
-| Selection delay               | Post-selection block on scanner actions; input may reset the quiet window   | TD Snap "Delay Between Selections"                  | `selectionDelay`                             |
-| Accept on press vs. release   | Which edge of the switch signal triggers the action                         | Android "Release to perform action"                 | `performOn`                                  |
-| Dwell to select               | Idle time after which the highlighted item auto-selects                     | TD Snap Dwell "Pause Time"                          | `dwellTimeMs`                                |
-| Dwell suspension policy       | What an armed dwell does if the environment is suspended before it fires    | (library-specific safety control)                   | `singleSwitchStepScan({ suspensionPolicy })` |
-| Step auto-repeat              | Held step switch repeats advancement after an explicit delay                | product-specific                                    | `stepScan({ repeat })`                       |
-| Switch → action mapping       | Assign inputs to next/previous/select/back; many inputs per action          | all platforms                                       | `switches` record + `useKeyboardSwitches`    |
-| Highlight style               | Outline/overlay/invert; color and thickness customizable                    | TD Snap "Highlighting"                              | `styles.css` + host CSS                      |
-| Auditory prompt               | Speak description or play sound on highlight                                | Grid 3; CoughDrop                                   | host, via scanner events                     |
-| Transition time               | Delay between a selection and automatic scanning resuming                   | TD Snap "Transition time"                           | `autoScan({ transitionTimeMs })`             |
-| Scan from last selection      | Resume where the last pick was made                                         | TD Snap                                             | gap — [§9](#9-gaps)                          |
-| Reverse speed / overscan      | Independent (slower) speed when scanning backwards                          | Grid 3 "overscan"                                   | gap — [§9](#9-gaps)                          |
-| Skip empty cells              | Don't scan cells with no action                                             | Grid 3                                              | host (register only actionable targets)      |
+| Parameter                     | Meaning                                                                   | Elsewhere (representative)                                  | Here                                         |
+| ----------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------- |
+| Scan interval                 | Time the highlight rests on each item                                     | Apple "Auto Scanning Time"; TD Snap "Speed"                 | `intervalMs`                                 |
+| First-item pause              | Extra dwell on the first item of each pass                                | Apple "Pause on First Item"                                 | `firstItemPauseMs`                           |
+| Loops / passes                | Auto-scan cycles before stopping                                          | TD Snap "Number of Passes"; Apple "Loops"                   | `loops`                                      |
+| Minimum press duration        | Presses shorter than this are ignored (tremor filter)                     | Apple "Hold Duration"; Grid 3 "ignore presses shorter than" | `holdDurationMs`                             |
+| Per-switch repeat suppression | After an accepted gesture, further activations ignored for a fixed window | Android "Ignore repeated presses (Debounce)"                | `ignoreRepeatMs`                             |
+| Selection delay               | Post-selection block on scanner actions; input may reset the quiet window | TD Snap "Delay Between Selections"                          | `selectionDelay`                             |
+| Accept on press vs. release   | Which edge of the switch signal triggers the action                       | Android "Release to perform action"                         | `performOn`                                  |
+| Dwell to select               | Idle time after which the highlighted item auto-selects                   | TD Snap Dwell "Pause Time"                                  | `dwellTimeMs`                                |
+| Dwell suspension policy       | What an armed dwell does if the environment is suspended before it fires  | (library-specific safety control)                           | `singleSwitchStepScan({ suspensionPolicy })` |
+| Step auto-repeat              | Held step switch repeats advancement after an explicit delay              | product-specific                                            | `stepScan({ repeat })`                       |
+| Switch → action mapping       | Assign inputs to next/previous/select/back; many inputs per action        | all platforms                                               | `switches` record + `useKeyboardSwitches`    |
+| Highlight style               | Outline/overlay/invert; color and thickness customizable                  | TD Snap "Highlighting"                                      | `styles.css` + host CSS                      |
+| Auditory prompt               | Speak description or play sound on highlight                              | Grid 3; CoughDrop                                           | host, via scanner events                     |
+| Transition time               | Delay between a selection and automatic scanning resuming                 | TD Snap "Transition time"                                   | `autoScan({ transitionTimeMs })`             |
+| Scan from last selection      | Resume where the last pick was made                                       | TD Snap                                                     | gap — [§9](#9-gaps)                          |
+| Reverse speed / overscan      | Independent (slower) speed when scanning backwards                        | Grid 3 "overscan"                                           | gap — [§9](#9-gaps)                          |
+| Skip empty cells              | Don't scan cells with no action                                           | Grid 3                                                      | host (register only actionable targets)      |
 
 ## 5. Behavioral requirements
 
@@ -179,15 +179,15 @@ keeps pure inaction from cascading into repeated activation._ A future
 auto-selecting style ([§9](#9-gaps), gap 3), where selection by inaction is
 designed behavior, is exempt.
 
-| Event                                                           | Token effect | Can dwell then select?    |
-| --------------------------------------------------------------- | ------------ | ------------------------- |
-| Accepted `next`/`previous` from a declared switch               | **mint**     | yes                       |
-| Public `next()` / `previous()` command                          | **mint**     | yes                       |
-| Switch gesture that starts scanning under `startOn: "switch"`   | **mint**     | yes                       |
-| Dwell selection fires                                           | **consume**  | no (until re-armed)       |
-| `suspend()` under `suspensionPolicy: "disarm"` (default)        | **consume**  | no (until re-armed)       |
-| `suspend()` under `suspensionPolicy: "continue"`                | no-op        | yes (pending dwell fires) |
-| Internal landings: start, resume, `back`, group entry, activation success/failure, reconciliation, option changes | no-op | only if already armed |
+| Event                                                                                                             | Token effect | Can dwell then select?    |
+| ----------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------- |
+| Accepted `next`/`previous` from a declared switch                                                                 | **mint**     | yes                       |
+| Public `next()` / `previous()` command                                                                            | **mint**     | yes                       |
+| Switch gesture that starts scanning under `startOn: "switch"`                                                     | **mint**     | yes                       |
+| Dwell selection fires                                                                                             | **consume**  | no (until re-armed)       |
+| `suspend()` under `suspensionPolicy: "disarm"` (default)                                                          | **consume**  | no (until re-armed)       |
+| `suspend()` under `suspensionPolicy: "continue"`                                                                  | no-op        | yes (pending dwell fires) |
+| Internal landings: start, resume, `back`, group entry, activation success/failure, reconciliation, option changes | no-op        | only if already armed     |
 
 The `scanner.invariants.test.ts` invariant "selections ≤ arming commands" is
 exactly the statement that consumes never exceed mints.
@@ -199,7 +199,99 @@ focus-follows-cursor is an explicit host opt-in. _Moving real focus every
 interval disrupts keyboard users, scrolling, screen readers, and OS-level
 switch access._
 
+**SS-15 (defined lifecycle).** The scanner MUST expose exactly five statuses —
+`idle`, `scanning`, `transitioning`, `paused`, `complete` — and MUST change
+status only along the transition table in [§6](#6-runtime-semantics)
+(_Lifecycle_). A command inapplicable in the current status MUST be ignored
+without any state change and MUST be observable as a `command-inapplicable`
+diagnostic (SS-10) — never a throw, never a partial application. `dispose()`
+is terminal: it tears down to `idle` and every later call is a no-op
+(`start()` after dispose diagnoses `use-after-dispose`).
+
+**SS-16 (single-shot deadlines).** All engine timing MUST derive from a
+monotonic clock — only differences are meaningful. Every deadline MUST be
+single-shot: after missed deadlines (background throttling, suspension) each
+pending timer fires at most once, and the next deadline is scheduled from the
+actual fire time — never a catch-up burst.
+
+**SS-17 (suspension safety).** `suspend()` MUST drop every held contact
+exactly as `disconnect()` does, and under the default
+`suspensionPolicy: "disarm"` MUST cancel a pending dwell — live or frozen by
+pause — retaining the highlight and consuming the arming token (SS-13).
+Bundled adapters MUST invoke `suspend()` on window blur and visibility loss.
+Suspension is an input-safety event, not a lifecycle command: it MUST NOT
+change `status` (SS-15). `suspensionPolicy: "continue"` is the explicit
+opt-out ([§6](#6-runtime-semantics), _Timing_).
+
+**SS-18 (lost-input protection).** Adapters MUST synthesize a disconnect for
+held sources on window blur, visibility loss, adapter disable, and unmount;
+disconnect cancels the gesture without acting as a release. A source
+disconnected while still physically held MUST stay quarantined until the
+adapter observes a real physical release: repeated `down` signals for that
+source are still claimed but MUST NOT open a fresh gesture
+([§6](#6-runtime-semantics), _Input edges_).
+
+**SS-19 (input ownership).** Keyboard adapters MUST NOT act on, or prevent
+the default of, unmapped keys. A mapped key that passes the adapter's scope
+MUST be claimed (default-prevented, propagation-stopped, capture phase) before
+gesture recognition, and a claimed key whose gesture is later filtered is
+still owned. A bare-key binding MUST NOT claim a modifier chord
+([§6](#6-runtime-semantics), _Input edges_).
+
 ## 6. Runtime semantics
+
+### Lifecycle (SS-15)
+
+`status` is one of exactly five values:
+
+| Status          | Meaning                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `idle`          | No session. Initial state; also after `stop()`, `enabled: false`, or `afterActivation: "stop"`.                               |
+| `scanning`      | Session live: highlight presented, style timing (advance/dwell/repeat) running.                                               |
+| `transitioning` | Post-selection quiet/fixed window: highlight hidden, scanner actions blocked ([§6](#6-runtime-semantics) _Timing_).           |
+| `paused`        | Session frozen by `pause()`/`togglePause`: highlight retained, all timing stopped.                                            |
+| `complete`      | Session ended by the tree — loop exhaustion or empty root. Distinct from `idle` so hosts can apply after-final-pass behavior. |
+
+Transitions — a trigger not listed for the current status leaves it unchanged
+(and, for commands, emits the `command-inapplicable` diagnostic):
+
+| From                                    | Trigger                                                                                     | To                                                                       | Emits                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `idle` / `complete`                     | `start()` · `restart()` · mount start · accepted gesture under `startOn: "switch"`          | `scanning`                                                               | `scan.started`                                                                          |
+| `idle` / `complete`                     | any start trigger against an **empty root** (mount start instead defers silently in `idle`) | `complete`                                                               | `scan.completed` (`empty`)                                                              |
+| `scanning`                              | accepted `select` resolving a candidate, when the configured transition window > 0          | `transitioning`                                                          | `scan.transitionStarted`                                                                |
+| `transitioning`                         | transition window elapses                                                                   | `scanning`                                                               | `scan.transitionEnded`                                                                  |
+| `scanning` / `transitioning`            | `pause()` · `togglePause` gesture                                                           | `paused`                                                                 | `scan.paused`                                                                           |
+| `paused`                                | `resume()` · `togglePause` gesture                                                          | `transitioning` if a selection transition was in flight, else `scanning` | `scan.resumed` (then `scan.transitionEnded` immediately if the deadline already passed) |
+| `scanning`                              | forward wrap past the root loop limit                                                       | `complete`                                                               | `scan.completed` (`loops`)                                                              |
+| `scanning` / `transitioning` / `paused` | reconciliation empties the root                                                             | `complete`                                                               | `scan.completed` (`empty`)                                                              |
+| any except `idle`                       | `stop()` (also the stop half of `restart()`)                                                | `idle`                                                                   | `scan.stopped` (`command`)                                                              |
+| `scanning` / `transitioning` / `paused` | `setOptions({ enabled: false })`                                                            | `idle`                                                                   | `scan.stopped` (`disabled`)                                                             |
+| `scanning`                              | successful activation under `afterActivation: "stop"`                                       | `idle`                                                                   | `scan.stopped` (`after-activation`)                                                     |
+
+Command applicability: `start()` requires `idle` or `complete`; `pause()`
+requires `scanning` or `transitioning`; `resume()` requires `paused`;
+`next()` / `previous()` / `select()` / `back()` require `scanning`;
+`restart()`, `setTree()`, and `setOptions()` are valid in every status;
+`stop()` is valid in every status except `idle`, where it is a silent no-op.
+
+Pause semantics, exactly:
+
+- Pausing while `scanning` freezes a pending **dwell** with its remaining
+  time; `resume()` restores exactly that remainder. The frozen dwell survives
+  pause but not reconciliation or suspension, which invalidate it like a live
+  one (SS-13, SS-17). A pending **advance** deadline is simply cancelled;
+  resume re-lands and schedules a fresh full interval.
+- Pausing while `transitioning` keeps the transition's **absolute** deadlines
+  — wall-clock time keeps counting — so a `resume()` past the deadline ends
+  the transition immediately; otherwise the remainder is rescheduled.
+- Pause forgets held contacts (resume requires a fresh gesture) but retains
+  each switch's open `ignoreRepeatMs` window across the edge.
+- Changing the style **kind** via `setOptions` while `transitioning` ends the
+  transition immediately (`scan.transitionEnded`, back to `scanning`); while
+  `paused` the scanner stays paused.
+- `suspend()` never changes `status` — suspension is an input-and-dwell
+  safety event (SS-17), not a lifecycle command.
 
 ### Input pipeline
 
@@ -225,8 +317,8 @@ recognition.
 - Elapsed time comes from a monotonic clock; only differences are meaningful.
   Deadlines are single-shot: after missed deadlines (background throttling,
   suspension), each pending timer fires at most once and the next deadline is
-  scheduled from the actual fire time — never a catch-up burst.
-- **Dwell suspension.** An armed dwell MUST NOT survive environment
+  scheduled from the actual fire time — never a catch-up burst (SS-16).
+- **Dwell suspension (SS-17).** An armed dwell does not survive environment
   suspension under the default policy. `suspend()` — raised by hosts, and by
   the bundled adapters on window blur and visibility loss — cancels the
   pending dwell, retains the highlight, consumes the arming token (SS-13), and
@@ -281,25 +373,25 @@ recognition.
   repeat suppression; the semantic decision is made at action-fire time from
   lifecycle state captured at press, and a suppressed gesture stays suppressed
   through its release.
-- Adapters MUST synthesize a disconnect for held sources on window blur,
-  visibility loss, adapter disable, and unmount — a lost key-up must never
-  leave a logical switch held (an undetected stuck switch would advance
-  inverse scanning indefinitely). Disconnect cancels the gesture without
-  acting as a release. Blur and visibility loss additionally invoke
-  `suspend()`.
-- **Post-disconnect quarantine.** A source disconnected while still
+- **Lost-input protection (SS-18).** Adapters synthesize a disconnect for
+  held sources on window blur, visibility loss, adapter disable, and unmount —
+  a lost key-up must never leave a logical switch held (an undetected stuck
+  switch would advance inverse scanning indefinitely). Disconnect cancels the
+  gesture without acting as a release. Blur and visibility loss additionally
+  invoke `suspend()` (SS-17).
+- **Post-disconnect quarantine (SS-18).** A source disconnected while still
   physically held stays quarantined until the adapter observes a real physical
   release. Repeated `down` signals for that source (OS key-repeat, re-fired
-  press on refocus) are still **claimed** but MUST NOT open a fresh gesture —
+  press on refocus) are still **claimed** but never open a fresh gesture —
   lost-release protection must not degrade into false re-press. _(Quarantine
   lives in the adapter, which alone sees physical edges.)_
-- Keyboard adapters MUST NOT act on, or prevent the default of, unmapped keys.
-  A mapped key is **claimed** (prevented, propagation-stopped, capture phase)
-  the moment it maps to a declared switch and passes scope; recognition is
-  decided later, so a claimed key whose gesture is filtered is still owned. A
-  bare-key binding does **not** claim a modifier chord — mapping `Space`
-  cannot swallow `Cmd+Space`; hosts widen/narrow ownership via
-  `target`/`shouldHandle`.
+- **Input ownership (SS-19).** Keyboard adapters never act on, or prevent the
+  default of, unmapped keys. A mapped key is **claimed** (prevented,
+  propagation-stopped, capture phase) the moment it maps to a declared switch
+  and passes scope; recognition is decided later, so a claimed key whose
+  gesture is filtered is still owned. A bare-key binding does **not** claim a
+  modifier chord — mapping `Space` cannot swallow `Cmd+Space`; hosts
+  widen/narrow ownership via `target`/`shouldHandle`.
 
 ### Selection and activation ordering
 
@@ -339,22 +431,27 @@ Automated evidence per requirement (`npm test`, `npm run test:e2e`); paths
 relative to `src/`. The switch-hardware protocol in
 [EVALUATION.md](EVALUATION.md) is a separate release gate.
 
-| Req   | Status      | Evidence                                                                                                       |
-| ----- | ----------- | --------------------------------------------------------------------------------------------------------------- |
-| SS-1  | Implemented | `core/scanner.styles.test.ts` (no advancement deadline in step); `core/input/gestures.test.ts` (move repeat)   |
-| SS-2  | Implemented | `core/input/gestures.test.ts` (press stabilization)                                                              |
-| SS-3  | Implemented | `core/input/gestures.test.ts` (ignore repeat); `core/scanner.safety.test.ts` (transition coordinator)            |
-| SS-4  | Implemented | `core/scanner.styles.test.ts`; `core/styles.test.ts` (timed-style identification)                                |
-| SS-5  | Implemented | `core/scanner.edges.test.ts` (unclamped timing validation)                                                       |
-| SS-6  | Implemented | `core/scanner.styles.test.ts` (completes after configured root passes)                                           |
-| SS-7  | Implemented | `core/input/gestures.test.ts` (performOn press/release)                                                          |
-| SS-8  | Implemented | `core/session.test.ts` (traversal, reconciliation, exhaustion); `core/session.integration.test.ts`               |
-| SS-9  | Implemented | `core/session.integration.test.ts` (groups and exits)                                                            |
-| SS-10 | Implemented | event/snapshot assertions across `core/scanner.*.test.ts`; `e2e/demo.spec.ts`                                    |
-| SS-11 | Implemented | `e2e/demo.spec.ts` (forced-colors visibility; dark-background contrast)                                          |
-| SS-12 | Implemented | `core/scanner.invariants.test.ts` (declared-switch escape); `core/scanner.safety.test.ts` (back-only validation) |
-| SS-13 | Implemented (residual: [§9](#9-gaps) gap 6) | `core/scanner.safety.test.ts` (causal dwell; suspension policies); `core/scanner.invariants.test.ts` (selections ≤ arming commands) |
-| SS-14 | Implemented | `react/domHost.test.ts` (attribute-only presentation)                                                            |
+| Req   | Status                                      | Evidence                                                                                                                                                                                                       |
+| ----- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SS-1  | Implemented                                 | `core/scanner.styles.test.ts` (no advancement deadline in step); `core/input/gestures.test.ts` (move repeat)                                                                                                   |
+| SS-2  | Implemented                                 | `core/input/gestures.test.ts` (press stabilization)                                                                                                                                                            |
+| SS-3  | Implemented                                 | `core/input/gestures.test.ts` (ignore repeat); `core/scanner.safety.test.ts` (transition coordinator)                                                                                                          |
+| SS-4  | Implemented                                 | `core/scanner.styles.test.ts`; `core/styles.test.ts` (timed-style identification)                                                                                                                              |
+| SS-5  | Implemented                                 | `core/scanner.edges.test.ts` (unclamped timing validation)                                                                                                                                                     |
+| SS-6  | Implemented                                 | `core/scanner.styles.test.ts` (completes after configured root passes)                                                                                                                                         |
+| SS-7  | Implemented                                 | `core/input/gestures.test.ts` (performOn press/release)                                                                                                                                                        |
+| SS-8  | Implemented                                 | `core/session.test.ts` (traversal, reconciliation, exhaustion); `core/session.integration.test.ts`                                                                                                             |
+| SS-9  | Implemented                                 | `core/session.integration.test.ts` (groups and exits)                                                                                                                                                          |
+| SS-10 | Implemented                                 | event/snapshot assertions across `core/scanner.*.test.ts`; `e2e/demo.spec.ts`                                                                                                                                  |
+| SS-11 | Implemented                                 | `e2e/demo.spec.ts` (forced-colors visibility; dark-background contrast)                                                                                                                                        |
+| SS-12 | Implemented                                 | `core/scanner.invariants.test.ts` (declared-switch escape); `core/scanner.safety.test.ts` (back-only validation)                                                                                               |
+| SS-13 | Implemented (residual: [§9](#9-gaps) gap 6) | `core/scanner.safety.test.ts` (causal dwell; suspension policies); `core/scanner.invariants.test.ts` (selections ≤ arming commands)                                                                            |
+| SS-14 | Implemented                                 | `react/domHost.test.ts` (attribute-only presentation)                                                                                                                                                          |
+| SS-15 | Implemented                                 | `core/scanner.test.ts` (start rules; serialized transitions); `core/scanner.edges.test.ts` (inapplicable-command diagnostics)                                                                                  |
+| SS-16 | Implemented (residual: [§9](#9-gaps) gap 6) | `core/clock.test.ts` (monotonic clock; single-shot scheduling)                                                                                                                                                 |
+| SS-17 | Implemented                                 | `core/scanner.safety.test.ts` (suspension disarms live and paused dwell, retains highlight); `react/hooks/useKeyboardSwitches.test.tsx`, `react/hooks/usePointerSwitch.test.tsx` (blur/hidden suspension path) |
+| SS-18 | Implemented                                 | `react/hooks/useKeyboardSwitches.test.tsx` (blur/hidden disconnect; post-disconnect key-repeat quarantine); `react/hooks/usePointerSwitch.test.tsx` (lost capture; hidden document)                            |
+| SS-19 | Implemented                                 | `react/hooks/useKeyboardSwitches.test.tsx` (capture-phase ownership; unmapped and rejected keys pass through; scoped targets)                                                                                  |
 
 ## 8. Standards & host integration
 
@@ -422,7 +519,7 @@ The framework-agnostic core is the package root; React bindings live at
 
 ### Styles — `createScanner({ style })`
 
-| Constructor                                                             | Realizes                                                             |
+| Constructor                                                             | Realizes                                                              |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `autoScan({ intervalMs, loops, firstItemPauseMs?, transitionTimeMs? })` | timed advance ([§2](#2-scan-styles)); SS-6; selection transition (§6) |
 | `stepScan({ repeat? })`                                                 | nontimed two-switch step (SS-1/SS-4); optional held-step auto-repeat  |
@@ -434,7 +531,7 @@ The framework-agnostic core is the package root; React bindings live at
 
 `start()` · `pause()` · `resume()` · `stop()` · `restart()` · `next()` ·
 `previous()` · `select()` · `back()`. All serialized and idempotent against
-the lifecycle. `next()`/`previous()` are trusted dwell-arming navigations
+the lifecycle (SS-15). `next()`/`previous()` are trusted dwell-arming navigations
 (SS-13); `back()` widens scope (SS-9) and is the escape for `back-only`
 groups (SS-12). Event ordering for `select()` is fixed (§6).
 
