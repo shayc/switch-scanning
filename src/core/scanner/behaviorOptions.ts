@@ -1,4 +1,4 @@
-import type { ScannerBehaviorOptions, ScannerOptions } from "./types.ts";
+import type { ScannerBehaviorOptions, ScannerOptions } from "../types.ts";
 
 /** @internal Remove creation-only timing infrastructure before an update. */
 export function toScannerBehaviorOptions(

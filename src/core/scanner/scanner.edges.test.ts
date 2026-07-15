@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { manualClock } from "./clock.ts";
+import { manualClock } from "../shared/clock.ts";
 import { createScanner } from "./scanner.ts";
 import {
   autoScan,
   inverseScan,
   singleSwitchStepScan,
   stepScan,
-} from "./styles.ts";
-import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
-import type { ScannerBehaviorOptions, ScannerOptions } from "./types.ts";
+} from "../styles/styles.ts";
+import { createScannerFixture, recordScannerEvents } from "../testing/index.ts";
+import type { ScannerBehaviorOptions, ScannerOptions } from "../types.ts";
 
 const TARGET = { kind: "target" as const, id: "x", label: "X" };
 

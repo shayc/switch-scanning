@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createScanner } from "../scanner.ts";
-import { autoScan, stepScan } from "../styles.ts";
+import { createScanner } from "../scanner/scanner.ts";
+import { autoScan, stepScan } from "../styles/styles.ts";
 import { createScannerFixture, createTestScanner } from "./index.ts";
 
 const TARGETS = [

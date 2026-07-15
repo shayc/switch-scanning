@@ -1,11 +1,11 @@
-export { createScanner } from "./scanner.ts";
+export { createScanner } from "./scanner/scanner.ts";
 export {
   autoScan,
   stepScan,
   singleSwitchStepScan,
   inverseScan,
   isTimedStyle,
-} from "./styles.ts";
+} from "./styles/styles.ts";
 
 export type {
   AutoScanStyle,
@@ -20,7 +20,7 @@ export type {
   InverseScanOptions,
   ScanStyle,
   LoopLimit,
-} from "./styles.ts";
+} from "./styles/styles.ts";
 
 export type {
   SwitchDefinition,
@@ -38,8 +38,8 @@ export type {
   Scheduler,
   CancelScheduled,
   ManualClock,
-} from "./clock.ts";
-export { systemClock, manualClock } from "./clock.ts";
+} from "./shared/clock.ts";
+export { systemClock, manualClock } from "./shared/clock.ts";
 
 export type {
   ScanNode,

@@ -6,7 +6,7 @@ import type {
   ScannerStatus,
   ScanGroupNode,
   ScanNode,
-} from "./types.ts";
+} from "../types.ts";
 
 /** A single position the highlight can occupy inside one scan scope. */
 export type Candidate =

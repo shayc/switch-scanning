@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { manualClock } from "./clock.ts";
+import { manualClock } from "../shared/clock.ts";
 import { createScanner } from "./scanner.ts";
-import { singleSwitchStepScan, stepScan } from "./styles.ts";
-import { createScannerFixture } from "./testing/index.ts";
-import type { GroupExit } from "./types.ts";
+import { singleSwitchStepScan, stepScan } from "../styles/styles.ts";
+import { createScannerFixture } from "../testing/index.ts";
+import type { GroupExit } from "../types.ts";
 
 const DWELL_NODES = [
   { kind: "target" as const, id: "a", label: "A" },

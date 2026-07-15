@@ -10,7 +10,7 @@ import {
   fail,
   readNumber,
   readOptionalNumber,
-} from "../validate.ts";
+} from "../shared/validate.ts";
 
 const DISCRETE_ACTIONS = [
   "select",

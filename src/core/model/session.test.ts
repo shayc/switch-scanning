@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ScanSession, highlightEquals, snapshotEquals } from "./session.ts";
 import { compileTree } from "./tree.ts";
-import type { ScanGroupNode } from "./types.ts";
+import type { ScanGroupNode } from "../types.ts";
 
 const ROOT: ScanGroupNode = {
   kind: "group",

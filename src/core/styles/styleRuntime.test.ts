@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { manualClock } from "./clock.ts";
+import { manualClock } from "../shared/clock.ts";
 import { autoScan, inverseScan, stepScan } from "./styles.ts";
 import { createStyleRuntime } from "./styleRuntime.ts";
 

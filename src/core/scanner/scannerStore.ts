@@ -1,11 +1,11 @@
-import type { Clock } from "./clock.ts";
-import { snapshotEquals } from "./session.ts";
+import type { Clock } from "../shared/clock.ts";
+import { snapshotEquals } from "../model/session.ts";
 import type {
   ScannerEvent,
   ScannerEventBody,
   ScannerSnapshot,
   Unsubscribe,
-} from "./types.ts";
+} from "../types.ts";
 
 export interface ScannerStore {
   runTransition: (work: () => void) => void;

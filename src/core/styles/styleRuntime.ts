@@ -1,6 +1,6 @@
-import type { CancelScheduled, Clock, Scheduler } from "./clock.ts";
+import type { CancelScheduled, Clock, Scheduler } from "../shared/clock.ts";
 import type { ScanStyle, StepScanRepeat } from "./styles.ts";
-import type { PendingTiming } from "./types.ts";
+import type { PendingTiming } from "../types.ts";
 
 export interface LandingPolicy {
   readonly firstOfPass: boolean;

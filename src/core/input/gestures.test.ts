@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { manualClock } from "../clock.ts";
-import { createScanner } from "../scanner.ts";
-import { autoScan, inverseScan, stepScan } from "../styles.ts";
+import { manualClock } from "../shared/clock.ts";
+import { createScanner } from "../scanner/scanner.ts";
+import { autoScan, inverseScan, stepScan } from "../styles/styles.ts";
 import { createScannerFixture, recordScannerEvents } from "../testing/index.ts";
 import type { ScannerOptions, ScanNode } from "../types.ts";
 

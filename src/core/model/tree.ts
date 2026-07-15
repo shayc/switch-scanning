@@ -1,4 +1,4 @@
-import type { ScanGroupNode, ScanNode } from "./types.ts";
+import type { ScanGroupNode, ScanNode } from "../types.ts";
 
 export interface CompiledTree {
   readonly root: ScanGroupNode;

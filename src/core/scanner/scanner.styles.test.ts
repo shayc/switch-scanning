@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { manualClock } from "./clock.ts";
+import { manualClock } from "../shared/clock.ts";
 import { createScanner } from "./scanner.ts";
 import {
   autoScan,
   inverseScan,
   singleSwitchStepScan,
   stepScan,
-} from "./styles.ts";
-import { createScannerFixture, recordScannerEvents } from "./testing/index.ts";
-import type { ScanNode, ScannerOptions } from "./types.ts";
+} from "../styles/styles.ts";
+import { createScannerFixture, recordScannerEvents } from "../testing/index.ts";
+import type { ScanNode, ScannerOptions } from "../types.ts";
 
 const YES_NO: ScanNode[] = [
   { kind: "target", id: "yes", label: "Yes" },

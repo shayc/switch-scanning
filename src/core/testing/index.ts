@@ -1,5 +1,5 @@
-import { manualClock, type ManualClock } from "../clock.ts";
-import { createScanner } from "../scanner.ts";
+import { manualClock, type ManualClock } from "../shared/clock.ts";
+import { createScanner } from "../scanner/scanner.ts";
 import type {
   ActivationResult,
   Scanner,
@@ -10,8 +10,8 @@ import type {
   Unsubscribe,
 } from "../types.ts";
 
-export { manualClock } from "../clock.ts";
-export type { ManualClock } from "../clock.ts";
+export { manualClock } from "../shared/clock.ts";
+export type { ManualClock } from "../shared/clock.ts";
 
 const FIXTURE_ROOT_ID = "__fixture_root__";
 

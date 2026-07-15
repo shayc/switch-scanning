@@ -7,7 +7,7 @@ import {
 import {
   scannerBehaviorSignature,
   toScannerBehaviorOptions,
-} from "../../core/behaviorOptions.ts";
+} from "../../core/scanner/behaviorOptions.ts";
 import { useCommittedRef } from "./refs.ts";
 
 /**

@@ -1,10 +1,10 @@
 import type { Detach, Scanner, ScannerDiagnosticCode } from "../core/index.ts";
-import { reportScannerDiagnostic } from "../core/scanner.ts";
+import { reportScannerDiagnostic } from "../core/scanner/scanner.ts";
 import { isDevelopment } from "./env.ts";
 import {
   createDiagnosticWarner,
   formatDiagnostic,
-} from "../core/diagnostics.ts";
+} from "../core/shared/diagnostics.ts";
 import {
   compileRegistryTree,
   isElementDisabled,

@@ -1,5 +1,5 @@
-import type { Clock, Scheduler } from "./clock.ts";
-import type { ScanStyle } from "./styles.ts";
+import type { Clock, Scheduler } from "./shared/clock.ts";
+import type { ScanStyle } from "./styles/styles.ts";
 import type {
   PressRecognition,
   SwitchAction,

@@ -9,7 +9,7 @@ import {
   assertPositive,
   fail,
   readNumber,
-} from "./validate.ts";
+} from "../shared/validate.ts";
 
 /** How many passes a timed scope makes before completing. */
 export type LoopLimit = number | "infinite";

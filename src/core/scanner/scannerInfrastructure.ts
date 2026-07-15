@@ -1,6 +1,6 @@
-import type { Clock, Scheduler } from "./clock.ts";
-import { systemClock } from "./clock.ts";
-import type { ScannerOptions } from "./types.ts";
+import type { Clock, Scheduler } from "../shared/clock.ts";
+import { systemClock } from "../shared/clock.ts";
+import type { ScannerOptions } from "../types.ts";
 
 let sharedInfrastructure: (Clock & Scheduler) | null = null;
 

@@ -1,12 +1,12 @@
-import { assertScanStyle, type ScanStyle } from "./styles.ts";
-import { normalizeSwitches, type NormalizedSwitch } from "./input/switches.ts";
-import { assertNonNegative, fail } from "./validate.ts";
+import { assertScanStyle, type ScanStyle } from "../styles/styles.ts";
+import { normalizeSwitches, type NormalizedSwitch } from "../input/switches.ts";
+import { assertNonNegative, fail } from "../shared/validate.ts";
 import type {
   AfterActivation,
   GroupExit,
   ScannerBehaviorOptions,
   StartOn,
-} from "./types.ts";
+} from "../types.ts";
 
 export interface NormalizedSelectionDelay {
   durationMs: number;

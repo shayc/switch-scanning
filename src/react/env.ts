@@ -1,1 +1,1 @@
-export { isDevelopment } from "../core/env.ts";
+export { isDevelopment } from "../core/shared/env.ts";
