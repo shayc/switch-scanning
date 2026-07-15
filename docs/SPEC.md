@@ -67,8 +67,10 @@ Variants documented elsewhere and their status here:
   [§11](#11-gap-analysis).
 - **Hold-to-select on one switch** (TD Snap "1 Switch Scan": press advances,
   _hold_ selects) — expressible today via a `tapHold` switch definition
-  (`tap: "next"`, `hold: { action: "select" }`). TD Snap documents exactly
-  this "two hit types on the same switch" pattern.
+  (`tap: "next"`, `hold: { afterMs: 800, action: "select" }`; `hold.afterMs`
+  is required and sets the TD Snap "Pause Time" threshold at which the hold
+  registers). TD Snap documents exactly this "two hit types on the same
+  switch" pattern.
 - **Switch elimination** (Grid 3): the grid splits into 2 or 4 groups with one
   switch per group; the chosen group re-splits until a single cell remains
   (two-way top/bottom, two-way left/right, or four-way). A distinct
@@ -167,9 +169,10 @@ Passes".)_ (Current: `loops`. ✅)
 release. _(Grid 3.)_ (Current: `performOn`. ✅)
 
 **SS-8 (deterministic traversal).** Scan order MUST be deterministic and
-fully determined by the host-registered tree after pruning nodes explicitly
-declared ineligible and inserting the configured virtual exit candidate. The
-engine MUST NOT otherwise reorder, skip, or invent application targets.
+fully determined by the host-registered tree after pruning ineligible nodes —
+those explicitly declared ineligible, plus any group whose descendants are all
+ineligible — and inserting the configured virtual exit candidate. The engine
+MUST NOT otherwise reorder, skip, or invent application targets.
 
 **SS-9 (hierarchy).** Selecting a group MUST narrow scanning into that group;
 a group exit or `back` action MUST widen scope again. _(Apple Item mode,
@@ -192,10 +195,16 @@ leave with their configured switches alone — every scope has an exit, loop
 completion stops cleanly, and stopping is host-recoverable.
 
 **SS-13 (causal activation).** A timer-driven selection MUST be armed by
-exactly one accepted switch navigation or explicit public navigation command.
-The selection consumes that arming token. Starts, resumes, group entry,
+exactly one user-caused navigation: an accepted `next`/`previous` from a
+declared switch, the public `next()`/`previous()` commands, or a switch
+gesture that starts scanning under `startOn: "switch"`. The selection consumes
+that arming token. Command/mount starts, resumes, `back`, group entry,
 activation success/failure, tree reconciliation, option changes, and other
-internal landings MUST NOT create a replacement token.
+internal landings MUST NOT create a replacement token. _Rationale: dwell
+selection follows a user action in every surveyed single-switch mode — TD Snap
+1 Switch Dwell Scan ("trigger the switch to advance… pause to select") and
+Apple Single Switch Step Scanning both measure dwell only after a press — so
+the initiating press arms, but pure inaction (an internal landing) never does._
 
 ## 6. Standards conformance
 
@@ -340,3 +349,14 @@ Speed–accuracy optimization of switch keyboards — <https://link.springer.com
 _Auditory two-voice practice (§7) draws on clinical AAC sources (AbleNet,
 practitioner literature) that were fetched but fell outside the adversarially
 verified claim set — well-established practice, flagged for transparency._
+
+_SS-13's arming model (§5) was verified against the TD Snap User's Manual
+(1 Switch Dwell Scan: "trigger the switch to advance the highlight… pause (do
+nothing) for the specified Pause Time") and the AbleNet iOS Switch Control
+guide / Apple Single Switch Step Scanning ("requires a switch to move focus…
+if no action is taken, the item with focus is automatically activated"): in
+every surveyed single-switch mode dwell is measured after a user press, so the
+initiating gesture arms and pure inaction never does. No vendor documents the
+post-selection idle case explicitly; the arming model follows from that
+press-then-dwell framing plus the AAC safety constraint that inaction must not
+produce repeated output._
