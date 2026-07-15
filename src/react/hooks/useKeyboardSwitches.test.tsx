@@ -120,6 +120,56 @@ describe("keyboard switches", () => {
     expect(activated).toEqual(["x"]);
   });
 
+  it("keeps a held key claimed after its binding is removed", () => {
+    const scanner = createScanner({
+      style: stepScan(),
+      startOn: "switch",
+      switches: { next: { action: "next" } },
+    });
+
+    function KeyApp({ mapped }: { mapped: boolean }) {
+      useKeyboardSwitches(scanner, mapped ? { Space: "next" } : {});
+      return null;
+    }
+
+    const view = render(<KeyApp mapped />);
+    const down = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      document.dispatchEvent(down);
+    });
+    expect(down.defaultPrevented).toBe(true);
+
+    view.rerender(<KeyApp mapped={false} />);
+    const repeated = new KeyboardEvent("keydown", {
+      code: "Space",
+      repeat: true,
+      cancelable: true,
+    });
+    const up = new KeyboardEvent("keyup", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      document.dispatchEvent(repeated);
+      document.dispatchEvent(up);
+    });
+
+    expect(repeated.defaultPrevented).toBe(true);
+    expect(up.defaultPrevented).toBe(true);
+
+    const afterRelease = new KeyboardEvent("keydown", {
+      code: "Space",
+      cancelable: true,
+    });
+    act(() => {
+      document.dispatchEvent(afterRelease);
+    });
+    expect(afterRelease.defaultPrevented).toBe(false);
+  });
+
   it("passes rejected mapped keys through without opening a gesture", () => {
     const scanner = createScanner({
       style: stepScan(),

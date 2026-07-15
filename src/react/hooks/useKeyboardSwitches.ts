@@ -65,15 +65,16 @@ export function useKeyboardSwitches(
     const sourceId = (code: string): string => `key:${code}`;
 
     const onKeyDown = (event: KeyboardEvent): void => {
-      const switchId = bindingsRef.current[event.code];
-      if (switchId === undefined) return;
       const existing = held.get(event.code);
       if (existing) {
         // A still-held key (including auto-repeat after a synthetic disconnect)
-        // stays claimed but never re-opens a fresh press.
+        // stays claimed but never re-opens a fresh press. Resolve new bindings
+        // only after this check: a binding may disappear before physical keyup.
         if (existing.claimed) own(event);
         return;
       }
+      const switchId = bindingsRef.current[event.code];
+      if (switchId === undefined) return;
       if (!enabledRef.current || event.repeat) return;
 
       if (!claims(event)) {
