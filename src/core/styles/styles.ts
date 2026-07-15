@@ -112,64 +112,57 @@ function assertLoops(loops: LoopLimit): void {
 
 /** Create an auto-scan style: the highlight advances automatically on a timer. */
 export function autoScan(options: AutoScanOptions): AutoScanStyle {
-  assertPositive(options.intervalMs, "intervalMs");
-  assertLoops(options.loops);
-  const firstItemPauseMs = options.firstItemPauseMs ?? 0;
-  const transitionTimeMs = options.transitionTimeMs ?? 0;
-  assertNonNegative(firstItemPauseMs, "firstItemPauseMs");
-  assertNonNegative(transitionTimeMs, "transitionTimeMs");
-  return Object.freeze({
+  const style: AutoScanStyle = {
     kind: "auto",
     intervalMs: options.intervalMs,
     loops: options.loops,
-    firstItemPauseMs,
-    transitionTimeMs,
-  });
+    firstItemPauseMs: options.firstItemPauseMs ?? 0,
+    transitionTimeMs: options.transitionTimeMs ?? 0,
+  };
+  assertScanStyle(style);
+  return Object.freeze(style);
 }
 
 /** Create a step-scan style: each switch action advances one step. */
 export function stepScan(options: StepScanOptions = {}): StepScanStyle {
   const repeat = options.repeat ?? false;
-  if (repeat !== false) {
-    assertNonNegative(repeat.delayMs, "repeat.delayMs");
-    assertPositive(repeat.intervalMs, "repeat.intervalMs");
-    return Object.freeze({
-      kind: "step",
-      repeat: Object.freeze({
-        delayMs: repeat.delayMs,
-        intervalMs: repeat.intervalMs,
-      }),
-    });
-  }
-  return Object.freeze({ kind: "step", repeat: false as const });
+  const style: StepScanStyle = {
+    kind: "step",
+    repeat:
+      repeat === false
+        ? false
+        : Object.freeze({
+            delayMs: repeat.delayMs,
+            intervalMs: repeat.intervalMs,
+          }),
+  };
+  assertScanStyle(style);
+  return Object.freeze(style);
 }
 
 /** Create a single-switch step-scan style: press advances; dwelling on an item selects it. */
 export function singleSwitchStepScan(
   options: SingleSwitchStepScanOptions,
 ): SingleSwitchStepScanStyle {
-  assertPositive(options.dwellTimeMs, "dwellTimeMs");
-  const suspensionPolicy = options.suspensionPolicy ?? "disarm";
-  assertSuspensionPolicy(suspensionPolicy);
-  return Object.freeze({
+  const style: SingleSwitchStepScanStyle = {
     kind: "singleStep",
     dwellTimeMs: options.dwellTimeMs,
-    suspensionPolicy,
-  });
+    suspensionPolicy: options.suspensionPolicy ?? "disarm",
+  };
+  assertScanStyle(style);
+  return Object.freeze(style);
 }
 
 /** Create an inverse-scan style: the highlight advances while a switch is held and selects on release. */
 export function inverseScan(options: InverseScanOptions): InverseScanStyle {
-  assertPositive(options.intervalMs, "intervalMs");
-  assertLoops(options.loops);
-  const firstItemPauseMs = options.firstItemPauseMs ?? 0;
-  assertNonNegative(firstItemPauseMs, "firstItemPauseMs");
-  return Object.freeze({
+  const style: InverseScanStyle = {
     kind: "inverse",
     intervalMs: options.intervalMs,
     loops: options.loops,
-    firstItemPauseMs,
-  });
+    firstItemPauseMs: options.firstItemPauseMs ?? 0,
+  };
+  assertScanStyle(style);
+  return Object.freeze(style);
 }
 
 /** @internal Validate structurally supplied style data at the scanner boundary. */
