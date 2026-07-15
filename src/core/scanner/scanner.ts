@@ -52,6 +52,11 @@ type Presentation = {
   label: string;
 } | null;
 
+function presentationEquals(a: Presentation, b: Presentation): boolean {
+  if (a === null || b === null) return a === b;
+  return highlightEquals(a.highlight, b.highlight) && a.label === b.label;
+}
+
 interface ActiveTransition {
   fixedDueAt: number;
   quietDueAt: number;
@@ -233,13 +238,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function setPresentation(next: Presentation): void {
-    const same =
-      (presentation === null && next === null) ||
-      (presentation !== null &&
-        next !== null &&
-        highlightEquals(presentation.highlight, next.highlight) &&
-        presentation.label === next.label);
-    if (same) return;
+    if (presentationEquals(presentation, next)) return;
 
     const previous = presentation?.highlight ?? null;
     presentation = next;

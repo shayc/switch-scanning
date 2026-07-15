@@ -3,6 +3,7 @@ import type {
   DiscreteAction,
   NormalizedSwitch,
   PressRecognition,
+  ResolvedTiming,
   SwitchAction,
 } from "./switches.ts";
 
@@ -329,6 +330,13 @@ function contextOf(state: SourceState): GestureContext {
   };
 }
 
+/** A press is accepted immediately unless a hold window must first elapse. */
+function stabilizeOrImmediate(holdDurationMs: number): PressRecognition {
+  return holdDurationMs > 0
+    ? { kind: "stabilize", holdDurationMs }
+    : { kind: "immediate" };
+}
+
 /** Describe how a fresh press will be decided, for progress feedback. */
 function recognitionOf(def: NormalizedSwitch): PressRecognition {
   switch (def.type) {
@@ -347,14 +355,17 @@ function recognitionOf(def: NormalizedSwitch): PressRecognition {
           action: def.action,
         };
       }
-      return def.holdDurationMs > 0
-        ? { kind: "stabilize", holdDurationMs: def.holdDurationMs }
-        : { kind: "immediate" };
+      return stabilizeOrImmediate(def.holdDurationMs);
     case "scan":
-      return def.holdDurationMs > 0
-        ? { kind: "stabilize", holdDurationMs: def.holdDurationMs }
-        : { kind: "immediate" };
+      return stabilizeOrImmediate(def.holdDurationMs);
   }
+}
+
+function timingEqual(a: ResolvedTiming, b: ResolvedTiming): boolean {
+  return (
+    a.holdDurationMs === b.holdDurationMs &&
+    a.ignoreRepeatMs === b.ignoreRepeatMs
+  );
 }
 
 function switchDefinitionsEqual(
@@ -365,18 +376,12 @@ function switchDefinitionsEqual(
 
   if (a.type === "discrete" && b.type === "discrete") {
     return (
-      a.action === b.action &&
-      a.performOn === b.performOn &&
-      a.holdDurationMs === b.holdDurationMs &&
-      a.ignoreRepeatMs === b.ignoreRepeatMs
+      a.action === b.action && a.performOn === b.performOn && timingEqual(a, b)
     );
   }
 
   if (a.type === "scan" && b.type === "scan") {
-    return (
-      a.holdDurationMs === b.holdDurationMs &&
-      a.ignoreRepeatMs === b.ignoreRepeatMs
-    );
+    return timingEqual(a, b);
   }
 
   if (a.type === "tapHold" && b.type === "tapHold") {
@@ -384,8 +389,7 @@ function switchDefinitionsEqual(
       a.tap === b.tap &&
       a.holdAfterMs === b.holdAfterMs &&
       a.holdAction === b.holdAction &&
-      a.holdDurationMs === b.holdDurationMs &&
-      a.ignoreRepeatMs === b.ignoreRepeatMs
+      timingEqual(a, b)
     );
   }
 

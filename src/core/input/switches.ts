@@ -85,7 +85,7 @@ export type PressRecognition =
     };
 
 /** Timing fields resolved to concrete values during normalization. */
-interface ResolvedTiming {
+export interface ResolvedTiming {
   readonly holdDurationMs: number;
   readonly ignoreRepeatMs: number;
 }

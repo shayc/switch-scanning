@@ -1,7 +1,20 @@
-import { useCallback, useEffect, type Ref, type RefCallback } from "react";
-import { useScannerContext } from "../context.ts";
-import { useCommittedRef, useRegistrationRef } from "./refs.ts";
-import type { ScanTargetOptions } from "../registry.ts";
+import type { Ref, RefCallback } from "react";
+import type { Detach } from "../../core/index.ts";
+import type { ScanRegistry, ScanTargetOptions } from "../registry.ts";
+import { useScanNode } from "./useScanNode.ts";
+
+function mountTarget(
+  registry: ScanRegistry,
+  id: string,
+  getOptions: () => ScanTargetOptions,
+  element: HTMLElement,
+): Detach {
+  return registry.mountTarget(id, getOptions, element);
+}
+
+function touchTarget(registry: ScanRegistry): void {
+  registry.touchTarget();
+}
 
 /** Options for {@link useScanTarget}. */
 export interface UseScanTargetOptions extends ScanTargetOptions {
@@ -25,24 +38,6 @@ export interface ScanTargetBinding {
 export function useScanTarget(
   options: UseScanTargetOptions,
 ): ScanTargetBinding {
-  const { registry } = useScannerContext("useScanTarget");
-  const { id } = options;
-
-  const optionsRef = useCommittedRef(options);
-
-  const register = useCallback(
-    (element: HTMLElement) =>
-      registry.mountTarget(id, () => optionsRef.current, element),
-    [registry, id, optionsRef],
-  );
-  const ref: RefCallback<HTMLElement> = useRegistrationRef(
-    register,
-    options.ref,
-  );
-
-  useEffect(() => {
-    registry.touchTarget();
-  });
-
+  const ref = useScanNode("useScanTarget", options, mountTarget, touchTarget);
   return { props: { ref, "data-scan-target": "" } };
 }

@@ -92,12 +92,9 @@ export function createStyleRuntime(deps: {
     cancelDeadline();
     if (!deps.isScanning()) return;
 
-    if (style.kind === "auto") {
-      const delay =
-        style.intervalMs + (firstOfPass ? style.firstItemPauseMs : 0);
-      setDeadline("advance", delay, deps.advance);
-    } else if (style.kind === "inverse") {
-      if (activeScanSources.size === 0) return;
+    if (style.kind === "auto" || style.kind === "inverse") {
+      // Inverse advances only while a scan switch is held; auto advances freely.
+      if (style.kind === "inverse" && activeScanSources.size === 0) return;
       const delay =
         style.intervalMs + (firstOfPass ? style.firstItemPauseMs : 0);
       setDeadline("advance", delay, deps.advance);

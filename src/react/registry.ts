@@ -263,31 +263,42 @@ export class ScanRegistry {
     this.publishedTreeSignature = signature;
   }
 
+  /**
+   * A configuration mistake is fatal in development so it surfaces at its
+   * source; in production the registry degrades gracefully, reporting the
+   * mistake plus how it recovered.
+   */
+  private raise(
+    code: ScannerDiagnosticCode,
+    message: string,
+    recovery: string,
+  ): void {
+    if (isDevelopment()) throw new Error(formatDiagnostic(code, message));
+    this.reportDiagnostic(code, `${message}; ${recovery}`);
+  }
+
   private reportDuplicate(kind: string, id: string): void {
-    const message = `duplicate scan ${kind} id "${id}"`;
-    if (isDevelopment())
-      throw new Error(formatDiagnostic("duplicate-id", message));
-    this.reportDiagnostic(
+    this.raise(
       "duplicate-id",
-      `${message}; keeping the first registration`,
+      `duplicate scan ${kind} id "${id}"`,
+      "keeping the first registration",
     );
   }
 
   private reportReservedId(id: string): void {
-    const message = `scan node id "${id}" is reserved for the registry root`;
-    if (isDevelopment())
-      throw new Error(formatDiagnostic("reserved-id", message));
-    this.reportDiagnostic("reserved-id", `${message}; registration ignored`);
+    this.raise(
+      "reserved-id",
+      `scan node id "${id}" is reserved for the registry root`,
+      "registration ignored",
+    );
   }
 
   private reportParentCycle(cycle: readonly string[]): void {
     const route = [...cycle, cycle[0]].join(" -> ");
-    const message = `cyclic scan group parentage: ${route}`;
-    if (isDevelopment())
-      throw new Error(formatDiagnostic("parent-cycle", message));
-    this.reportDiagnostic(
+    this.raise(
       "parent-cycle",
-      `${message}; keeping "${cycle[0]}" at the root`,
+      `cyclic scan group parentage: ${route}`,
+      `keeping "${cycle[0]}" at the root`,
     );
   }
 

@@ -1,7 +1,20 @@
-import { useCallback, useEffect, type Ref, type RefCallback } from "react";
-import { useScannerContext } from "../context.ts";
-import { useCommittedRef, useRegistrationRef } from "./refs.ts";
-import type { ScanGroupOptions } from "../registry.ts";
+import type { Ref, RefCallback } from "react";
+import type { Detach } from "../../core/index.ts";
+import type { ScanGroupOptions, ScanRegistry } from "../registry.ts";
+import { useScanNode } from "./useScanNode.ts";
+
+function mountGroup(
+  registry: ScanRegistry,
+  id: string,
+  getOptions: () => ScanGroupOptions,
+  element: HTMLElement,
+): Detach {
+  return registry.mountGroup(id, getOptions, element);
+}
+
+function touchGroup(registry: ScanRegistry): void {
+  registry.touchGroup();
+}
 
 /** Options for {@link useScanGroup}. */
 export interface UseScanGroupOptions extends ScanGroupOptions {
@@ -23,24 +36,6 @@ export interface ScanGroupBinding {
  * explicit `sequence` sets deliberate scan order.
  */
 export function useScanGroup(options: UseScanGroupOptions): ScanGroupBinding {
-  const { registry } = useScannerContext("useScanGroup");
-  const { id } = options;
-
-  const optionsRef = useCommittedRef(options);
-
-  const register = useCallback(
-    (element: HTMLElement) =>
-      registry.mountGroup(id, () => optionsRef.current, element),
-    [registry, id, optionsRef],
-  );
-  const ref: RefCallback<HTMLElement> = useRegistrationRef(
-    register,
-    options.ref,
-  );
-
-  useEffect(() => {
-    registry.touchGroup();
-  });
-
+  const ref = useScanNode("useScanGroup", options, mountGroup, touchGroup);
   return { props: { ref, "data-scan-group": "" } };
 }
