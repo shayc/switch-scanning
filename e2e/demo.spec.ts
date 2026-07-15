@@ -4,12 +4,12 @@ import { expect, test } from "@playwright/test";
 test("mixed keyboard controls pass mapped Space through", async ({ page }) => {
   await page.goto("/");
   await page.getByText("More options", { exact: true }).click();
-  const speech = page.getByRole("switch", {
-    name: "Speak highlighted and selected items",
+  const touchControls = page.getByRole("switch", {
+    name: "Show touch controls",
   });
-  await speech.focus();
+  await touchControls.focus();
   await page.keyboard.press("Space");
-  await expect(speech).toBeChecked();
+  await expect(touchControls).toBeChecked();
   const dedicated = page.getByRole("radio", {
     name: "Use the keyboard as a dedicated switch",
   });
@@ -238,38 +238,12 @@ test("live announcements report selections and scope changes, not landings", asy
   await expect(announcements).toContainText("Selected");
 });
 
-test("auditory prompts preserve the held inverse-scan release", async ({
+test("event observers preserve the held inverse-scan release", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    class MockUtterance {
-      voice: SpeechSynthesisVoice | null = null;
-      onend: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-
-      constructor(readonly text: string) {}
-    }
-    const speech = {
-      cancel: () => undefined,
-      getVoices: (): SpeechSynthesisVoice[] => [],
-      speak: (utterance: MockUtterance) =>
-        queueMicrotask(() => utterance.onend?.()),
-    };
-    Object.defineProperty(window, "SpeechSynthesisUtterance", {
-      configurable: true,
-      value: MockUtterance,
-    });
-    Object.defineProperty(window, "speechSynthesis", {
-      configurable: true,
-      value: speech,
-    });
-  });
   await page.goto("/");
   await page.getByRole("radio", { name: "Hold and release" }).click();
   await page.getByText("More options", { exact: true }).click();
-  await page
-    .getByRole("switch", { name: "Speak highlighted and selected items" })
-    .check();
   await page
     .getByRole("radio", { name: "Use the keyboard as a dedicated switch" })
     .check();
@@ -301,26 +275,26 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
   await expect(surface).toHaveAttribute("data-scan-pointer-switch", "");
   await expect(surface).toHaveCSS("touch-action", "none");
   await page.getByRole("button", { name: "Start scanning" }).click();
-  await expect(position).toHaveText("1/4");
+  await expect(position).toHaveText("1/3");
 
   await surface.dispatchEvent("pointerdown", {
     pointerId: 11,
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("2/4");
+  await expect(position).toHaveText("2/3");
   await surface.dispatchEvent("pointerdown", {
     pointerId: 12,
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("2/4");
+  await expect(position).toHaveText("2/3");
   await surface.dispatchEvent("pointerup", {
     pointerId: 11,
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("2/4");
+  await expect(position).toHaveText("2/3");
   await surface.dispatchEvent("pointerup", {
     pointerId: 12,
     pointerType: "touch",
@@ -333,7 +307,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("3/4");
+  await expect(position).toHaveText("3/3");
   await surface.dispatchEvent("pointercancel", {
     pointerId: 13,
     pointerType: "touch",
@@ -349,7 +323,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("4/4");
+  await expect(position).toHaveText("1/3");
   await surface.dispatchEvent("pointerup", {
     pointerId: 14,
     pointerType: "touch",
@@ -362,7 +336,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("1/4");
+  await expect(position).toHaveText("2/3");
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
   await surface.dispatchEvent("pointerup", {
     pointerId: 15,
@@ -374,7 +348,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("2/4");
+  await expect(position).toHaveText("3/3");
   await surface.dispatchEvent("pointerup", {
     pointerId: 16,
     pointerType: "touch",
@@ -386,7 +360,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("3/4");
+  await expect(position).toHaveText("1/3");
   await page.evaluate(() => {
     const previousVisibility = document.visibilityState;
     Object.defineProperty(document, "visibilityState", {
@@ -409,7 +383,7 @@ test("dedicated pointer surface owns, coalesces, and safely disconnects input", 
     pointerType: "touch",
     button: 0,
   });
-  await expect(position).toHaveText("4/4");
+  await expect(position).toHaveText("2/3");
   await surface.dispatchEvent("pointerup", {
     pointerId: 18,
     pointerType: "touch",
