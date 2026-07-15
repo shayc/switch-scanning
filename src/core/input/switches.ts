@@ -6,6 +6,7 @@
 
 import {
   assertNonNegative,
+  assertOneOf,
   assertPositive,
   fail,
   readNumber,
@@ -29,30 +30,30 @@ export type ScanAction = "scan";
 /** Any action a switch can trigger. */
 export type SwitchAction = DiscreteAction | ScanAction;
 
-/** A switch that fires one discrete action per accepted press. */
-export interface DiscreteSwitchDefinition {
-  action: DiscreteAction;
-  performOn?: "press" | "release";
+/** Timing fields every switch shape may specify. */
+export interface SwitchTiming {
   holdDurationMs?: number;
   ignoreRepeatMs?: number;
+}
+
+/** A switch that fires one discrete action per accepted press. */
+export interface DiscreteSwitchDefinition extends SwitchTiming {
+  action: DiscreteAction;
+  performOn?: "press" | "release";
 }
 
 /** A switch bound to the phaseful `scan` action. */
-export interface ScanSwitchDefinition {
+export interface ScanSwitchDefinition extends SwitchTiming {
   action: ScanAction;
-  holdDurationMs?: number;
-  ignoreRepeatMs?: number;
 }
 
 /** A switch that fires one action on a tap and another when held. */
-export interface TapHoldSwitchDefinition {
+export interface TapHoldSwitchDefinition extends SwitchTiming {
   tap: DiscreteAction;
   hold: {
     afterMs: number;
     action: DiscreteAction;
   };
-  holdDurationMs?: number;
-  ignoreRepeatMs?: number;
 }
 
 /** Any switch definition: discrete, phaseful `scan`, or tap/hold. */
@@ -83,27 +84,25 @@ export type PressRecognition =
       readonly holdAction: DiscreteAction;
     };
 
+/** Timing fields resolved to concrete values during normalization. */
+interface ResolvedTiming {
+  readonly holdDurationMs: number;
+  readonly ignoreRepeatMs: number;
+}
+
 export type NormalizedSwitch =
-  | {
+  | ({
       readonly type: "discrete";
       readonly action: DiscreteAction;
       readonly performOn: "press" | "release";
-      readonly holdDurationMs: number;
-      readonly ignoreRepeatMs: number;
-    }
-  | {
-      readonly type: "scan";
-      readonly holdDurationMs: number;
-      readonly ignoreRepeatMs: number;
-    }
-  | {
+    } & ResolvedTiming)
+  | ({ readonly type: "scan" } & ResolvedTiming)
+  | ({
       readonly type: "tapHold";
       readonly tap: DiscreteAction;
       readonly holdAfterMs: number;
       readonly holdAction: DiscreteAction;
-      readonly holdDurationMs: number;
-      readonly ignoreRepeatMs: number;
-    };
+    } & ResolvedTiming);
 
 function isDiscreteAction(action: unknown): action is DiscreteAction {
   return (DISCRETE_ACTIONS as readonly unknown[]).includes(action);
@@ -112,20 +111,20 @@ function isDiscreteAction(action: unknown): action is DiscreteAction {
 /** Reads and validates the timing fields common to every switch shape. */
 function resolveTiming(
   candidate: Record<string, unknown>,
-  id: string,
-): { holdDurationMs: number; ignoreRepeatMs: number } {
+  at: (field: string) => string,
+): ResolvedTiming {
   const holdDurationMs = readOptionalNumber(
     candidate,
     "holdDurationMs",
-    `switch "${id}": holdDurationMs`,
+    at("holdDurationMs"),
   );
   const ignoreRepeatMs = readOptionalNumber(
     candidate,
     "ignoreRepeatMs",
-    `switch "${id}": ignoreRepeatMs`,
+    at("ignoreRepeatMs"),
   );
-  assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
-  assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
+  assertNonNegative(holdDurationMs, at("holdDurationMs"));
+  assertNonNegative(ignoreRepeatMs, at("ignoreRepeatMs"));
   return { holdDurationMs, ignoreRepeatMs };
 }
 
@@ -137,8 +136,10 @@ export function normalizeSwitch(
     fail("switch IDs must be non-empty strings");
   }
 
+  const at = (field: string) => `switch "${id}": ${field}`;
+
   if (typeof def !== "object" || def === null || Array.isArray(def)) {
-    fail(`switch "${id}": definition must be an object`);
+    fail(at("definition must be an object"));
   }
 
   const candidate = def as unknown as Record<string, unknown>;
@@ -146,27 +147,23 @@ export function normalizeSwitch(
   if ("tap" in candidate) {
     const hold = candidate.hold;
     if (typeof hold !== "object" || hold === null || Array.isArray(hold)) {
-      fail(`switch "${id}": hold must be an object`);
+      fail(at("hold must be an object"));
     }
     const holdCandidate = hold as Record<string, unknown>;
     if (candidate.tap === "scan" || holdCandidate.action === "scan") {
-      fail(`switch "${id}": tap/hold cannot use the phaseful "scan" action`);
+      fail(at('tap/hold cannot use the phaseful "scan" action'));
     }
     if (!isDiscreteAction(candidate.tap)) {
-      fail(`switch "${id}": tap must be a discrete action`);
+      fail(at("tap must be a discrete action"));
     }
     if (!isDiscreteAction(holdCandidate.action)) {
-      fail(`switch "${id}": hold.action must be a discrete action`);
+      fail(at("hold.action must be a discrete action"));
     }
-    const holdAfterMs = readNumber(
-      holdCandidate,
-      "afterMs",
-      `switch "${id}": hold.afterMs`,
-    );
-    assertPositive(holdAfterMs, `switch "${id}": hold.afterMs`);
-    const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, id);
+    const holdAfterMs = readNumber(holdCandidate, "afterMs", at("hold.afterMs"));
+    assertPositive(holdAfterMs, at("hold.afterMs"));
+    const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, at);
     if (holdDurationMs >= holdAfterMs) {
-      fail(`switch "${id}": holdDurationMs must be less than hold.afterMs`);
+      fail(at("holdDurationMs must be less than hold.afterMs"));
     }
     return {
       type: "tapHold",
@@ -179,22 +176,20 @@ export function normalizeSwitch(
   }
 
   if (candidate.action === "scan") {
-    if ((def as { performOn?: unknown }).performOn !== undefined) {
-      fail(`switch "${id}": a "scan" definition cannot specify performOn`);
+    if (candidate.performOn !== undefined) {
+      fail(at('a "scan" definition cannot specify performOn'));
     }
-    const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, id);
+    const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, at);
     return { type: "scan", holdDurationMs, ignoreRepeatMs };
   }
 
   if (!isDiscreteAction(candidate.action)) {
-    fail(`switch "${id}": unknown action "${String(candidate.action)}"`);
+    fail(at(`unknown action "${String(candidate.action)}"`));
   }
   const performOn =
     candidate.performOn === undefined ? "press" : candidate.performOn;
-  if (performOn !== "press" && performOn !== "release") {
-    fail(`switch "${id}": performOn must be "press" or "release"`);
-  }
-  const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, id);
+  assertOneOf(performOn, ["press", "release"], at("performOn"));
+  const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, at);
   return {
     type: "discrete",
     action: candidate.action,
