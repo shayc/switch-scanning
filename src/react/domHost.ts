@@ -21,7 +21,7 @@ export function createDomHost(
   exitLabelFor: (groupId: string) => string,
 ): ScannerHost {
   // Elements we decorated last reveal, so we can clear them precisely.
-  let decorated: HTMLElement[] = [];
+  const decorated = new Set<HTMLElement>();
 
   function clearDecorations(): void {
     for (const el of decorated) {
@@ -30,12 +30,12 @@ export function createDomHost(
       el.removeAttribute(ATTR_EXIT_HIGHLIGHTED);
       el.removeAttribute(ATTR_EXIT_LABEL);
     }
-    decorated = [];
+    decorated.clear();
   }
 
   function decorate(el: HTMLElement, attr: string, value = ""): void {
     el.setAttribute(attr, value);
-    if (!decorated.includes(el)) decorated.push(el);
+    decorated.add(el);
   }
 
   function reveal(highlight: Highlight): void {

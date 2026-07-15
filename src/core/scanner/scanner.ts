@@ -57,7 +57,6 @@ interface ActiveTransition {
   quietDueAt: number;
   quietDurationMs: number;
   resetOnInput: boolean;
-  effectiveDueAt: number;
   pending: PendingTiming | null;
   cancel: CancelScheduled | null;
 }
@@ -444,7 +443,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       quietDueAt: now + quietDurationMs,
       quietDurationMs,
       resetOnInput: options.selectionDelay.resetOnInput,
-      effectiveDueAt: dueAt, // finalized by scheduleTransition below
       pending: null,
       cancel: null,
     };
@@ -459,7 +457,6 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     if (!active) return;
     active.cancel?.();
     const dueAt = transitionDueAt(active);
-    active.effectiveDueAt = dueAt;
     const delay = Math.max(0, dueAt - clock.now());
     active.pending = { kind: "transition", startedAt, dueAt };
     active.cancel = scheduler.schedule(delay, () => {
@@ -512,11 +509,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
-    const nextQuietDueAt = clock.now() + active.quietDurationMs;
-    const nextEffectiveDueAt = Math.max(active.fixedDueAt, nextQuietDueAt);
-    active.quietDueAt = nextQuietDueAt;
-    if (nextEffectiveDueAt !== active.effectiveDueAt) {
-      scheduleTransition(clock.now());
+    const now = clock.now();
+    const previousDueAt = transitionDueAt(active);
+    active.quietDueAt = now + active.quietDurationMs;
+    if (transitionDueAt(active) !== previousDueAt) {
+      scheduleTransition(now);
     }
   }
 

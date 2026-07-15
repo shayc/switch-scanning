@@ -6,6 +6,7 @@
 
 import {
   assertNonNegative,
+  assertOneOf,
   assertPositive,
   fail,
   readNumber,
@@ -91,16 +92,6 @@ export interface InverseScanOptions {
   firstItemPauseMs?: number;
 }
 
-function assertSuspensionPolicy(
-  value: unknown,
-): asserts value is DwellSuspensionPolicy {
-  if (value !== "disarm" && value !== "continue") {
-    fail(
-      `suspensionPolicy must be "disarm" or "continue" (received ${String(value)})`,
-    );
-  }
-}
-
 function assertLoops(loops: LoopLimit): void {
   if (loops === "infinite") return;
   if (!Number.isInteger(loops) || loops <= 0) {
@@ -173,6 +164,7 @@ export function assertScanStyle(style: unknown): asserts style is ScanStyle {
 
   const candidate = style as Record<string, unknown>;
   switch (candidate.kind) {
+    case "inverse":
     case "auto":
       assertPositive(
         readNumber(candidate, "intervalMs", "intervalMs"),
@@ -183,10 +175,12 @@ export function assertScanStyle(style: unknown): asserts style is ScanStyle {
         readNumber(candidate, "firstItemPauseMs", "firstItemPauseMs"),
         "firstItemPauseMs",
       );
-      assertNonNegative(
-        readNumber(candidate, "transitionTimeMs", "transitionTimeMs"),
-        "transitionTimeMs",
-      );
+      if (candidate.kind === "auto") {
+        assertNonNegative(
+          readNumber(candidate, "transitionTimeMs", "transitionTimeMs"),
+          "transitionTimeMs",
+        );
+      }
       return;
     case "step": {
       const repeat = candidate.repeat;
@@ -210,17 +204,10 @@ export function assertScanStyle(style: unknown): asserts style is ScanStyle {
         readNumber(candidate, "dwellTimeMs", "dwellTimeMs"),
         "dwellTimeMs",
       );
-      assertSuspensionPolicy(candidate.suspensionPolicy ?? "disarm");
-      return;
-    case "inverse":
-      assertPositive(
-        readNumber(candidate, "intervalMs", "intervalMs"),
-        "intervalMs",
-      );
-      assertLoops(candidate.loops as LoopLimit);
-      assertNonNegative(
-        readNumber(candidate, "firstItemPauseMs", "firstItemPauseMs"),
-        "firstItemPauseMs",
+      assertOneOf(
+        candidate.suspensionPolicy ?? "disarm",
+        ["disarm", "continue"],
+        "suspensionPolicy",
       );
       return;
     default:

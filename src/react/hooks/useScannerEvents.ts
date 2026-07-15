@@ -1,6 +1,6 @@
-import { useContext, useEffect } from "react";
+import { useEffect } from "react";
 import type { Scanner, ScannerEvent } from "../../core/index.ts";
-import { ScannerContext } from "../context.ts";
+import { useResolvedScanner } from "../context.ts";
 import { useCommittedRef } from "./refs.ts";
 
 /** Receives each {@link ScannerEvent}. */
@@ -23,16 +23,9 @@ export function useScannerEvents(
   a: Scanner | ScannerEventListener,
   b?: ScannerEventListener,
 ): void {
-  const context = useContext(ScannerContext);
-
-  const scanner = typeof a === "function" ? context?.scanner : a;
+  const explicit = typeof a === "function" ? undefined : a;
   const listener = typeof a === "function" ? a : b;
-
-  if (!scanner) {
-    throw new Error(
-      "[switch-scanning] useScannerEvents needs a scanner: pass one or render inside <ScannerProvider>.",
-    );
-  }
+  const scanner = useResolvedScanner(explicit, "useScannerEvents");
 
   const listenerRef = useCommittedRef(listener);
 

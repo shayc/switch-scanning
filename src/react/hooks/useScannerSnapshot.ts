@@ -1,6 +1,6 @@
-import { useCallback, useContext, useRef, useSyncExternalStore } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import type { Scanner, ScannerSnapshot } from "../../core/index.ts";
-import { ScannerContext } from "../context.ts";
+import { useResolvedScanner } from "../context.ts";
 
 /** Derives a value from a {@link ScannerSnapshot}. */
 export type SnapshotSelector<T> = (snapshot: ScannerSnapshot) => T;
@@ -34,8 +34,6 @@ export function useScannerSnapshot<T>(
   b?: SnapshotSelector<T> | SnapshotEquality<T>,
   c?: SnapshotEquality<T>,
 ): T | ScannerSnapshot {
-  const context = useContext(ScannerContext);
-
   let scanner: Scanner | undefined;
   let selector: SnapshotSelector<T> | undefined;
   let isEqual: SnapshotEquality<T> | undefined;
@@ -49,12 +47,7 @@ export function useScannerSnapshot<T>(
     isEqual = c;
   }
 
-  const resolved = scanner ?? context?.scanner;
-  if (!resolved) {
-    throw new Error(
-      "[switch-scanning] useScannerSnapshot needs a scanner: pass one or render inside <ScannerProvider>.",
-    );
-  }
+  const resolved = useResolvedScanner(scanner, "useScannerSnapshot");
 
   // Cache the last selected value so equal selections keep a stable reference.
   const cache = useRef<{

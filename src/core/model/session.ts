@@ -375,11 +375,7 @@ function buildCandidates(
   const candidates: Candidate[] = [];
   for (const child of group.children) {
     if (!isEligible(child)) continue;
-    candidates.push(
-      child.kind === "target"
-        ? { kind: "target", id: child.id }
-        : { kind: "group", id: child.id },
-    );
+    candidates.push({ kind: child.kind, id: child.id });
   }
   if (!isRoot && groupExit !== "back-only") {
     const exit: Candidate = { kind: "exit", groupId: group.id };
