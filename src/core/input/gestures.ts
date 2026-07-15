@@ -112,6 +112,18 @@ export function createGestureEngine(deps: {
     state.deadline = null;
   }
 
+  // Tear down a source that ended without a normal release (disconnect, cancel,
+  // or a definition change). The release action is never performed.
+  function cancelSource(state: SourceState): void {
+    clearDeadline(state);
+    sink.contactCancelled(contextOf(state));
+    if (state.scanAccepted) {
+      sink.scanCancel(contextOf(state));
+    } else if (state.heldDiscrete) {
+      sink.pressReleased(contextOf(state));
+    }
+  }
+
   function press(switchId: string, sourceId: string | undefined): void {
     const def = switches.get(switchId);
     if (!def) {
@@ -266,32 +278,19 @@ export function createGestureEngine(deps: {
     for (const [key, state] of [...sources]) {
       if (sourceId !== undefined && state.sourceId !== sourceId) continue;
       sources.delete(key);
-      clearDeadline(state);
-      sink.contactCancelled(contextOf(state));
-      if (state.scanAccepted) {
-        sink.scanCancel(contextOf(state));
-      } else if (state.heldDiscrete) {
-        sink.pressReleased(contextOf(state));
-      }
+      cancelSource(state);
     }
   }
 
   function setSwitches(next: Map<string, NormalizedSwitch>): void {
-    // Cancel gestures whose definition changed; the release action is not
-    // performed for an interrupted gesture.
+    // Cancel gestures whose definition changed.
     for (const [key, state] of [...sources]) {
       const nextDef = next.get(state.switchId);
       if (nextDef && switchDefinitionsEqual(nextDef, state.def)) {
         state.def = nextDef;
       } else {
         sources.delete(key);
-        clearDeadline(state);
-        sink.contactCancelled(contextOf(state));
-        if (state.scanAccepted) {
-          sink.scanCancel(contextOf(state));
-        } else if (state.heldDiscrete) {
-          sink.pressReleased(contextOf(state));
-        }
+        cancelSource(state);
       }
     }
     switches = next;
@@ -299,13 +298,7 @@ export function createGestureEngine(deps: {
 
   function cancelActive(): void {
     for (const state of sources.values()) {
-      clearDeadline(state);
-      sink.contactCancelled(contextOf(state));
-      if (state.scanAccepted) {
-        sink.scanCancel(contextOf(state));
-      } else if (state.heldDiscrete) {
-        sink.pressReleased(contextOf(state));
-      }
+      cancelSource(state);
     }
     sources.clear();
   }
