@@ -1,10 +1,10 @@
-import type { Clock, Scheduler } from "./shared/clock.ts";
-import type { ScanStyle } from "./styles/styles.ts";
 import type {
   PressRecognition,
   SwitchAction,
   SwitchDefinition,
 } from "./input/switches.ts";
+import type { Clock, Scheduler } from "./shared/clock.ts";
+import type { ScanStyle } from "./styles/styles.ts";
 
 /** A node in the scan tree: a group or a target. */
 export type ScanNode = ScanGroupNode | ScanTargetNode;
