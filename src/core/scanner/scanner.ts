@@ -1,4 +1,3 @@
-import type { CancelScheduled, Scheduler } from "../shared/clock.ts";
 import {
   createGestureEngine,
   type GestureContext,
@@ -10,22 +9,24 @@ import {
   decideDiscreteInput,
   decideScanPress,
 } from "../input/inputDecisions.ts";
-import {
-  normalizeOptions,
-  type NormalizedOptions,
-} from "./normalizeOptions.ts";
-import { resolveInfrastructure } from "./scannerInfrastructure.ts";
-import { highlightEquals, ScanSession, type SessionEffect } from "../model/session.ts";
-import { createScannerStore } from "./scannerStore.ts";
-import { createStyleRuntime, type StyleRuntime } from "../styles/styleRuntime.ts";
 import type { DiscreteAction } from "../input/switches.ts";
-import { createDiagnosticWarner } from "../shared/diagnostics.ts";
-import { isDevelopment } from "../shared/env.ts";
+import {
+  highlightEquals,
+  ScanSession,
+  type SessionEffect,
+} from "../model/session.ts";
 import {
   compileTree,
   DuplicateScanNodeIdError,
   type CompiledTree,
 } from "../model/tree.ts";
+import type { CancelScheduled, Scheduler } from "../shared/clock.ts";
+import { createDiagnosticWarner } from "../shared/diagnostics.ts";
+import { isDevelopment } from "../shared/env.ts";
+import {
+  createStyleRuntime,
+  type StyleRuntime,
+} from "../styles/styleRuntime.ts";
 import type {
   ActivationResult,
   Highlight,
@@ -39,6 +40,12 @@ import type {
   ScannerOptions,
   ScannerStatus,
 } from "../types.ts";
+import {
+  normalizeOptions,
+  type NormalizedOptions,
+} from "./normalizeOptions.ts";
+import { resolveInfrastructure } from "./scannerInfrastructure.ts";
+import { createScannerStore } from "./scannerStore.ts";
 
 type Presentation = {
   highlight: NonNullable<Highlight>;

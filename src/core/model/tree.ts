@@ -1,10 +1,13 @@
 import type { ScanGroupNode, ScanNode } from "../types.ts";
 
+/** A scan tree with every node indexed by id for O(1) lookup. */
 export interface CompiledTree {
   readonly root: ScanGroupNode;
+  /** Every node in {@link root}, keyed by {@link ScanNode.id}. */
   readonly byId: ReadonlyMap<string, ScanNode>;
 }
 
+/** Thrown by {@link compileTree} when two nodes share an id. */
 export class DuplicateScanNodeIdError extends Error {
   readonly id: string;
 
@@ -15,6 +18,7 @@ export class DuplicateScanNodeIdError extends Error {
   }
 }
 
+/** Index a scan tree by id, rejecting duplicate ids. */
 export function compileTree(root: ScanGroupNode): CompiledTree {
   const byId = new Map<string, ScanNode>();
 
@@ -30,6 +34,7 @@ export function compileTree(root: ScanGroupNode): CompiledTree {
   return { root, byId };
 }
 
+/** The label for a group's exit affordance, defaulting to `Back from <label>`. */
 export function exitLabelFor(group: ScanGroupNode): string {
   return group.exitLabel ?? `Back from ${group.label}`;
 }

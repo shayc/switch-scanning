@@ -1,5 +1,5 @@
-import type { Clock } from "../shared/clock.ts";
 import { snapshotEquals } from "../model/session.ts";
+import type { Clock } from "../shared/clock.ts";
 import type {
   ScannerEvent,
   ScannerEventBody,

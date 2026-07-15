@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { manualClock } from "../shared/clock.ts";
-import { createScanner } from "./scanner.ts";
 import { autoScan, stepScan } from "../styles/styles.ts";
 import { createScannerFixture, recordScannerEvents } from "../testing/index.ts";
 import type {
@@ -11,6 +10,7 @@ import type {
   ScannerBehaviorOptions,
   ScannerOptions,
 } from "../types.ts";
+import { createScanner } from "./scanner.ts";
 
 const YES_NO: ScanNode[] = [
   { kind: "target", id: "yes", label: "Yes" },

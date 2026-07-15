@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { manualClock } from "../shared/clock.ts";
-import { createScanner } from "./scanner.ts";
 import { stepScan } from "../styles/styles.ts";
 import type { ScannerEvent } from "../types.ts";
+import { createScanner } from "./scanner.ts";
 
 const root = {
   kind: "group" as const,

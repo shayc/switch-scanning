@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { manualClock } from "../shared/clock.ts";
-import { createScanner } from "./scanner.ts";
 import {
   autoScan,
   inverseScan,
@@ -9,6 +8,7 @@ import {
 } from "../styles/styles.ts";
 import { createScannerFixture, recordScannerEvents } from "../testing/index.ts";
 import type { ScannerBehaviorOptions, ScannerOptions } from "../types.ts";
+import { createScanner } from "./scanner.ts";
 
 const TARGET = { kind: "target" as const, id: "x", label: "X" };
 
