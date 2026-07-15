@@ -5,6 +5,9 @@ import type { ScannerStatus, StartOn } from "../types.ts";
 export type DiscreteInputDecision =
   "ignore" | "start" | "perform" | "toggle-pause" | "diagnose-toggle-pause";
 
+const atRest = (status: ScannerStatus) =>
+  status === "idle" || status === "complete";
+
 /** Pure lifecycle gate for a recognized discrete switch action. */
 export function decideDiscreteInput(
   action: DiscreteAction,
@@ -15,8 +18,7 @@ export function decideDiscreteInput(
   if (startedIn === "disabled") return "ignore";
   if (
     (startedIn === "inactive" || startedIn === "startable") &&
-    status !== "idle" &&
-    status !== "complete"
+    !atRest(status)
   ) {
     return "ignore";
   }
@@ -27,11 +29,11 @@ export function decideDiscreteInput(
       return "ignore";
     }
     if (startedIn === "paused" && status !== "paused") return "ignore";
-    return status === "paused" ||
+    const live =
+      status === "paused" ||
       status === "scanning" ||
-      status === "transitioning"
-      ? "toggle-pause"
-      : "diagnose-toggle-pause";
+      status === "transitioning";
+    return live ? "toggle-pause" : "diagnose-toggle-pause";
   }
 
   if (startedIn === "inactive") return "ignore";
@@ -43,7 +45,7 @@ export function decideDiscreteInput(
   ) {
     return "ignore";
   }
-  if (status === "idle" || status === "complete") {
+  if (atRest(status)) {
     return startedIn === "startable" && startOn === "switch"
       ? "start"
       : "ignore";
@@ -68,9 +70,7 @@ export function decideScanPress(
     return "ignore";
   }
   if (startedIn === "startable") {
-    return (status === "idle" || status === "complete") && startOn === "switch"
-      ? "start"
-      : "ignore";
+    return atRest(status) && startOn === "switch" ? "start" : "ignore";
   }
   return status === "scanning" ? "perform" : "ignore";
 }
