@@ -208,6 +208,14 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     getStartState: gestureStartState,
   });
 
+  function isLive(): boolean {
+    return (
+      status === "scanning" ||
+      status === "transitioning" ||
+      status === "paused"
+    );
+  }
+
   function gestureStartState(): GestureStartState {
     if (!options.enabled) return "disabled";
     if (status === "scanning") return "active";
@@ -643,15 +651,10 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       options.startOn,
     );
     if (decision === "ignore") return;
-    if (decision === "start") {
-      startScan(true);
-      if (status === "scanning") {
-        styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
-      }
-      return;
+    if (decision === "start") startScan(true);
+    if (status === "scanning") {
+      styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
     }
-
-    styleRuntime.scanPress(context.sourceKey, session.firstOfPass);
   }
 
   function onScanRelease(context: GestureContext): void {
@@ -686,13 +689,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
   }
 
   function reconcile(): void {
-    if (
-      status !== "scanning" &&
-      status !== "paused" &&
-      status !== "transitioning"
-    ) {
-      return;
-    }
+    if (!isLive()) return;
     // Reconciliation establishes a fresh non-dwell landing policy. A dwell
     // frozen by pause is therefore invalidated just like a live dwell.
     suspendedDwellRemaining = null;
@@ -788,11 +785,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }),
     restart: serialized(() => {
       if (disposed) return;
-      if (
-        status === "scanning" ||
-        status === "transitioning" ||
-        status === "paused"
-      ) {
+      if (isLive()) {
         stopInternal("command");
       } else {
         teardown();
@@ -934,11 +927,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     gestures.setSwitches(options.switches);
 
     if (!options.enabled) {
-      if (
-        status === "scanning" ||
-        status === "transitioning" ||
-        status === "paused"
-      ) {
+      if (isLive()) {
         stopInternal("disabled");
       } else {
         gestures.cancelActive();
@@ -947,11 +936,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
-    if (
-      status !== "scanning" &&
-      status !== "transitioning" &&
-      status !== "paused"
-    ) {
+    if (!isLive()) {
       maybeStartOnMount();
       return;
     }
