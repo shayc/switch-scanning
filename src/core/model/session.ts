@@ -112,9 +112,7 @@ export class ScanSession {
     return {
       status,
       highlight,
-      path: this.frames.flatMap((frame) =>
-        frame.groupId === null ? [] : [frame.groupId],
-      ),
+      path: this.frames.slice(1).map((frame) => frame.groupId!),
       pass: frame ? frame.pass : 0,
       position: frame
         ? { index: frame.index, count: frame.candidates.length }
@@ -158,11 +156,7 @@ export class ScanSession {
     }
 
     const nextPass = frame.pass + 1;
-    if (
-      loopLimit !== null &&
-      Number.isFinite(loopLimit) &&
-      nextPass > loopLimit
-    ) {
+    if (loopLimit !== null && nextPass > loopLimit) {
       return this.exhaustScope();
     }
     frame.pass = nextPass;
@@ -251,8 +245,13 @@ export class ScanSession {
               },
             ],
       );
+    if (rootCandidates.length === 0) {
+      // Match resetToRoot: an empty root leaves no frames at all, rather than a
+      // degenerate root frame with zero candidates.
+      this.frames = [];
+      return [...exited, { type: "root-empty" }];
+    }
     this.frames = rebuilt;
-    if (rootCandidates.length === 0) return [...exited, { type: "root-empty" }];
     return [...exited, ...this.repairHighlight(previousHighlight)];
   }
 
