@@ -1,5 +1,6 @@
 import { assertScanStyle, type ScanStyle } from "./styles.ts";
 import { normalizeSwitches, type NormalizedSwitch } from "./input/switches.ts";
+import { assertNonNegative, fail } from "./validate.ts";
 import type {
   AfterActivation,
   GroupExit,
@@ -33,13 +34,13 @@ export function normalizeOptions(
     groupExit !== "before" &&
     groupExit !== "back-only"
   ) {
-    throw new RangeError(
-      `[switch-scanning] groupExit must be "after", "before", or "back-only" (received ${String(groupExit)})`,
+    fail(
+      `groupExit must be "after", "before", or "back-only" (received ${String(groupExit)})`,
     );
   }
   if (groupExit === "back-only" && !hasBackAction(switches)) {
-    throw new RangeError(
-      '[switch-scanning] groupExit "back-only" requires a declared switch mapped to "back"; add one or use groupExit "before"/"after"',
+    fail(
+      'groupExit "back-only" requires a declared switch mapped to "back"; add one or use groupExit "before"/"after"',
     );
   }
 
@@ -54,8 +55,8 @@ export function normalizeOptions(
 
   const startOn = raw.startOn ?? "switch";
   if (startOn !== "switch" && startOn !== "mount" && startOn !== "command") {
-    throw new RangeError(
-      `[switch-scanning] startOn must be "switch", "mount", or "command" (received ${String(startOn)})`,
+    fail(
+      `startOn must be "switch", "mount", or "command" (received ${String(startOn)})`,
     );
   }
 
@@ -66,8 +67,8 @@ export function normalizeOptions(
     afterActivation !== "repeat" &&
     afterActivation !== "stop"
   ) {
-    throw new RangeError(
-      `[switch-scanning] afterActivation must be "restart", "continue", "repeat", or "stop" (received ${String(afterActivation)})`,
+    fail(
+      `afterActivation must be "restart", "continue", "repeat", or "stop" (received ${String(afterActivation)})`,
     );
   }
 
@@ -107,12 +108,4 @@ function hasBackAction(
     }
   }
   return false;
-}
-
-function assertNonNegative(value: number, name: string): void {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new RangeError(
-      `[switch-scanning] ${name} must be a finite number >= 0 (received ${value})`,
-    );
-  }
 }

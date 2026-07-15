@@ -4,9 +4,24 @@
  * a normalized internal form the gesture recognizer consumes.
  */
 
+import {
+  assertNonNegative,
+  assertPositive,
+  fail,
+  readNumber,
+  readOptionalNumber,
+} from "../validate.ts";
+
+const DISCRETE_ACTIONS = [
+  "select",
+  "next",
+  "previous",
+  "back",
+  "togglePause",
+] as const;
+
 /** Actions produced by a stabilized, recognized gesture. */
-export type DiscreteAction =
-  "select" | "next" | "previous" | "back" | "togglePause";
+export type DiscreteAction = (typeof DISCRETE_ACTIONS)[number];
 
 /** The phaseful action: press begins advancement, release selects. */
 export type ScanAction = "scan";
@@ -90,30 +105,28 @@ export type NormalizedSwitch =
       readonly ignoreRepeatMs: number;
     };
 
-function fail(message: string): never {
-  throw new RangeError(`[switch-scanning] ${message}`);
-}
-
-function assertNonNegative(value: number, name: string): void {
-  if (!Number.isFinite(value) || value < 0) {
-    fail(`${name} must be a finite number >= 0 (received ${value})`);
-  }
-}
-
-function assertPositive(value: number, name: string): void {
-  if (!Number.isFinite(value) || value <= 0) {
-    fail(`${name} must be a finite number greater than 0 (received ${value})`);
-  }
-}
-
 function isDiscreteAction(action: unknown): action is DiscreteAction {
-  return (
-    action === "select" ||
-    action === "next" ||
-    action === "previous" ||
-    action === "back" ||
-    action === "togglePause"
+  return (DISCRETE_ACTIONS as readonly unknown[]).includes(action);
+}
+
+/** Reads and validates the timing fields common to every switch shape. */
+function resolveTiming(
+  candidate: Record<string, unknown>,
+  id: string,
+): { holdDurationMs: number; ignoreRepeatMs: number } {
+  const holdDurationMs = readOptionalNumber(
+    candidate,
+    "holdDurationMs",
+    `switch "${id}": holdDurationMs`,
   );
+  const ignoreRepeatMs = readOptionalNumber(
+    candidate,
+    "ignoreRepeatMs",
+    `switch "${id}": ignoreRepeatMs`,
+  );
+  assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
+  assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
+  return { holdDurationMs, ignoreRepeatMs };
 }
 
 export function normalizeSwitch(
@@ -145,23 +158,20 @@ export function normalizeSwitch(
     if (!isDiscreteAction(holdCandidate.action)) {
       fail(`switch "${id}": hold.action must be a discrete action`);
     }
-    assertPositive(
-      holdCandidate.afterMs as number,
+    const holdAfterMs = readNumber(
+      holdCandidate,
+      "afterMs",
       `switch "${id}": hold.afterMs`,
     );
-    const holdDurationMs =
-      (candidate.holdDurationMs as number | undefined) ?? 0;
-    const ignoreRepeatMs =
-      (candidate.ignoreRepeatMs as number | undefined) ?? 0;
-    assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
-    assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
-    if (holdDurationMs >= (holdCandidate.afterMs as number)) {
+    assertPositive(holdAfterMs, `switch "${id}": hold.afterMs`);
+    const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, id);
+    if (holdDurationMs >= holdAfterMs) {
       fail(`switch "${id}": holdDurationMs must be less than hold.afterMs`);
     }
     return {
       type: "tapHold",
       tap: candidate.tap,
-      holdAfterMs: holdCandidate.afterMs as number,
+      holdAfterMs,
       holdAction: holdCandidate.action,
       holdDurationMs,
       ignoreRepeatMs,
@@ -172,12 +182,7 @@ export function normalizeSwitch(
     if ((def as { performOn?: unknown }).performOn !== undefined) {
       fail(`switch "${id}": a "scan" definition cannot specify performOn`);
     }
-    const holdDurationMs =
-      (candidate.holdDurationMs as number | undefined) ?? 0;
-    const ignoreRepeatMs =
-      (candidate.ignoreRepeatMs as number | undefined) ?? 0;
-    assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
-    assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
+    const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, id);
     return { type: "scan", holdDurationMs, ignoreRepeatMs };
   }
 
@@ -189,10 +194,7 @@ export function normalizeSwitch(
   if (performOn !== "press" && performOn !== "release") {
     fail(`switch "${id}": performOn must be "press" or "release"`);
   }
-  const holdDurationMs = (candidate.holdDurationMs as number | undefined) ?? 0;
-  const ignoreRepeatMs = (candidate.ignoreRepeatMs as number | undefined) ?? 0;
-  assertNonNegative(holdDurationMs, `switch "${id}": holdDurationMs`);
-  assertNonNegative(ignoreRepeatMs, `switch "${id}": ignoreRepeatMs`);
+  const { holdDurationMs, ignoreRepeatMs } = resolveTiming(candidate, id);
   return {
     type: "discrete",
     action: candidate.action,

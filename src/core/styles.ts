@@ -4,6 +4,13 @@
  * misconfigured access method fail at creation rather than mid-session.
  */
 
+import {
+  assertNonNegative,
+  assertPositive,
+  fail,
+  readNumber,
+} from "./validate.ts";
+
 /** How many passes a timed scope makes before completing. */
 export type LoopLimit = number | "infinite";
 
@@ -82,22 +89,6 @@ export interface InverseScanOptions {
   intervalMs: number;
   loops: LoopLimit;
   firstItemPauseMs?: number;
-}
-
-function fail(message: string): never {
-  throw new RangeError(`[switch-scanning] ${message}`);
-}
-
-function assertPositive(value: number, name: string): void {
-  if (!Number.isFinite(value) || value <= 0) {
-    fail(`${name} must be a finite number greater than 0 (received ${value})`);
-  }
-}
-
-function assertNonNegative(value: number, name: string): void {
-  if (!Number.isFinite(value) || value < 0) {
-    fail(`${name} must be a finite number >= 0 (received ${value})`);
-  }
 }
 
 function assertSuspensionPolicy(
@@ -190,14 +181,17 @@ export function assertScanStyle(style: unknown): asserts style is ScanStyle {
   const candidate = style as Record<string, unknown>;
   switch (candidate.kind) {
     case "auto":
-      assertPositive(candidate.intervalMs as number, "intervalMs");
+      assertPositive(
+        readNumber(candidate, "intervalMs", "intervalMs"),
+        "intervalMs",
+      );
       assertLoops(candidate.loops as LoopLimit);
       assertNonNegative(
-        candidate.firstItemPauseMs as number,
+        readNumber(candidate, "firstItemPauseMs", "firstItemPauseMs"),
         "firstItemPauseMs",
       );
       assertNonNegative(
-        candidate.transitionTimeMs as number,
+        readNumber(candidate, "transitionTimeMs", "transitionTimeMs"),
         "transitionTimeMs",
       );
       return;
@@ -208,19 +202,31 @@ export function assertScanStyle(style: unknown): asserts style is ScanStyle {
         fail("step style repeat must be false or an object");
       }
       const repeatOptions = repeat as Record<string, unknown>;
-      assertNonNegative(repeatOptions.delayMs as number, "repeat.delayMs");
-      assertPositive(repeatOptions.intervalMs as number, "repeat.intervalMs");
+      assertNonNegative(
+        readNumber(repeatOptions, "delayMs", "repeat.delayMs"),
+        "repeat.delayMs",
+      );
+      assertPositive(
+        readNumber(repeatOptions, "intervalMs", "repeat.intervalMs"),
+        "repeat.intervalMs",
+      );
       return;
     }
     case "singleStep":
-      assertPositive(candidate.dwellTimeMs as number, "dwellTimeMs");
+      assertPositive(
+        readNumber(candidate, "dwellTimeMs", "dwellTimeMs"),
+        "dwellTimeMs",
+      );
       assertSuspensionPolicy(candidate.suspensionPolicy ?? "disarm");
       return;
     case "inverse":
-      assertPositive(candidate.intervalMs as number, "intervalMs");
+      assertPositive(
+        readNumber(candidate, "intervalMs", "intervalMs"),
+        "intervalMs",
+      );
       assertLoops(candidate.loops as LoopLimit);
       assertNonNegative(
-        candidate.firstItemPauseMs as number,
+        readNumber(candidate, "firstItemPauseMs", "firstItemPauseMs"),
         "firstItemPauseMs",
       );
       return;
