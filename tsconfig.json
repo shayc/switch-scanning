@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+
+    "types": ["vitest/globals", "node"],
+
+    "paths": {
+      "@shayc/switch-scanning/react/advanced": [
+        "./src/react/advanced/index.ts"
+      ],
+      "@shayc/switch-scanning/react": ["./src/react/index.ts"],
+      "@shayc/switch-scanning/core/testing": ["./src/core/testing/index.ts"],
+      "@shayc/switch-scanning": ["./src/index.ts"]
+    }
+  },
+  "include": [
+    "src",
+    "demo",
+    "examples",
+    "e2e",
+    "playwright.config.ts",
+    "scripts",
+    "vite.config.ts",
+    "vite.demo.config.ts",
+    "vitest.config.ts"
+  ]
+}

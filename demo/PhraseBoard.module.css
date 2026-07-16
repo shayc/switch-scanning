@@ -1,0 +1,32 @@
+.boardPanel {
+  width: min(100%, 48rem);
+  margin: auto;
+}
+
+.messageBar {
+  min-height: 3.65rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.key {
+  min-height: 4.3rem;
+}
+
+.keyLabel {
+  white-space: normal;
+}
+
+.keyClear {
+  height: auto;
+  align-self: stretch;
+}
+
+@media (max-width: 40rem) {
+  .key {
+    min-height: 3.7rem;
+    padding-inline: 0.25rem;
+    font-size: var(--mantine-font-size-xs);
+  }
+}
