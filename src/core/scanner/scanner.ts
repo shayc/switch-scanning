@@ -777,6 +777,18 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
     }
   }
 
+  /**
+   * Every scope's candidate list has the exit policy baked into it, so a
+   * `groupExit` change staled them all. Reconciliation is the rebuild: it is
+   * the only path that reapplies the policy to each live frame and repairs the
+   * parent indices a scope exit restores. Kept silent, because the caller lands
+   * the cursor itself — the intermediate repair must not present or re-time.
+   */
+  function rebuildScopesIfExitPolicyChanged(changed: boolean): void {
+    if (!changed) return;
+    applySessionEffects(session.reconcile(), SILENT);
+  }
+
   function applyOptions(normalized: NormalizedOptions): void {
     const previous = options;
     options = normalized;
@@ -802,6 +814,8 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
+    const groupExitChanged = previous.groupExit !== options.groupExit;
+
     if (previous.method.kind !== options.method.kind) {
       const wasPaused = status === "paused";
       const hadTransition = transition !== null;
@@ -813,9 +827,11 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
         // publish a position that disagrees with that highlight. Defer the reset
         // to resume, which re-presents the new method at the start of the scope.
         pendingScopeReset = true;
+        rebuildScopesIfExitPolicyChanged(groupExitChanged);
         return;
       }
       status = "scanning";
+      rebuildScopesIfExitPolicyChanged(groupExitChanged);
       applySessionEffects(session.resetCurrentScope(), {
         present: true,
         armDwell: false,
@@ -823,7 +839,7 @@ export function createScanner(rawOptions: ScannerOptions): Scanner {
       return;
     }
 
-    if (previous.groupExit !== options.groupExit) {
+    if (groupExitChanged) {
       reconcile();
       return;
     }

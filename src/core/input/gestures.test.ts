@@ -238,6 +238,58 @@ describe("ignore repeat", () => {
     });
   });
 
+  it("re-anchors the window at the release edge of a long-held contact", () => {
+    const { clock, scanner } = createTestScanner(
+      {
+        method: stepScan(),
+        switches: { next: { action: "next", ignoreRepeatMs: 200 } },
+      },
+      ABC,
+    );
+    scanner.start();
+
+    // A hold far longer than the window fully consumes it while still down.
+    scanner.input.press("next");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "b" });
+    clock.advanceBy(1_000);
+    scanner.input.release("next");
+
+    // Bounce on the release edge must not read as a second actuation.
+    clock.advanceBy(10);
+    scanner.input.press("next");
+    scanner.input.release("next");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "b" });
+
+    // The window still opens once it elapses from that release edge.
+    clock.advanceBy(200);
+    scanner.input.press("next");
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "c" });
+  });
+
+  it("rejects a release-edge bounce after a held inverse advancement", () => {
+    const { clock, scanner, fixture } = createTestScanner(
+      {
+        method: inverseScan({ intervalMs: 400, passes: "infinite" }),
+        switches: { primary: { action: "scan", ignoreRepeatMs: 200 } },
+      },
+      YES_NO,
+    );
+    scanner.start();
+
+    // Held advancement outlives the window; release selects.
+    scanner.input.press("primary");
+    clock.advanceBy(400);
+    scanner.input.release("primary");
+    expect(fixture.activations).toEqual(["no"]);
+
+    // A bounce here would otherwise re-open and re-close the scan phase,
+    // selecting a second time from one physical actuation.
+    clock.advanceBy(10);
+    scanner.input.press("primary");
+    scanner.input.release("primary");
+    expect(fixture.activations).toEqual(["no"]);
+  });
+
   it("consumes a tap/hold gesture when its hold edge is repeat-blocked", () => {
     const { clock, scanner } = createTestScanner(
       {

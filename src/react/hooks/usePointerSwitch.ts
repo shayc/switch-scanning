@@ -40,22 +40,26 @@ export function usePointerSwitch(
   const activePointers = useRef(new Set<number>());
   const pressedSwitch = useRef<string | null>(null);
   const pointerConnected = useRef(false);
-  const pressedKey = useRef<{
-    code: string;
-    switchId: string;
-    connected: boolean;
-  } | null>(null);
+  // Keyed by `KeyboardEvent.code`, because quarantine is per physical key: an
+  // entry survives a synthetic disconnect (`connected: false`) until that key's
+  // real key-up arrives (SS-18), and must not hold the surface's other
+  // fallback key down with it.
+  const heldKeys = useRef(
+    new Map<string, { switchId: string; connected: boolean }>(),
+  );
 
   const disconnectAll = useCallback((): void => {
     if (pointerConnected.current) {
       scanner.input.disconnect(sourceId);
       pointerConnected.current = false;
     }
-    const key = pressedKey.current;
-    if (key?.connected) {
-      scanner.input.disconnect(keyboardSourceId);
-      pressedKey.current = { ...key, connected: false };
+    let hadConnected = false;
+    for (const entry of heldKeys.current.values()) {
+      if (!entry.connected) continue;
+      entry.connected = false;
+      hadConnected = true;
     }
+    if (hadConnected) scanner.input.disconnect(keyboardSourceId);
   }, [keyboardSourceId, scanner, sourceId]);
 
   // Blur / tab-hidden are environment suspensions: drop held contacts and
@@ -135,20 +139,24 @@ export function usePointerSwitch(
         // bare Space/Enter fallback cannot swallow OS/browser shortcuts.
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         event.preventDefault();
-        if (event.repeat || pressedKey.current !== null) return;
+        if (event.repeat) return;
+        const keys = heldKeys.current;
+        // A tracked key stays claimed but never re-opens a press: it is either
+        // still down, or quarantined after a synthetic disconnect, and only its
+        // real key-up may clear it.
+        if (keys.has(event.code)) return;
+        // Only a live contact reserves this surface's single switch. A
+        // quarantined key must not wedge the other fallback key with it.
+        for (const entry of keys.values()) if (entry.connected) return;
         const switchId = optionsRef.current.switchId;
-        pressedKey.current = {
-          code: event.code,
-          switchId,
-          connected: true,
-        };
+        keys.set(event.code, { switchId, connected: true });
         scanner.input.press(switchId, keyboardSourceId);
       };
       const onKeyUp = (event: KeyboardEvent): void => {
-        const pressed = pressedKey.current;
-        if (!pressed || event.code !== pressed.code) return;
+        const pressed = heldKeys.current.get(event.code);
+        if (!pressed) return;
         event.preventDefault();
-        pressedKey.current = null;
+        heldKeys.current.delete(event.code);
         if (pressed.connected) {
           scanner.input.release(pressed.switchId, keyboardSourceId);
         }

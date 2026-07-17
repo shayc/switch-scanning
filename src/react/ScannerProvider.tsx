@@ -33,11 +33,15 @@ export function ScannerProvider({
     const attachment = scanner.attachHost(host);
     if (!attachment.attached) return () => attachment.detach();
     const detachRegistry = registry.attach(scanner);
+    // An element replaced under a stable id changes no ids or labels, so the
+    // scanner never re-reveals; the host has to re-decorate from the registry.
+    const stopElementWatch = registry.observeElements(() => host.refresh());
     // Publish the initial tree synchronously so a mount-start rule can fire.
     registry.flush();
 
     return () => {
       scanner.stop();
+      stopElementWatch();
       detachRegistry();
       attachment.detach();
     };

@@ -64,6 +64,8 @@ interface SourceState {
   holdFired: boolean;
   scanAccepted: boolean;
   heldDiscrete: boolean;
+  /** This contact passed the repeat filter, so its end re-anchors the window. */
+  accepted: boolean;
   startedIn: GestureStartState;
 }
 
@@ -98,6 +100,22 @@ export function createGestureEngine(deps: {
     return `${switchId}\0${sourceId}`;
   }
 
+  // Open or extend a switch's repeat-suppression window. The window never
+  // shrinks, so it always spans `ignoreRepeatMs` past the most recent edge that
+  // could bounce.
+  function openRepeatWindow(
+    switchId: string,
+    def: NormalizedSwitch,
+    now: number,
+  ): void {
+    if (def.ignoreRepeatMs <= 0) return;
+    const until = now + def.ignoreRepeatMs;
+    const existing = blockedUntil.get(switchId);
+    if (existing === undefined || until > existing) {
+      blockedUntil.set(switchId, until);
+    }
+  }
+
   function tryAccept(switchId: string, def: NormalizedSwitch): boolean {
     const now = clock.now();
     const until = blockedUntil.get(switchId);
@@ -106,9 +124,7 @@ export function createGestureEngine(deps: {
     // even when the scanner later ignores the semantic action for its captured
     // lifecycle state. This prevents the same physical bounce from becoming a
     // fresh command immediately after a pause/resume or other state change.
-    if (def.ignoreRepeatMs > 0) {
-      blockedUntil.set(switchId, now + def.ignoreRepeatMs);
-    }
+    openRepeatWindow(switchId, def, now);
     return true;
   }
 
@@ -168,6 +184,7 @@ export function createGestureEngine(deps: {
       holdFired: false,
       scanAccepted: false,
       heldDiscrete: false,
+      accepted: false,
       startedIn: deps.getStartState(),
     };
     sources.set(sourceKey, state);
@@ -192,6 +209,7 @@ export function createGestureEngine(deps: {
           if (tryAccept(state.switchId, def)) {
             state.holdFired = true;
             state.heldDiscrete = true;
+            state.accepted = true;
             sink.holdRecognized(def.holdAction, contextOf(state));
             sink.discreteAction(def.holdAction, {
               ...contextOf(state),
@@ -212,6 +230,7 @@ export function createGestureEngine(deps: {
     if (def.type !== "discrete") return;
     if (!tryAccept(state.switchId, def)) return;
     state.heldDiscrete = true;
+    state.accepted = true;
     if (def.holdDurationMs > 0) {
       sink.holdRecognized(def.action, contextOf(state));
     }
@@ -226,6 +245,7 @@ export function createGestureEngine(deps: {
     if (def.type !== "scan") return;
     if (!tryAccept(state.switchId, def)) return;
     state.scanAccepted = true;
+    state.accepted = true;
     if (def.holdDurationMs > 0) {
       sink.holdRecognized("scan", contextOf(state));
     }
@@ -250,6 +270,7 @@ export function createGestureEngine(deps: {
       case "discrete": {
         if (def.performOn === "release") {
           if (heldFor >= def.holdDurationMs && tryAccept(state.switchId, def)) {
+            state.accepted = true;
             sink.discreteAction(def.action, {
               ...contextOf(state),
               heldPress: false,
@@ -258,28 +279,36 @@ export function createGestureEngine(deps: {
         } else if (state.heldDiscrete) {
           sink.pressReleased(contextOf(state));
         }
-        return;
+        break;
       }
       case "scan": {
         if (state.scanAccepted) {
           sink.scanRelease(contextOf(state));
         }
-        return;
+        break;
       }
       case "tapHold": {
         if (state.holdFired) {
           if (state.heldDiscrete) sink.pressReleased(contextOf(state));
-          return; // hold already consumed the gesture
+          break; // hold already consumed the gesture
         }
         if (heldFor >= def.holdDurationMs && tryAccept(state.switchId, def)) {
+          state.accepted = true;
           sink.discreteAction(def.tap, {
             ...contextOf(state),
             heldPress: false,
           });
         }
-        return;
+        break;
       }
     }
+
+    // Contact chatter lands on both edges of one physical actuation, so a
+    // recognized contact re-anchors its window at release. Anchoring only at
+    // recognition would leave any hold longer than `ignoreRepeatMs` — routine
+    // for held-step repeat and inverse advancement — to release into an
+    // already-expired window, where a bounce reads as a second actuation.
+    if (state.accepted) openRepeatWindow(state.switchId, def, now);
   }
 
   function disconnect(sourceId: string | undefined): void {

@@ -52,6 +52,8 @@ export class ScanRegistry {
   private publishedScanner: Scanner | null = null;
   private publishedTreeSignature: string | null = null;
   private dirty = false;
+  private elementsDirty = false;
+  private elementObserver: (() => void) | null = null;
   private flushScheduled = false;
   private readonly warnOnce = createDiagnosticWarner();
   private readonly pendingDiagnostics: Array<{
@@ -99,7 +101,7 @@ export class ScanRegistry {
     }
     const entry: RegistryTargetEntry = { id, getOptions, element };
     this.targets.set(id, entry);
-    this.markDirty();
+    this.markElementsDirty();
     return () => {
       if (this.targets.get(id) !== entry) return;
       this.unmountTarget(id);
@@ -108,7 +110,7 @@ export class ScanRegistry {
 
   unmountTarget(id: string): void {
     this.targets.delete(id);
-    this.markDirty();
+    this.markElementsDirty();
   }
 
   touchTarget(): void {
@@ -180,7 +182,7 @@ export class ScanRegistry {
     this.groups.set(id, entry);
     if (!isDevelopment()) this.repairParentCycles();
     if (element) this.groupElements.set(element, id);
-    this.markDirty();
+    this.markElementsDirty();
     return () => {
       if (this.groups.get(id) !== entry) return;
       this.unmountGroup(id);
@@ -192,7 +194,7 @@ export class ScanRegistry {
     if (existing?.element) this.groupElements.delete(existing.element);
     this.groups.delete(id);
     if (!isDevelopment()) this.repairParentCycles();
-    this.markDirty();
+    this.markElementsDirty();
   }
 
   touchGroup(): void {
@@ -200,6 +202,22 @@ export class ScanRegistry {
     if (cycle && isDevelopment()) this.reportParentCycle(cycle);
     if (!isDevelopment()) this.repairParentCycles();
     this.markDirty();
+  }
+
+  /**
+   * Observe element (re)binding, coalesced onto the publish microtask. A host
+   * that decorates elements imperatively needs this: the compiled tree carries
+   * ids and labels only, so replacing the element behind a stable id (a
+   * conditional render, a `key` change) publishes an identical tree and the
+   * host would keep decorating the detached node.
+   */
+  observeElements(onElementsChanged: () => void): Detach {
+    this.elementObserver = onElementsChanged;
+    return () => {
+      if (this.elementObserver === onElementsChanged) {
+        this.elementObserver = null;
+      }
+    };
   }
 
   markDirty(): void {
@@ -210,6 +228,11 @@ export class ScanRegistry {
       this.flushScheduled = false;
       if (this.dirty) this.flush();
     });
+  }
+
+  private markElementsDirty(): void {
+    this.elementsDirty = true;
+    this.markDirty();
   }
 
   /** Rebuild and publish the tree synchronously. */
@@ -228,14 +251,20 @@ export class ScanRegistry {
     );
     const signature = JSON.stringify(tree);
     if (
-      this.publishedScanner === scanner &&
-      this.publishedTreeSignature === signature
+      this.publishedScanner !== scanner ||
+      this.publishedTreeSignature !== signature
     ) {
-      return;
+      scanner.setTree(tree);
+      this.publishedScanner = scanner;
+      this.publishedTreeSignature = signature;
     }
-    scanner.setTree(tree);
-    this.publishedScanner = scanner;
-    this.publishedTreeSignature = signature;
+    // After the tree settles, because publishing may itself move the highlight.
+    // This runs even when the signature was unchanged: that is exactly the case
+    // where an element was swapped under a stable id and nothing else moved.
+    if (this.elementsDirty) {
+      this.elementsDirty = false;
+      this.elementObserver?.();
+    }
   }
 
   /**

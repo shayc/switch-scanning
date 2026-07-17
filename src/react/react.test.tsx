@@ -106,6 +106,60 @@ describe("imperative driving", () => {
     expect(view.getByText("No").getAttribute("data-scan-highlighted")).toBe("");
   });
 
+  it("re-decorates a highlighted target whose element is replaced", async () => {
+    const clock = manualClock();
+    let scanner!: ReturnType<typeof useOwnedScanner>;
+
+    function SwappableTarget({ alt }: { alt: boolean }) {
+      const target = useScanTarget({ id: "yes", label: "Yes" });
+      return alt ? (
+        <input {...target} readOnly value="Yes" data-testid="swapped" />
+      ) : (
+        <button {...target} data-testid="initial">
+          Yes
+        </button>
+      );
+    }
+
+    function App({ alt }: { alt: boolean }) {
+      const current = useOwnedScanner({
+        method: stepScan(),
+        startOn: "manual",
+        clock,
+      });
+      useEffect(() => {
+        scanner = current;
+      }, [current]);
+      return (
+        <ScannerProvider scanner={current}>
+          <SwappableTarget alt={alt} />
+          <TargetButton id="no" label="No" />
+        </ScannerProvider>
+      );
+    }
+
+    const view = render(<App alt={false} />);
+    await flushMicrotasks();
+    act(() => scanner.start());
+    expect(
+      view.getByTestId("initial").getAttribute("data-scan-highlighted"),
+    ).toBe("");
+
+    // Swapping the element behind a stable id changes no id or label, so the
+    // republished tree is identical and the scanner reveals nothing. Step
+    // scanning never advances on its own, so without re-decoration the user
+    // would lose the highlight indefinitely.
+    view.rerender(<App alt />);
+    await flushMicrotasks();
+
+    expect(
+      view.getByTestId("swapped").getAttribute("data-scan-highlighted"),
+    ).toBe("");
+    expect(document.querySelectorAll("[data-scan-highlighted]")).toHaveLength(
+      1,
+    );
+  });
+
   it("derives group structure from DOM containment and exposes an exit", async () => {
     const clock = manualClock();
     let scanner!: ReturnType<typeof useOwnedScanner>;

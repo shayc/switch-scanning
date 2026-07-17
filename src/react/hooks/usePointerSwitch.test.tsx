@@ -209,6 +209,60 @@ describe("pointer switch surface", () => {
     expect(scanner.getSnapshot().highlight).toMatchObject({ id: "c" });
   });
 
+  it("does not let a quarantined key wedge the other fallback key", () => {
+    const scanner = createScanner({
+      method: stepScan(),
+      startOn: "manual",
+      switches: { next: { action: "next" } },
+    });
+    createScannerFixture(scanner, [
+      { kind: "target", id: "a", label: "A" },
+      { kind: "target", id: "b", label: "B" },
+      { kind: "target", id: "c", label: "C" },
+    ]);
+    function Surface() {
+      const binding = usePointerSwitch(scanner, { switchId: "next" });
+      return <button {...binding}>Switch</button>;
+    }
+    const surface = render(<Surface />).getByText("Switch");
+    act(() => scanner.start());
+
+    const key = (type: "keydown" | "keyup", code: string) =>
+      new KeyboardEvent(type, {
+        code,
+        key: code,
+        bubbles: true,
+        cancelable: true,
+      });
+
+    act(() => {
+      surface.dispatchEvent(key("keydown", "Space"));
+    });
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "b" });
+
+    // Blur disconnects the held Space. Its key-up is delivered to whatever took
+    // focus, never to this document, so Space stays quarantined indefinitely.
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+
+    // Enter is a different physical key: the stale Space must not swallow it.
+    act(() => {
+      surface.dispatchEvent(key("keydown", "Enter"));
+    });
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "c" });
+    act(() => {
+      surface.dispatchEvent(key("keyup", "Enter"));
+    });
+
+    // Space's real key-up clears the quarantine without a spurious release.
+    act(() => {
+      surface.dispatchEvent(key("keyup", "Space"));
+      surface.dispatchEvent(key("keydown", "Space"));
+    });
+    expect(scanner.getSnapshot().highlight).toMatchObject({ id: "a" });
+  });
+
   it("does not wedge the next element when a contact is held across an element swap", () => {
     const scanner = createScanner({
       method: stepScan(),
