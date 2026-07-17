@@ -1,6 +1,6 @@
 {
   "name": "@shayc/switch-scanning",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A small, serious switch-scanning library: a framework-agnostic scanning engine with React bindings.",
   "type": "module",
   "engines": {
