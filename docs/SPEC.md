@@ -121,8 +121,9 @@ ignored, configurable per switch.
 
 **SS-3 (repeat suppression and selection delay).** Two distinct controls:
 `ignoreRepeatMs` — a fixed per-logical-switch suppression window opened at
-gesture **recognition**, regardless of whether the scanner dispatches the
-action — filters switch bounce; `selectionDelay` — a scanner-level
+gesture **recognition** and re-anchored when the recognized contact ends,
+regardless of whether the scanner dispatches the action — filters switch bounce
+on both edges of one physical actuation; `selectionDelay` — a scanner-level
 post-selection quiet window whose deadline can reset on newly begun
 declared-switch input — protects the next selection.
 
@@ -375,7 +376,11 @@ recognition.
   the hold did not — mutually exclusive, and a repeat-blocked hold still
   consumes the gesture.
 - `ignoreRepeatMs` opens at gesture **recognition** and is keyed per logical
-  switch — even when the lifecycle state does not dispatch the action.
+  switch — even when the lifecycle state does not dispatch the action. It
+  re-anchors when a recognized contact **ends** and never shrinks, so it always
+  spans `ignoreRepeatMs` past the last edge that can bounce: a hold longer than
+  the window still protects its own release. A gesture the repeat filter
+  rejected never re-anchors — only recognized contacts do.
 - Each `(switch, source)` pair tracks its own contact; duplicate press signals
   for a held source are ignored. For the phaseful inverse-advancement gesture,
   the logical switch opens on the first source press and closes on the

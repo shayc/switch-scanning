@@ -10,6 +10,17 @@ const ATTR_WITHIN = "data-scan-within";
 const ATTR_EXIT_HIGHLIGHTED = "data-scan-exit-highlighted";
 const ATTR_EXIT_LABEL = "data-scan-exit-label";
 
+/** The default DOM host, plus the re-decoration hook the registry drives. */
+export interface DomHost extends ScannerHost {
+  /**
+   * Re-apply presentation for the current highlight. The registry calls this
+   * when an element is (re)bound, because the scanner cannot: the compiled tree
+   * carries ids and labels only, so an element swapped under a stable id
+   * produces no highlight change to reveal.
+   */
+  refresh(): void;
+}
+
 /**
  * The default DOM host. It activates a target through its native action path
  * (the element's own `click()`, or a custom `activate` callback) and writes
@@ -19,9 +30,10 @@ const ATTR_EXIT_LABEL = "data-scan-exit-label";
 export function createDomHost(
   registry: ScanRegistry,
   exitLabelFor: (groupId: string) => string,
-): ScannerHost {
+): DomHost {
   // Elements we decorated last reveal, so we can clear them precisely.
   const decorated = new Set<HTMLElement>();
+  let current: Highlight = null;
 
   function clearDecorations(): void {
     for (const el of decorated) {
@@ -39,6 +51,7 @@ export function createDomHost(
   }
 
   function reveal(highlight: Highlight): void {
+    current = highlight;
     clearDecorations();
     if (!highlight) return;
 
@@ -69,7 +82,10 @@ export function createDomHost(
     }
   }
 
-  const host: ScannerHost = {
+  const host: DomHost = {
+    refresh() {
+      reveal(current);
+    },
     activate(targetId: string): ActivationResult {
       const entry = registry.getTarget(targetId);
       if (!entry) return { activated: false, reason: "target not registered" };

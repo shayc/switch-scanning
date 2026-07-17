@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stepScan } from "../methods/methods.ts";
+import { autoScan, stepScan } from "../methods/methods.ts";
 import { createTestScanner } from "../testing/index.ts";
 import type { ScanNode } from "../types.ts";
 
@@ -21,6 +21,41 @@ describe("groups and exits", () => {
     },
     { kind: "target", id: "c", label: "C" },
   ];
+
+  it("rebuilds entered scopes when one update changes method kind and groupExit", () => {
+    const { scanner } = createTestScanner(
+      {
+        method: autoScan({ intervalMs: 100, passes: "infinite" }),
+        groupExit: "after",
+        switches: { back: { action: "back" } },
+      },
+      tree,
+    );
+    scanner.start();
+    scanner.select();
+    expect(scanner.getSnapshot().position).toEqual({ index: 0, count: 3 });
+
+    // The method-kind change resets the scope; the exit policy change must
+    // still rebuild the candidates that reset lands in.
+    scanner.setOptions({
+      method: stepScan(),
+      groupExit: "back-only",
+      switches: { back: { action: "back" } },
+    });
+    expect(scanner.getSnapshot().position).toEqual({ index: 0, count: 2 });
+
+    // "back-only" forbids the exit candidate, so traversal wraps a -> b -> a.
+    scanner.next();
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "b",
+    });
+    scanner.next();
+    expect(scanner.getSnapshot().highlight).toEqual({
+      kind: "target",
+      id: "a",
+    });
+  });
 
   it("enters a group, exposes an exit after its children, and leaves via exit", () => {
     const { scanner, events } = createTestScanner(
